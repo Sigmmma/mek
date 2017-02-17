@@ -1,0 +1,11 @@
+syntax: glob
+data
+tags
+notes
+Notes
+Tags
+ReclaimerLib Archive
+ripper/__pycache__/
+hboc/__pycache__/
+ripper/defs/__pycache__/
+site-packages.lnk
