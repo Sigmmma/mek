@@ -1,1 +1,0 @@
-If you are having trouble running this and loading tags because of permission issues, give the file "Mozzarilla(bat file to run as admin)" a .bat extension and run it as an admin. This is the only fix I can come up with for now.
