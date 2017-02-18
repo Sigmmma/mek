@@ -9,8 +9,8 @@ from traceback import format_exc
 from supyr_struct.field_types import FieldType
 from supyr_struct.defs.constants import fcc, PATHDIV
 from supyr_struct.defs.block_def import BlockDef
-from reclaimer.halo.hek.defs.antr import antr_def
-from reclaimer.halo.constants import PC_TAG_INDEX_HEADER_SIZE, XBOX_TAG_INDEX_HEADER_SIZE
+from reclaimer.hek.defs.antr import antr_def
+from reclaimer.constants import PC_TAG_INDEX_HEADER_SIZE, XBOX_TAG_INDEX_HEADER_SIZE
 
 force_little = FieldType.force_little
 force_normal = FieldType.force_normal

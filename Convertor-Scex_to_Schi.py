@@ -1,9 +1,9 @@
 import os
 
 from traceback import format_exc
-from reclaimer.halo.hek.handler import HaloHandler
-from reclaimer.halo.hek.defs.schi import schi_def
-from reclaimer.halo.hek.defs.scex import scex_def
+from reclaimer.hek.handler import HaloHandler
+from reclaimer.hek.defs.schi import schi_def
+from reclaimer.hek.defs.scex import scex_def
 from supyr_struct.field_types import Void
 
 class ShaderRectifier(HaloHandler):

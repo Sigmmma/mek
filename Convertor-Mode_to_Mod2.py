@@ -10,8 +10,8 @@ from traceback import format_exc
 from supyr_struct.field_types import FieldType, BytearrayRaw
 from supyr_struct.defs.constants import fcc, PATHDIV
 from supyr_struct.defs.block_def import BlockDef
-from reclaimer.halo.hek.defs.mod2 import mod2_def
-from reclaimer.halo.stubbs.defs.mode import mode_def
+from reclaimer.hek.defs.mod2 import mod2_def
+from reclaimer.stubbs.defs.mode import mode_def
 
 def undef_size(node, *a, **kwa):
     if node is None:

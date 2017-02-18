@@ -9,7 +9,7 @@ from traceback import format_exc
 
 from supyr_struct.defs.constants import PATHDIV, MOST_SHOW
 from supyr_struct.defs.block_def import BlockDef
-from reclaimer.halo.hek.defs.antr import antr_def
+from reclaimer.hek.defs.antr import antr_def
 
 PATHDIV = PATHDIV
 curr_dir = os.path.abspath(os.curdir) + PATHDIV
