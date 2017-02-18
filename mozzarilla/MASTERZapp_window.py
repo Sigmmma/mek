@@ -7,19 +7,19 @@ from time import time
 from threading import Thread
 from traceback import format_exc
 
-from reclaimer.halo.constants import *
+from reclaimer.constants import *
 
 # before we do anything, we need to inject these constants so any definitions
 # that are built that use them will have them in their descriptor entries.
 inject_halo_constants()
 
 from binilla.app_window import *
-from reclaimer.halo.hek.handler import HaloHandler
-from reclaimer.halo.meta.handler import MapLoader
-from reclaimer.halo.os_v3_hek.handler import OsV3HaloHandler
-from reclaimer.halo.os_v4_hek.handler import OsV4HaloHandler
-from reclaimer.halo.misc.handler import MiscHaloLoader
-from reclaimer.halo.stubbs.handler import StubbsHandler
+from reclaimer.hek.handler import HaloHandler
+from reclaimer.meta.handler import MapLoader
+from reclaimer.os_v3_hek.handler import OsV3HaloHandler
+from reclaimer.os_v4_hek.handler import OsV4HaloHandler
+from reclaimer.misc.handler import MiscHaloLoader
+from reclaimer.stubbs.handler import StubbsHandler
 from .config_def import config_def, guerilla_workspace_def
 from .widget_picker import *
 from .tag_window import HaloTagWindow

@@ -10,7 +10,7 @@ from binilla import editor_constants
 from binilla.field_widgets import *
 from binilla.widgets import *
 
-from reclaimer.halo.constants import *
+from reclaimer.constants import *
 
 class DependencyFrame(ContainerFrame):
 

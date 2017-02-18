@@ -4,7 +4,7 @@ from traceback import format_exc
 RED_FILL = b'\x00\x00\xff\x00'
 
 try:
-    from reclaimer.halo.hek.handler import HaloHandler
+    from reclaimer.hek.handler import HaloHandler
     from supyr_struct import buffer
     from supyr_struct.defs.bitmaps.tga import tga_def
 

@@ -2,7 +2,7 @@ from os.path import dirname
 from string import digits, ascii_letters
 from traceback import format_exc
 
-from reclaimer.halo.hek.handler import HaloHandler
+from reclaimer.hek.handler import HaloHandler
 from binilla.handler import Handler
 from supyr_struct.tag import Tag
 

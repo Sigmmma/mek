@@ -5,7 +5,7 @@ from os.path import dirname
 from tkinter import *
 from traceback import format_exc
 
-from reclaimer.halo.hek.programs.ripper.hash_cacher import HashCacher
+from ripper.hash_cacher import HashCacher
 
 curr_dir = dirname(__file__)
 DEF_NAME = 'enter cache name'

@@ -9,7 +9,7 @@ import tkinter.filedialog
 
 from time import time, sleep
 from os.path import basename, normpath
-from reclaimer.halo.hek.defs.objs.bitm import *
+from reclaimer.hek.defs.objs.bitm import *
 
 '''Constants that determine which index
 each of the flags are in per tag'''

@@ -2,7 +2,7 @@ from binilla import editor_constants as e_c
 from binilla.widget_picker import *
 from binilla.widgets import BinillaWidget
 from .field_widgets import *
-from reclaimer.halo.field_types import *
+from reclaimer.field_types import *
 
 e_c.TITLE_WIDTH = 28
 e_c.DEF_STRING_ENTRY_WIDTH = 30

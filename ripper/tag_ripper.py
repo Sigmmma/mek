@@ -7,8 +7,8 @@ from supyr_struct.blocks import VoidBlock
 from traceback import format_exc
 
 from .hash_cacher import HashCacher
-from reclaimer.halo.constants import *
-from reclaimer.halo.meta.handler import MapLoader
+from reclaimer.constants import *
+from reclaimer.meta.handler import MapLoader
 
 curr_dir = dirname(__file__)
 
