@@ -45,6 +45,6 @@ Troubleshooting:
 
 *    If Mozzarilla wont load or save tags, locate your python installation, find the python.exe and pythonw.exe, right click each one and set them to run as an administrator.
 
-*    If you changed config settings and now it wont load or stuff is too screwed up to use, delete the config. You can find it at reclaimer\halo\hek\programs\mozzarilla\mozzarilla.cfg
+*    If you changed config settings and now it wont load or stuff is too screwed up to use, delete the config. You can find it at mozzarilla\mozzarilla.cfg
 
 *    Cant think of anything else, but I'll add anything I can think of.
