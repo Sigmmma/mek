@@ -4,12 +4,8 @@ tags
 notes
 Notes
 Tags
-ReclaimerLib Archive
 ripper/__pycache__/
 hboc/__pycache__/
 ripper/defs/__pycache__/
-site-packages.lnk
-mozzarilla/__pycache__
-startup_crash.log
-mozzarilla.log
-mozzarilla/mozzarilla.cfg
+*.lnk
+*.log
