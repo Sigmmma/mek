@@ -1,5 +1,4 @@
-import os
-import sys
+import os, sys
 
 info = sys.version_info
 
