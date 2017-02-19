@@ -69,11 +69,6 @@ ARBYTMAP TODO:
 
 Make sure the linear size is computed correctly for DDS headers
 Finish DDS importer
-Incorporate CHANNEL_ORDER into raw packers and unpackers. use it by
-	getting which index A, R, G, and B are in and use those
-	indexes as the locations to place the unpacked channels into
-
-	not sure how I'm going to incorporate it in non raw formats(DXT)
 
 Make setting to use same palette for all mipmaps of a bitmap
 Write palettized mipmap generator.
