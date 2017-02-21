@@ -6,6 +6,10 @@ from reclaimer.hek.defs.schi import schi_def
 from reclaimer.hek.defs.scex import scex_def
 from supyr_struct.field_types import Void
 
+input("THIS WILL NOT WORK UNTIL THE CONVERSION METHODS IN THE TAG OBJECTS " +
+      "ARE UPDATED TO NOT USE set_desc")
+raise SystemExit(0)
+
 class ShaderRectifier(HaloHandler):
     # set this to "scex" to convert schi to scex, or "schi" for scex to schi
     target_id = "schi"
