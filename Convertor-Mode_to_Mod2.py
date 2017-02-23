@@ -125,7 +125,7 @@ def mode_to_mod2(mode_path):
                 tmag = max(sqrt(ti**2 + tj**2 + tk**2), 0.00000001)
 
                 # write the uncompressed data
-                pack_into('>ffffffffffffffhhff', uncomp_buffer, offset,
+                pack_into('>14f2h2f', uncomp_buffer, offset,
                           vert[0], vert[1], vert[2],
                           ni/nmag, nj/nmag, nk/nmag,
                           bi/bmag, bj/bmag, bk/bmag,
