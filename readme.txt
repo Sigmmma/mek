@@ -1,3 +1,6 @@
+Mo's Editing Kit is a collection of tools for aiding in editing the game Halo Custom Edition.
+
+
 Installation:
 
 1. Install python 3, and make sure to check(newest version is recommended)
