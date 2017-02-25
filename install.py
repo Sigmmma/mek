@@ -1,4 +1,4 @@
-import os, sys, subprocess
+import os, sys, subprocess, traceback
 
 info = sys.version_info
 
@@ -8,6 +8,14 @@ if info[0] < 3:
         "You currently have %s.%s.%s installed instead." % info[:3])
     raise SystemExit(0)
 
-exec_str = "pip install mozzarilla"
-print("executing:  %s" % exec_str)
-subprocess.call(exec_str)
+try:
+    exec_str = "pip install mozzarilla"
+    print("executing:  %s" % exec_str)
+    subprocess.call(exec_str)
+    print("executing:  python -m %s" % exec_str)
+    subprocess.call("python -m " + exec_str)
+except Exception:
+    print(traceback.format_exc())
+
+input()
+raise SystemExit(0)
