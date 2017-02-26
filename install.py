@@ -12,10 +12,14 @@ try:
     exec_str = "pip install mozzarilla"
     print("executing:  %s" % exec_str)
     subprocess.call(exec_str)
-    print("executing:  python -m %s" % exec_str)
-    subprocess.call("python -m " + exec_str)
+    input()
+    raise SystemExit(0)
 except Exception:
     print(traceback.format_exc())
-
-input()
-raise SystemExit(0)
+try:
+    print("executing:  python -m %s" % exec_str)
+    subprocess.call("python -m " + exec_str)
+    input()
+    raise SystemExit(0)
+except Exception:
+    print(traceback.format_exc())

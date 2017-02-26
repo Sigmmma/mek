@@ -13,10 +13,14 @@ for mod in ("arbytmap", "supyr_struct", "binilla", "reclaimer", "mozzarilla"):
     try:
         print("executing:  %s" % exec_str)
         subprocess.call(exec_str)
+        continue
+    except Exception:
+        print(traceback.format_exc())
+    try:
         print("executing:  python -m %s" % exec_str)
         subprocess.call("python -m " + exec_str)
     except Exception:
         print(traceback.format_exc())
 
-input()
+input("Finished")
 raise SystemExit(0)
