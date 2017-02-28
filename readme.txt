@@ -1,5 +1,47 @@
-Mo's Editing Kit is a collection of tools for aiding in editing the game Halo Custom Edition.
+This is my collection of tools I've made for editing Halo. You guys wont find all of them useful, but many of them are. This will be updated whenever I commit changes, which means you guys can check in whenever to see if something is new. Here's a quick rundown of what each thing is as of the time of me writing this:
 
+Convertor-Coll_to_Mod2:
+Converts a directory of model_collision_geometry tags into gbxmodel tags so they can be imported into 3dsmax. The converter requires that you also provide the gbxmodel that the collision goes to, otherwise it wont be able to rig anything or position the nodes. It will try to locate a gbxmodel with the same name as the collision, but if it cant it'll ask you to select it. The converted model will have the same name as the gbxmodel, but with "_COLLISION" on the end.
+
+For importing the model into max, it's best to use the gbxmodel importer that comes with the MEK(in the scripts folder) as it has some fixes and upgrades. Also, import the models with "attach parts within region" as unchecked. This way you wont get all the pieces lumped into one mesh. You'll need to weld together parts that use different materials in the same mesh, but that's fine.
+
+Convertor-Mode_to_Mod2:
+Converts a directory of xbox models to gbxmodels.
+
+Halo_Bitmap_Optimizer_&_Converter:
+You all know what this is.
+
+Halo_TeXource:
+Capable of ripping the uncompressed source textures from a directory of tags to tga files.
+
+Mozzarilla:
+The highlight of the library, Mozzarilla is essentially a replacement Guerilla with some huge improvements. Just ask Masterz! Read the readme.txt for more information.
+
+Mozzarilla(console):
+Same as the above, except it runs with a console window so you get a printout of errors if it crashes when starting up.
+
+Stubbs_Antr_Compiler:
+Capable of compiling meta data extracted from a Stubbs the Zombie map into a working animation tag.
+
+Stubbs_Mode_Compiler:
+Capable of compiling meta data extracted from a Stubbs the Zombie map into a working model tag.
+
+Stubbs_Soso_Compiler:
+Capable of compiling meta data extracted from a Stubbs the Zombie map into a working open sauce shader_model tag.
+
+These next ones you shouldnt even bother with for now. They're either unfinished or just little tests that I decided to keep around:
+
+Convertor-Scex_to_Schi:
+This one doesnt work right now due to changes I made, so dont even bother with it.
+
+Halo_Meter_Extractor:
+This is capable of extracting the bitmaps from all meter images in the tags folder to tga files. This was a test, so dont even bother with it.
+
+Halo_Tag_Hash_Cacher:
+This was to go with my tag ripper that I was working on. Dont even bother with it, it doesnt do anything right now.
+
+Halo_Animation_Decompressor:
+Decompresses compressed animations found in model_animation tags. This one isnt completely finished, as the decompression is screwy and I haven't figured out exactly what else needs to be done. Honestly, dont even bother with it.
 
 Installation:
 
@@ -14,48 +56,3 @@ Updating:
 
 1. Run upgrade.py
 2. Yeah, thats it.
-
-
-About:
-
-Mozzarilla is a file editing program, and is intended to be a complete replacement for Halo Custom Edition's Guerilla, with additional tools and ease of use upgrades. This is a screenshot of it with some of its extra tools shown. mozzarilla_0_9_3_by_chief_01-dasy581.png binilla test2.PNG
-
-This is the last version that I'll be releasing for a while, since I'm going back to school and looking for a job. Mozzarilla is still incomplete, however it is completely capable of replacing most of Guerilla's features right now(except previewing bitmaps and sounds). New in this version is a fully functional undo/redo system. The only thing you cant undo is importing blocks, which will warn you that it will erase your undo history. Here is a current list of the most prominent features of mozz:
-
-    Is able to switch between creating regular tags, open sauce tags, and gametypes.
-
-    Is able to view/edit hidden data(edit the config to enable it)
-
-    Is able to load corrupt tags for debugging purposes.
-
-    Can export/import blocks(pieces of a tag)
-
-    Makes backups of tags before editing.
-
-    Highly customizable user interface colors, widget sizes, hotkeys, etc.
-
-    Contains a customizable undo/redo feature.
-
-    Contains a hierarchy view for easily browsing a tags directory and loading tags.
-
-    Allows choosing any number of tags directories and switching between them at will.
-
-Mozzarilla also contains a few special tools for aiding in modding:
-
-    Broken dependency scanner: For locating broken dependencies in the specified types of tags in the specified folder.
-
-    Dependency viewer: For easily seeing which tags a tag refers to and opening any of them.
-
-    Tag zipper: For making a zip folder containing a tag and every tag it depends on.
-
-A preview video is in the works, but I think this is stable enough to release right now, so you guys can have it anyway. Just remember that if you encounter a bug, send me the mozzarilla.log(if it creates one) and/or the startup_crash.log(if it creates one) and fully describe what happened and what you did to cause it.
-
-You need to install Python 3 to run Mozzarilla. Python is a virtual machine like Java; you need to install java to run java programs and python to run python programs.
-
-Troubleshooting:
-
-    If Mozzarilla wont load or save tags, locate your python installation, find the python.exe and pythonw.exe, right click each one and set them to run as an administrator.
-
-    If you changed config settings and now it wont load or stuff is too screwed up to use, delete the config. You can find it at mozzarilla\mozzarilla.cfg
-
-    Cant think of anything else, but I'll add anything I can think of.
