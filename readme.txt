@@ -47,7 +47,9 @@ These next ones you shouldnt even bother with for now. They're either unfinished
 little tests that I decided to keep around:
 
 Convertor-Scex_to_Schi:
-This one doesnt work right now due to changes I made, so dont even bother with it.
+Converts a folder of shader_transparent_chicago_extended tags into shader_transparent_chicago tags.
+Doesnt have the ability to choose the directory like all the other applications, but that's mainly
+because this was actually my first app I ever wrote for editing Halo tags.
 
 Halo_Meter_Extractor:
 This is capable of extracting the bitmaps from all meter images in the tags folder to tga files.

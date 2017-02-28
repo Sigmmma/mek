@@ -6,10 +6,6 @@ from reclaimer.hek.defs.schi import schi_def
 from reclaimer.hek.defs.scex import scex_def
 from supyr_struct.field_types import Void
 
-input("THIS WILL NOT WORK UNTIL THE CONVERSION METHODS IN THE TAG OBJECTS " +
-      "ARE UPDATED TO NOT USE set_desc")
-raise SystemExit(0)
-
 class ShaderRectifier(HaloHandler):
     # set this to "scex" to convert schi to scex, or "schi" for scex to schi
     target_id = "schi"
@@ -58,9 +54,9 @@ class ShaderRectifier(HaloHandler):
             attr_offs = list(scex_desc['ATTR_OFFS'])
 
             #scex extra flags index = 11
-            attr_offs[11] = 96
-            __dsi__(scex_desc[8], 'TYPE', Void)  # void the extra layers
-            __dsi__(scex_desc[10], 'TYPE', Void)  # void the 2-stage maps
+            attr_offs[6] = 96
+            __dsi__(scex_desc[3], 'TYPE', Void)  # void the extra layers
+            __dsi__(scex_desc[5], 'TYPE', Void)  # void the 2-stage maps
             __dsi__(scex_desc, 'ATTR_OFFS', attr_offs)  # replace offsets
             __dsi__(scex_desc, 'SIZE', 68)   # change the struct size
             __dsi__(body_desc, 'SIZE', 108)  # change the struct size
@@ -71,8 +67,8 @@ class ShaderRectifier(HaloHandler):
             attr_offs = list(schi_desc['ATTR_OFFS'])
 
             #schi extra flags index = 10
-            attr_offs[10] = 108
-            __dsi__(schi_desc[8], 'TYPE', Void)  # void the extra layers
+            attr_offs[5] = 108
+            __dsi__(schi_desc[3], 'TYPE', Void)  # void the extra layers
             __dsi__(schi_desc, 'ATTR_OFFS', attr_offs)  # replace offsets
             __dsi__(schi_desc, 'SIZE', 80)   # change the struct size
             __dsi__(body_desc, 'SIZE', 120)  # change the struct size
