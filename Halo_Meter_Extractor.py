@@ -39,7 +39,7 @@ try:
             meter = metr_loader.tags['metr'][meter_path]
 
             tgaout = tga_def.build()
-            tgaout.filepath = tagsdir+splitext(meter_path)[0] + '.tga'
+            tgaout.filepath = tagsdir + splitext(meter_path)[0] + '.tga'
 
             meterdata = meter.data.tagdata
             tgaheader = tgaout.data.header

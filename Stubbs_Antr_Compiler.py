@@ -255,10 +255,6 @@ def clean_antr_meta(meta):
     return meta[:off] + b'\x00'*rawdata_size
 
 
-def decompress_animation(anim_block, rawdata):
-    return rawdata
-
-
 def make_antr_tag(meta_path, tags_dir, map_data):
     antr_tag = antr_def.build()
     try:
