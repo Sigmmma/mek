@@ -19,6 +19,10 @@ but that's fine.
 Convertor-Mode_to_Mod2:
 Converts a directory of xbox models to gbxmodels.
 
+Halo_Animation_Fps_Changer:
+Can convert a directory of animation tags from 30 fps to 60 fps, or from 60 to 30. In order to preserve the original animation, the new frame count is actually 1 less than double, so a 30 frame animation will be turned into a 59 frame one. Converting an animation tag from 30 to 60 then back to 30 should give you the exact same animation(save for some floating point rounding errors).
+Certain animations shouldn't have their animations changed though, such as aiming, suspension, talking, etc. There is a new "special overlay" flag in each animation to specify it as one of these special animations. Check that flag for each animation you dont want converted.
+
 Halo_Bitmap_Optimizer_&_Converter:
 You all know what this is.
 
