@@ -45,7 +45,7 @@ def get_transform_flags(anim):
     return rots, trans, scales
 
 
-def convert_30fps_to_60fps(anim, halve_last_frame=False):
+def convert_30fps_to_60fps(anim):
     rot_flags, trans_flags, scale_flags = get_transform_flags(anim)
     rot_count   = sum(rot_flags)
     trans_count = sum(trans_flags)
@@ -166,7 +166,7 @@ def convert_30fps_to_60fps(anim, halve_last_frame=False):
             if f_info_ct:
                 info = unpack(pack_code, frame_info[i_off: i_off+f_info_ct*4])
                 i_off += f_info_ct*4
-                if f+1 != new_frame_count or halve_last_frame:
+                if f+1 != new_frame_count or anim.flags.final_velocity_kept:
                     # not the last frame, so halve the dx, dy, dz, dyaw
                     half_info = [val/2 for val in info]
                     if len(half_info) == 4:
@@ -205,7 +205,7 @@ def convert_30fps_to_60fps(anim, halve_last_frame=False):
     return 1
 
 
-def convert_60fps_to_30fps(anim, double_last_frame=False):
+def convert_60fps_to_30fps(anim):
     rot_flags, trans_flags, scale_flags = get_transform_flags(anim)
     rot_count   = sum(rot_flags)
     trans_count = sum(trans_flags)
@@ -248,7 +248,7 @@ def convert_60fps_to_30fps(anim, double_last_frame=False):
 
     info = unpack(pack_code, frame_info[-1*f_info_size:])
 
-    if double_last_frame:
+    if anim.flags.final_velocity_kept:
         # last frame needs to have its dx/dy/dz doubled
         double_info = [val*2 for val in info]
         if len(double_info) == 4:
@@ -289,9 +289,7 @@ class AntrFpsConvertor(Tk):
 
         self.tags_dir = StringVar(self)
         self.fps = IntVar(self)
-        self.halve_dxdydz = IntVar(self)
         self.tags_dir.set(curr_dir + 'tags' + PATHDIV)
-        self.tags_dir.set(curr_dir + 'tags\\tags\\fps test\\')
         self.fps.set(60)
 
         # make the frames
@@ -316,9 +314,6 @@ class AntrFpsConvertor(Tk):
         self.checkbox_60_to_30 = Checkbutton(
             self.checkbox_frame, variable=self.fps,
             offvalue=60, onvalue=30, text="60 ---> 30")
-        self.checkbox_halve_dxdydz = Checkbutton(
-            self.checkbox_frame, variable=self.halve_dxdydz,
-            text="halve/double dx/dy/dz of the last frame")
 
         # pack everything
         self.tags_dir_entry.pack(expand=True, fill='x', side='left')
@@ -326,7 +321,6 @@ class AntrFpsConvertor(Tk):
 
         self.checkbox_30_to_60.pack(fill='both', expand=True, side='left')
         self.checkbox_60_to_30.pack(fill='both', expand=True, side='left')
-        self.checkbox_halve_dxdydz.pack(fill='both', expand=True, side='left')
 
         self.tags_dir_frame.pack(expand=True, fill='both')
         self.convert_btn.pack(fill='both', padx=5, pady=5)
@@ -340,7 +334,6 @@ class AntrFpsConvertor(Tk):
     def convert(self):
         start = time()
         fps = self.fps.get()
-        cut = self.halve_dxdydz.get()
         tags_dir = self.tags_dir.get()
         prefix = PATHDIV + '%sfps_' % fps
 
@@ -381,10 +374,10 @@ class AntrFpsConvertor(Tk):
                     try:
                         if fps == 60 and not anim.flags.fps_60:
                             print("    %s" % anim.name)
-                            converted_count += convert_30fps_to_60fps(anim, cut)
+                            converted_count += convert_30fps_to_60fps(anim)
                         elif fps == 30 and anim.flags.fps_60:
                             print("    %s" % anim.name)
-                            converted_count += convert_60fps_to_30fps(anim, cut)
+                            converted_count += convert_60fps_to_30fps(anim)
                     except Exception:
                         print(format_exc())
                         print("        Could not convert the above animation.")
