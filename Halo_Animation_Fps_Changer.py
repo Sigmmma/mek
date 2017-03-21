@@ -96,11 +96,12 @@ def convert_30fps_to_60fps(anim, halve_last_frame=False):
                     l = sqrt(i2**2 + j2**2 + k2**2 + w2**2)/32767
 
                     if l == 0:
-                        i2 = j2 = k2 = 0
-                        l = w = 1
-
-                    new_frame_data += pack(">4h",
-                        int(i2/l), int(j2/l), int(k2/l), int(w2/l))
+                        # avoid division by zero
+                        #new_frame_data += pack(">4h", 0, 0, 0, 32767)
+                        new_frame_data += b'\x00\x00\x00\x00\x00\x00\x7f\xff'
+                    else:
+                        new_frame_data += pack(">4h",
+                            int(i2/l), int(j2/l), int(k2/l), int(w2/l))
 
                     # slerp interpolation code
                     '''
@@ -160,6 +161,8 @@ def convert_30fps_to_60fps(anim, halve_last_frame=False):
                     off += 4
 
         else:
+            # copy a frame and get frames for interpolating
+
             if f_info_ct:
                 info = unpack(pack_code, frame_info[i_off: i_off+f_info_ct*4])
                 i_off += f_info_ct*4
