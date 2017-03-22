@@ -258,7 +258,8 @@ def convert_60fps_to_30fps(anim):
 
     # copy the last frame
     new_frame_info += pack(pack_code, *info)
-    new_frame_data += frame_data[-f_size:]
+    new_frame_data += frame_data[(old_frame_count-1)*f_size:
+                                 old_frame_count*f_size]
 
     # replace the frame info and data
     anim.frame_info.data = new_frame_info
