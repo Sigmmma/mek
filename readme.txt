@@ -20,8 +20,13 @@ Convertor-Mode_to_Mod2:
 Converts a directory of xbox models to gbxmodels.
 
 Halo_Animation_Fps_Changer:
-Can convert a directory of animation tags from 30 fps to 60 fps, or from 60 to 30. In order to preserve the original animation, the new frame count is actually 1 less than double, so a 30 frame animation will be turned into a 59 frame one. Converting an animation tag from 30 to 60 then back to 30 should give you the exact same animation(save for some floating point rounding errors).
-Certain animations shouldn't have their animations changed though, such as aiming, suspension, talking, etc. There is a new "special overlay" flag in each animation to specify it as one of these special animations. Check that flag for each animation you dont want converted.
+Can convert a directory of animation tags from 30 fps to 60 fps, or from 60 to 30. In order to
+preserve the original animation, the new frame count is actually 1 less than double, so a 30
+frame animation will be turned into a 59 frame one. Converting an animation tag from 30 to 60
+then back to 30 should give you the exact same animation(save for some floating point rounding errors).
+Certain animations shouldn't have their animations changed though, such as aiming, suspension,
+talking, etc. There is a new "special overlay" flag in each animation to specify it as one of
+these special animations. Check that flag for each animation you dont want converted.
 
 Halo_Bitmap_Optimizer_&_Converter:
 You all know what this is.
@@ -30,7 +35,8 @@ Halo_TeXource:
 Capable of ripping the uncompressed source textures from a directory of tags to tga files.
 
 Mozzarilla:
-The highlight of the library, Mozzarilla is essentially a replacement Guerilla with some huge improvements. Just ask Masterz! Here is a current list of the most prominent features of mozz:
+The highlight of the library, Mozzarilla is essentially a replacement Guerilla with some huge improvements.
+Just ask Masterz! Here is a current list of the most prominent features of mozz:
 
     Is able to switch between creating regular tags, open sauce tags, and gametypes.
 
@@ -61,7 +67,11 @@ Mozzarilla also contains a few special tools for aiding in modding:
 
 
 
-If you encounter a bug, send me the mozzarilla.log(if it creates one) and/or the startup_crash.log(if it creates one) and fully describe what happened and what you did to cause it. We've been having some issues with it running on Windows 10(it works for R93 Sniper, but not Masterz), but it seems to run fine on Windows 7, somewhat fine on Linux, and crashes on OSX.
+If you encounter a bug, send me the mozzarilla.log(if it creates one) and/or the
+startup_crash.log(if it creates one) and fully describe what happened and what you
+did to cause it. We've been having some issues with it running on Windows 10(it works
+for R93 Sniper, but not Masterz), but it seems to run fine on Windows 7, somewhat
+fine on Linux, and crashes on OSX.
 
 
 Mozzarilla(console):
@@ -99,6 +109,19 @@ Decompresses compressed animations found in model_animation tags.
 This one isnt completely finished, as the decompression is screwy and I haven't figured
 out exactly what else needs to be done. Honestly, dont even bother with it.
 
+
+The MEK also contains a scripts folder with any Maxscripts that I've made or modified.
+Currently there are Gbxmodel Importer and an Animation Importer scripts, which are
+both modified variants of TheGhost's scripts.
+
+The model importer is now also capable of importing xbox models, and shader bugs found
+in previous versions as well as various crash related bugs have been fixed.
+
+The animation importer can now import model_animiation_yelo tags, can use xbox models 
+when prompted for a model, and has been fixed to work with tags containing more than
+255 reflexives. This means you can finally open tags that have 256 or more animations.
+
+
 Installation:
 
 1. Install python 3, and make sure to check(newest version is recommended)
@@ -111,9 +134,13 @@ errors that occur if mozz fails to load.
 
 Troubleshooting:
 
-    If programs wont load or save tags, locate your python installation, right click python.exe, and set it to run with administrator privileges. Do the same for pythonw.exe.
+    If programs wont load or save tags, locate your python installation, right click python.exe,
+    and set it to run with administrator privileges. Do the same for pythonw.exe.
 
-    If you changed config settings and now it wont load or stuff is too screwed up to use, delete the config. You can find it at PYTHON\Lib\site-packages\mozzarilla\mozzarilla.cfg where PYTHON is the location of your python installation. If you don't know where this is, you can find it in your PATH variable. If not, then go looking lol.
+    If you changed config settings and now it wont load or stuff is too screwed up to use,
+    delete the config. You can find it at PYTHON\Lib\site-packages\mozzarilla\mozzarilla.cfg
+    where PYTHON is the location of your python installation. If you don't know where this is,
+    you can find it in your PATH variable. If not, then go looking lol.
 
 
 Updating:
