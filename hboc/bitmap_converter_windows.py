@@ -62,7 +62,7 @@ def process_bitmap_tag(tag):
     
     #check if the bitmap has already been processed, or
     #is a PC bitmap or if we are just creating a debug log
-    if tag.processed_by_reclaimer or not(tag.is_xbox_bitmap):
+    if tag.processed_by_hboc or not(tag.is_xbox_bitmap):
         format = tag.bitmap_format()
 
         #if all these are true we skip the tag
@@ -1289,7 +1289,7 @@ class BitmapConverterDataWindow(Canvas):
                     self.tag_data_type_box.insert(INSERT, "UNKNOWN")
                     
                 if tag.is_xbox_bitmap:
-                    if tag.processed_by_reclaimer():
+                    if tag.processed_by_hboc():
                         self.tag_data_platform_box.insert(INSERT, 'XBOX')
                     else:
                         self.tag_data_platform_box.insert(INSERT, 'ARSENIC')
