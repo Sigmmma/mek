@@ -613,7 +613,7 @@ def convert_bitmap_tag(tag, **kwargs):
         tag.set_platform(save_as_xbox)
 
         #SET THE "PROCESSED BY RECLAIMER" FLAG
-        tag.processed_by_reclaimer(True)
+        tag.processed_by_hboc(True)
         
         #IF THE FORMAT IS P8 OR PLATFORM IS XBOX WE NEED TO ADD PADDING
         tag.add_bitmap_padding(save_as_xbox)
