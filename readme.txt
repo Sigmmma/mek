@@ -87,7 +87,7 @@ when prompted for a model, and has been fixed to work with tags containing more 
 
 Installation:
 
-1. Install python 3, and make sure to check(newest version is recommended)
+1. Install python 3.4 or higher(newest version is recommended)
     When installing, make sure to check "Add python to PATH"
 2. Run install.py
 
@@ -121,3 +121,6 @@ Updating:
 
 1. Run upgrade.py
 2. Yeah, thats it.
+
+If you need to try to reinstall the arbytmap module(because you installed the Visual C++ compiler
+and you are trying to get the accelerator modules to install) then run reinstall_arbytmap.py
