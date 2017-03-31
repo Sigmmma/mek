@@ -29,50 +29,13 @@ talking, etc. There is a new "special overlay" flag in each animation to specify
 these special animations. Check that flag for each animation you dont want converted.
 
 Halo_Bitmap_Optimizer_&_Converter:
-You all know what this is.
+Read the hboc readme.txt
 
 Halo_TeXource:
 Capable of ripping the uncompressed source textures from a directory of tags to tga files.
 
 Mozzarilla:
-The highlight of the library, Mozzarilla is essentially a replacement Guerilla with some huge improvements.
-Just ask Masterz! Here is a current list of the most prominent features of mozz:
-
-    Is able to switch between creating regular tags, open sauce tags, and gametypes.
-
-    Is able to view/edit hidden data(edit the config to enable it)
-
-    Is able to load corrupt tags for debugging purposes.
-
-    Can export/import blocks(pieces of a tag)
-
-    Makes backups of tags before editing.
-
-    Highly customizable user interface colors, widget sizes, hotkeys, etc.
-
-    Contains a customizable undo/redo feature.
-
-    Contains a hierarchy view for easily browsing a tags directory and loading tags.
-
-    Allows choosing any number of tags directories and switching between them at will.
-
-
-Mozzarilla also contains a few special tools for aiding in modding:
-
-    Broken dependency scanner: For locating broken dependencies in the specified types of tags in the specified folder.
-
-    Dependency viewer: For easily seeing which tags a tag refers to and opening any of them.
-
-    Tag zipper: For making a zip folder containing a tag and every tag it depends on.
-
-
-
-If you encounter a bug, send me the mozzarilla.log(if it creates one) and/or the
-startup_crash.log(if it creates one) and fully describe what happened and what you
-did to cause it. We've been having some issues with it running on Windows 10(it works
-for R93 Sniper, but not Masterz), but it seems to run fine on Windows 7, somewhat
-fine on Linux, and crashes on OSX.
-
+Read the mozzarilla readme.txt
 
 Mozzarilla(console):
 Same as the above, except it runs with a console window so you get a printout of errors if
@@ -134,13 +97,24 @@ errors that occur if mozz fails to load.
 
 Troubleshooting:
 
-    If programs wont load or save tags, locate your python installation, right click python.exe,
-    and set it to run with administrator privileges. Do the same for pythonw.exe.
+* If programs wont run at all, add the version of python you installed to your PATH
+environment variable. Google how to do that.
 
-    If you changed config settings and now it wont load or stuff is too screwed up to use,
-    delete the config. You can find it at PYTHON\Lib\site-packages\mozzarilla\mozzarilla.cfg
-    where PYTHON is the location of your python installation. If you don't know where this is,
-    you can find it in your PATH variable. If not, then go looking lol.
+* If programs wont load or save tags then you have a permissions issue where python isnt
+being allowed to modify/make files in the directory you are in.
+
+One potential way to fix this is to locate your python installation, right click python.exe,
+and set it to run with administrator privileges. Do the same for pythonw.exe.
+
+Some users claim that this fix prevents their python programs from running at all, so if it
+does then undo that administrator change and change the folder permissions on the folder
+you are trying to edit tags in. It turns out that this is caused by certain versions of
+windows due to some of their security measures, like UAC.
+
+* If you changed config settings and now it wont load or stuff is too screwed up to use,
+delete the config. You can find it at PYTHON\Lib\site-packages\mozzarilla\mozzarilla.cfg
+where PYTHON is the location of your python installation. If you don't know where this is,
+you can find it in your PATH variable. If not, then go looking lol.
 
 
 Updating:

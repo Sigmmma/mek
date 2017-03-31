@@ -97,7 +97,7 @@ class BitmapConverterMainWindow(Tk):
         '''THE PROGRAM MUST BE CLASS WITH VARIABLES SUCH AS TAG_COLLECTION'''
         self.handler = handler
 
-        self.title("Halo Bitmap Optimizer & Converter")
+        self.title("Halo Bitmap Optimizer & Converter v2.0")
         self.geometry("745x405+0+0")
         self.resizable(0, 0)
         self.protocol("WM_DELETE_WINDOW", self.close_main_window)

@@ -55,9 +55,6 @@ class BitmapConverter(HaloHandler):
         self.conversion_main_thread = Thread(target=self.conversion_main)
         self.conversion_main_thread.daemon = True
         self.conversion_main_thread.start()
-        
-        #loop the main window
-        self.root_window.mainloop()
 
         
     #the main loop for continuous function handeling
