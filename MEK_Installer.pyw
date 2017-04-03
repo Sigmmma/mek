@@ -24,55 +24,59 @@ if info[0] < 3:
     raise SystemExit(0)
 
 
-class IORedirecter(StringIO):
-    def __init__(self, text_out, *args, **kwargs):
-        StringIO.__init__(self, *args, **kwargs)
-        self.text_out = text_out
-
-    def write(self, string):
-        self.text_out.config(state='normal')
-        self.text_out.insert('end', string)
-        self.text_out.see('end')
-        self.text_out.config(state='disabled')
-
-
-def _do_subprocess(exec_str, action="Action", stdout=None):
+def _do_subprocess(exec_strs, action="Action", app=None):
     result = 0
-    try:
-        print("Executing:  %s" % exec_str)
-        #print(subprocess.call(exec_str))
-        result = subprocess.call(exec_str, stdout=stdout)
-    except Exception:
-        print(traceback.format_exc())
-        print("    %s failed. Trying again with different parameters." % action)
-
+    exec_strs = tuple(exec_strs)
+    while True:
         try:
-            print("Executing:  python -m %s" % exec_str)
-            #print(subprocess.call("python -m " + exec_str))
-            result = subprocess.call("python -m " + exec_str, stdout=stdout)
-            print("    %s succeeded." % action)
+            print("-"*80)
+            print("%s "*len(exec_strs) % exec_strs)
+
+            with subprocess.Popen(exec_strs, stdout=subprocess.PIPE,
+                                  stderr=subprocess.STDOUT, shell=False) as p:
+                if app is not None:
+                    try:
+                        for line in p.stdout:
+                            app.write_redirect(line)
+                    except:
+                        p.kill()
+                        p.wait()
+                        raise
+                else:
+                    while p.poll() is None:
+                        # wait until the process has finished
+                        pass
+
+            result = p.wait()
+            break
         except Exception:
             print(traceback.format_exc())
-            result = 1
+            if exec_strs[0] == "python":
+                result = 1
+                break
+
+            print("    %s failed. Trying with different arguments." % action)
+            exec_strs = ("python", "-m") + exec_strs
+
     if result:
-        print("    %s failed." % action)
+        print("    %s failed.\n" % action)
     else:
-        print("    %s succeeded." % action)
+        print("    %s succeeded.\n" % action)
     return result
 
 
-def install(install_path=None, app=None, stdout=None):
+def install(install_path=None, app=None):
     result = 1
     try:
-        exec_str = "pip install mozzarilla"
+        exec_strs = ["pip", "install", "mozzarilla"]
         if install_path is not None:
-            exec_str += ' --target="%s"' % install_path
-        result = _do_subprocess(exec_str, "Install", stdout=stdout)
+            exec_strs += ['--target=%s' % install_path]
+        result = _do_subprocess(exec_strs, "Install", app)
 
-        exec_str = "pip install arbytmap"
+        exec_strs = ["pip", "install", "arbytmap"]
         if install_path is not None:
-            exec_str += ' --target="%s"' % install_path
-        result &= _do_subprocess(exec_str, "Install", stdout=stdout)
+            exec_strs += ['--target=%s' % install_path]
+        result &= _do_subprocess(exec_strs, "Install", app)
     except Exception:
         print(traceback.format_exc())
 
@@ -83,18 +87,18 @@ def install(install_path=None, app=None, stdout=None):
     return result
 
 
-def uninstall(partial_uninstall=True, app=None, stdout=None):
+def uninstall(partial_uninstall=True, app=None):
     result = 1
     try:
         # by default we wont uninstall supyr_struct, arbtmap, or
         # binilla since they may be needed by other applications
-        modules = ("reclaimer", "mozzarilla")
+        modules = ["reclaimer", "mozzarilla"]
         if not partial_uninstall:
             modules.extend(("arbytmap", "supyr_struct", "binilla"))
 
         for mod in modules:
-            result &= _do_subprocess("pip uninstall %s -y" % mod,
-                                     "Uninstall", stdout=stdout)
+            exec_strs = ["pip", "uninstall", mod, "-y"]
+            result &= _do_subprocess(exec_strs, "Uninstall", app)
     except Exception:
         print(traceback.format_exc())
 
@@ -105,18 +109,22 @@ def uninstall(partial_uninstall=True, app=None, stdout=None):
     return result
 
 
-def upgrade(install_path=None, force_reinstall=False, app=None, stdout=None):
+def upgrade(install_path=None, force_reinstall=False, app=None):
     result = 1
     try:
-        exec_str = "pip install mozzarilla --upgrade"
+        exec_strs = ["pip", "install", "mozzarilla", "--upgrade"]
         if install_path is not None:
-            exec_str += ' --target="%s"' % install_path
-        result = _do_subprocess(exec_str, "Upgrade", stdout=stdout)
+            exec_strs += ['--target=%s' % install_path]
+        if force_reinstall:
+            exec_strs += ['--force-reinstall']
+        result = _do_subprocess(exec_strs, "Upgrade", app)
 
-        exec_str = "pip install arbytmap --upgrade"
+        exec_strs = ["pip", "install", "arbytmap", "--upgrade"]
         if install_path is not None:
-            exec_str += ' --target="%s"' % install_path
-        result &= _do_subprocess(exec_str, "Upgrade", stdout=stdout)
+            exec_strs += ['--target=%s' % install_path]
+        if force_reinstall:
+            exec_strs += ['--force-reinstall']
+        result &= _do_subprocess(exec_strs, "Upgrade", app)
     except Exception:
         print(traceback.format_exc())
 
@@ -232,10 +240,12 @@ class MekInstaller(tk.Tk):
         self.io_scroll_y.pack(fill='y', side='right')
         self.io_text.pack(fill='both', expand=True)
 
-        self.terminal_out = sys.stdout = IORedirecter(self.io_text)
+        #self.terminal_out = sys.stdout = IORedirecter(self.io_text)
+        # replace the write function of the stdout write with ours
+        sys.stdout.write = self.write_redirect
 
     def start_thread(self, func, *args, **kwargs):
-        kwargs.update(app=self, stdout=None)#self.terminal_out)
+        kwargs.update(app=self)
         new_thread = Thread(target=lambda a=args, kw=kwargs: func(*a, **kw))
         self._running_thread = new_thread
         new_thread.daemon = True
@@ -260,7 +270,8 @@ class MekInstaller(tk.Tk):
                 valid_dir &= path.isdir(path.join(install_dir, req_path))
 
         if valid_dir:
-            return self.start_thread(uninstall)
+            return self.start_thread(install, install_dir,
+                                     self.force_reinstall.get())
 
         print(str(install_dir) + "\n" +
               "    The above is not a valid directory to install to.\n" +
@@ -271,6 +282,14 @@ class MekInstaller(tk.Tk):
     def uninstall(self):
         if self._running_thread is not None:
             return
+        if self.portable.get():
+            return messagebox.showinfo(
+                "Uninstall not necessary",
+                "Portable installations do not require you to do anything\n" +
+                "special to uninstall them. Just delete the folders in the\n" +
+                "directory you specified that start with these names:\n\n" +
+                "arbytmap, binilla, mozzarilla, reclaimer, supyr_struct\n\n" +
+                "There should be ten folders.")
         if messagebox.askyesno(
             "Uninstall warning",
             "Are you sure you want to uninstall all the libraries\n" +
@@ -286,6 +305,11 @@ class MekInstaller(tk.Tk):
         return self.start_thread(upgrade, install_dir,
                                  self.force_reinstall.get())
 
+    def write_redirect(self, string):
+        self.io_text.config(state='normal')
+        self.io_text.insert('end', string)
+        self.io_text.see('end')
+        self.io_text.config(state='disabled')
 
 if __name__ == "__main__":
     run()
