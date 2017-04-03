@@ -28,6 +28,8 @@ Mozzarilla also contains a few special tools for aiding in modding:
 
     Tag zipper: For making a zip folder containing a tag and every tag it depends on.
 
+    Create a bitmap tag directly from a dds image with a couple clicks.
+
 
 Troubleshooting:
 

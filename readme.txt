@@ -19,6 +19,11 @@ but that's fine.
 Convertor-Mode_to_Mod2:
 Converts a directory of xbox models to gbxmodels.
 
+Convertor-Scex_to_Schi:
+Converts a folder of shader_transparent_chicago_extended tags into shader_transparent_chicago tags.
+Doesnt have the ability to choose the directory like all the other applications, but that's mainly
+because this was actually my first app I ever wrote for editing Halo tags.
+
 Halo_Animation_Fps_Changer:
 Can convert a directory of animation tags from 30 fps to 60 fps, or from 60 to 30. In order to
 preserve the original animation, the new frame count is actually 1 less than double, so a 30
@@ -51,13 +56,10 @@ Stubbs_Soso_Compiler:
 Capable of compiling meta data extracted from a Stubbs the Zombie map into a working open
 sauce shader_model tag.
 
+
 These next ones you shouldnt even bother with for now. They're either unfinished or just
 little tests that I decided to keep around:
 
-Convertor-Scex_to_Schi:
-Converts a folder of shader_transparent_chicago_extended tags into shader_transparent_chicago tags.
-Doesnt have the ability to choose the directory like all the other applications, but that's mainly
-because this was actually my first app I ever wrote for editing Halo tags.
 
 Halo_Meter_Extractor:
 This is capable of extracting the bitmaps from all meter images in the tags folder to tga files.
@@ -122,5 +124,6 @@ Updating:
 1. Run upgrade.py
 2. Yeah, thats it.
 
-If you need to try to reinstall the arbytmap module(because you installed the Visual C++ compiler
-and you are trying to get the accelerator modules to install) then run reinstall_arbytmap.py
+If you need to try to reinstall the arbytmap module(because you installed the Visual C++
+compiler and you are trying to get the accelerator modules to install) then simply run
+the uninstall.py script and then the install.py script.
