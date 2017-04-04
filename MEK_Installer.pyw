@@ -6,7 +6,6 @@ from tkinter.filedialog import askdirectory
 from io import StringIO
 from os import path
 
-info = sys.version_info
 curr_dir = os.path.abspath(os.curdir)
 
 # folders required to be in a folder to consider it a
@@ -17,11 +16,20 @@ mek_required_folders = (
     "hboc",
     )
 
-if info[0] < 3:
-    input(
-        "You must have python 3 or higher installed to run the MEK.\n" +
-        "You currently have %s.%s.%s installed instead." % info[:3])
-    raise SystemExit(0)
+
+class IORedirecter(StringIO):
+    # Text widget to output text to
+    text_out = None
+
+    def __init__(self, text_out, *args, **kwargs):
+        StringIO.__init__(self, *args, **kwargs)
+        self.text_out = text_out
+
+    def write(self, string):
+        self.text_out.config(state=tk.NORMAL)
+        self.text_out.insert(tk.END, string)
+        self.text_out.see(tk.END)
+        self.text_out.config(state=tk.DISABLED)
 
 
 def _do_subprocess(exec_strs, action="Action", app=None):
@@ -33,7 +41,7 @@ def _do_subprocess(exec_strs, action="Action", app=None):
             print("%s "*len(exec_strs) % exec_strs)
 
             with subprocess.Popen(exec_strs, stdout=subprocess.PIPE,
-                                  stderr=subprocess.STDOUT, shell=False) as p:
+                                  stderr=subprocess.PIPE, shell=False) as p:
                 if app is not None:
                     try:
                         for line in p.stdout:
@@ -228,6 +236,11 @@ class MekInstaller(tk.Tk):
         self.inner_settings2.pack(fill='both')
 
         self.io_frame.pack(fill='both', expand=True)
+        if sys.version_info[0] < 3:
+            print(
+                "You must have python 3 or higher installed to run the MEK.\n" +
+                "You currently have %s.%s.%s installed instead." %
+                sys.version_info[:3])
 
     def make_io_text(self):
         self.io_frame = tk.Frame(self, highlightthickness=0)
@@ -239,10 +252,7 @@ class MekInstaller(tk.Tk):
 
         self.io_scroll_y.pack(fill='y', side='right')
         self.io_text.pack(fill='both', expand=True)
-
-        #self.terminal_out = sys.stdout = IORedirecter(self.io_text)
-        # replace the write function of the stdout write with ours
-        sys.stdout.write = self.write_redirect
+        sys.stdout = IORedirecter(self.io_text)
 
     def start_thread(self, func, *args, **kwargs):
         kwargs.update(app=self)
@@ -270,8 +280,7 @@ class MekInstaller(tk.Tk):
                 valid_dir &= path.isdir(path.join(install_dir, req_path))
 
         if valid_dir:
-            return self.start_thread(install, install_dir,
-                                     self.force_reinstall.get())
+            return self.start_thread(install, install_dir)
 
         print(str(install_dir) + "\n" +
               "    The above is not a valid directory to install to.\n" +
