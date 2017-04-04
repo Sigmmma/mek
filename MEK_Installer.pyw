@@ -1,4 +1,4 @@
-import os, pip, subprocess, sys, traceback
+import os, subprocess, sys, traceback
 import tkinter as tk
 from threading import Thread
 from tkinter import messagebox
