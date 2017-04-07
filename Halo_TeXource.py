@@ -13,7 +13,7 @@ class TeXource(Tk):
     def __init__(self, *args, **kwargs):
         Tk.__init__(self, *args, **kwargs)
 
-        self.title("Halo TeXource v2.0")
+        self.title("Halo TeXource v2.1")
         self.geometry("400x120+0+0")
         self.resizable(0, 0)
 
@@ -99,15 +99,17 @@ class TeXource(Tk):
                     elif tag_id == b'mtib' and engine_id == b'!MLB':
                         dims_off = 64+16+24
                         size_off = 64+16+28
-                        data_off = 64+16+112
+                        data_off = 64+16
+                        # get the size of the bitmap body from the tbfd structure
+                        data_off += unpack("<i", data[data_off-4: data_off])[0]
                         end = "<"
                     else:
                         print("    This file doesnt appear to be a bitmap tag.")
                         continue
 
-                    width, height = unpack(end+"HH", data[dims_off:dims_off+4])
-                    data_size = unpack(end+"i", data[size_off:size_off+4])[0]
-                    data = data[data_off:data_off+data_size]
+                    width, height = unpack(end+"HH", data[dims_off: dims_off+4])
+                    comp_size = unpack(end+"i", data[size_off: size_off+4])[0]
+                    data = data[data_off: data_off+comp_size]
                 except Exception:
                     #print(format_exc())
                     print("    Could not load bitmap tag.")
@@ -118,7 +120,7 @@ class TeXource(Tk):
                     continue
 
                 try:
-                    data_size = unpack(">I", data[:4])[0]
+                    data_size = unpack(end+"I", data[:4])[0]
                     if not data_size:
                         print('    Source data is blank.')
                         continue
