@@ -208,7 +208,7 @@ class MekInstaller(tk.Tk):
             text="force reinstall when upgrading (for recompiling components)")
         self.portable_checkbox = tk.Checkbutton(
             self.inner_settings1, variable=self.portable,
-            text='portable install (upgrades/installs to the "MEK directory" above)')
+            text='portable install (installs to/upgrades the "MEK directory" above)')
         self.partial_uninstall_checkbox = tk.Checkbutton(
             self.inner_settings2, variable=self.partial_uninstall,
             text="partial uninstall (remove only Mozzarilla and Reclaimer)")
