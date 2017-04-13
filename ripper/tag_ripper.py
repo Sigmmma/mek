@@ -44,7 +44,7 @@ class TagRipper(MapLoader):
         #try to build a list of all the bitmap cache tag paths
         try:
             paths = cached['bitm']
-            with open(curr_dir + '\\resources\\bitmaps tag list.txt') as f:
+            with open(curr_dir + '\\resources\\bitmaps.txt') as f:
                 for line in f:
                     paths.append(line[:-1])
         except Exception:
@@ -53,7 +53,7 @@ class TagRipper(MapLoader):
         #try to build a list of all the sounds cache tag paths
         try:
             paths = cached['snd!']
-            with open(curr_dir + '\\resources\\sounds tag list.txt') as f:
+            with open(curr_dir + '\\resources\\sounds.txt') as f:
                 for line in f:
                     paths.append(line[:-1])
         except Exception:
@@ -62,7 +62,7 @@ class TagRipper(MapLoader):
         #try to build a list of all the sounds cache tag paths
         try:
             paths = cached['font']
-            with open(curr_dir + '\\resources\\loc tag list.txt') as f:
+            with open(curr_dir + '\\resources\\loc.txt') as f:
                 for line in f:
                     paths.append(line[:-1])
         except Exception:
