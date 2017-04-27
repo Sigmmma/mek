@@ -91,7 +91,10 @@ Installation:
 
 1. Install python 3.4 or higher(newest version is recommended)
     When installing, make sure to check "Add python to PATH"
-2. Run install.py
+2. Run MEK_Installer.pyw
+3. Choose whether or not to install it portably(to a local
+    directory) or to the machine you are running.
+4. Click "Install"
 
 Mozzarilla and all the programs in the MEK should be ready to use now. To open mozz, run
 Mozzarilla, or Mozzarilla(console). Either one works, but the console one will print any
@@ -121,8 +124,9 @@ you can find it in your PATH variable. If not, then go looking lol.
 
 Updating:
 
-1. Run upgrade.py
-2. Yeah, thats it.
+1. Run MEK_Installer.pyw
+2. Choose whether or not to force reinstalling components.
+3. Click "Upgrade"
 
 If you need to try to reinstall the arbytmap module(because you installed the Visual C++
 compiler and you are trying to get the accelerator modules to install) then simply run
