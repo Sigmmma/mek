@@ -10,7 +10,6 @@ from supyr_struct.field_types import FieldType
 from supyr_struct.defs.constants import fcc, PATHDIV
 from supyr_struct.defs.block_def import BlockDef
 from reclaimer.hek.defs.antr import antr_def
-from reclaimer.constants import PC_TAG_INDEX_HEADER_SIZE, XBOX_TAG_INDEX_HEADER_SIZE
 
 force_little = FieldType.force_little
 force_normal = FieldType.force_normal
@@ -260,12 +259,12 @@ def make_antr_tag(meta_path, tags_dir, map_data):
     try:
         idx_off = unpack("<i", map_data[16:20])[0]
 
-        header_size = PC_TAG_INDEX_HEADER_SIZE
+        header_size = 40
         if map_data[idx_off+32:idx_off+36] == b'sgat':
-            header_size = XBOX_TAG_INDEX_HEADER_SIZE
+            header_size = 36
 
         idx_magic = unpack("<i", map_data[idx_off:idx_off+4])[0]
-        magic = idx_off +header_size - idx_magic
+        magic = idx_magic - idx_off - header_size
 
         # force reading in little endian since meta data is ALL little endian
         force_little()
@@ -325,8 +324,8 @@ def make_antr_tag(meta_path, tags_dir, map_data):
             d_data_size = d_data.size
             f_data_size = f_data.size
 
-            f_info_off = f_info.pointer + magic
-            d_data_off = d_data.pointer + magic
+            f_info_off = f_info.pointer - magic
+            d_data_off = d_data.pointer - magic
             f_data_off = f_data.raw_pointer
 
             frame_count = anim.frame_count
