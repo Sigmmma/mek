@@ -65,10 +65,6 @@ Halo_Meter_Extractor:
 This is capable of extracting the bitmaps from all meter images in the tags folder to tga files.
 This was a test, so dont even bother with it.
 
-Halo_Tag_Hash_Cacher:
-This was to go with my tag ripper that I was working on. Dont even bother with it, it doesnt
-do anything right now.
-
 Halo_Animation_Decompressor:
 Decompresses compressed animations found in model_animation tags.
 This one isnt completely finished, as the decompression is screwy and I haven't figured
@@ -101,6 +97,10 @@ Mozzarilla, or Mozzarilla(console). Either one works, but the console one will p
 errors that occur if mozz fails to load.
 
 Troubleshooting:
+
+* If the updater doesn't seem to actually update anything, then clear your pip cache.
+You can find it in users\app_data\pip\Cache
+See here for more information: http://stackoverflow.com/a/41111916
 
 * If programs wont run at all, add the version of python you installed to your PATH
 environment variable. Google how to do that.
