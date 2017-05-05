@@ -290,6 +290,7 @@ class AntrFpsConvertor(Tk):
 
         self.tags_dir = StringVar(self)
         self.fps = IntVar(self)
+        self.overwrite_old = IntVar(self)
         self.tags_dir.set(curr_dir + 'tags' + PATHDIV)
         self.fps.set(60)
 
@@ -311,17 +312,21 @@ class AntrFpsConvertor(Tk):
 
         self.checkbox_30_to_60 = Checkbutton(
             self.checkbox_frame, variable=self.fps,
-            offvalue=30, onvalue=60, text="30 ---> 60")
+            offvalue=30, onvalue=60, text="30 to 60")
         self.checkbox_60_to_30 = Checkbutton(
             self.checkbox_frame, variable=self.fps,
-            offvalue=60, onvalue=30, text="60 ---> 30")
+            offvalue=60, onvalue=30, text="60 to 30")
+        self.checkbox_overwrite_tags = Checkbutton(
+            self.checkbox_frame, variable=self.overwrite_old,
+            offvalue=0, onvalue=1, text="Overwrite old tags")
 
         # pack everything
         self.tags_dir_entry.pack(expand=True, fill='x', side='left')
         self.tags_dir_browse_btn.pack(fill='both', side='left')
 
-        self.checkbox_30_to_60.pack(fill='both', expand=True, side='left')
-        self.checkbox_60_to_30.pack(fill='both', expand=True, side='left')
+        for w in (self.checkbox_30_to_60, self.checkbox_60_to_30,
+                  self.checkbox_overwrite_tags):
+            w.pack(fill='both', expand=True, side='left')
 
         self.tags_dir_frame.pack(expand=True, fill='both')
         self.convert_btn.pack(fill='both', padx=5, pady=5)
@@ -337,6 +342,7 @@ class AntrFpsConvertor(Tk):
         fps = self.fps.get()
         tags_dir = self.tags_dir.get()
         prefix = PATHDIV + '%sfps_' % fps
+        overwrite_old = self.overwrite_old.get()
 
         print('Converting animations to %s fps\n' % fps)
 
@@ -357,8 +363,9 @@ class AntrFpsConvertor(Tk):
                 antr_tag = antr_def.build(filepath=filepath)
 
                 # rename the tag to the converted filepath
-                dirpath, filename = os.path.split(filepath)
-                antr_tag.filepath = dirpath + prefix + filename
+                if not overwrite_old:
+                    dirpath, filename = os.path.split(filepath)
+                    antr_tag.filepath = dirpath + prefix + filename
 
                 anims = antr_tag.data.tagdata.animations.STEPTREE
                 converted_count = 0
@@ -393,6 +400,8 @@ class AntrFpsConvertor(Tk):
 try:
     converter = AntrFpsConvertor()
     converter.mainloop()
+except SystemExit:
+    pass
 except Exception:
     print(format_exc())
     input()

@@ -16,13 +16,16 @@ MEK(in the scripts folder) as it has some fixes and upgrades. Also, import the m
 one mesh. You'll need to weld together parts that use different materials in the same mesh,
 but that's fine.
 
+
 Convertor-Mode_to_Mod2:
 Converts a directory of xbox models to gbxmodels.
+
 
 Convertor-Scex_to_Schi:
 Converts a folder of shader_transparent_chicago_extended tags into shader_transparent_chicago tags.
 Doesnt have the ability to choose the directory like all the other applications, but that's mainly
 because this was actually my first app I ever wrote for editing Halo tags.
+
 
 Halo_Animation_Fps_Changer:
 Can convert a directory of animation tags from 30 fps to 60 fps, or from 60 to 30. In order to
@@ -33,24 +36,49 @@ Certain animations shouldn't have their animations changed though, such as aimin
 talking, etc. There is a new "special overlay" flag in each animation to specify it as one of
 these special animations. Check that flag for each animation you dont want converted.
 
+
+Halo_Tagset_Fps_Changer:
+Can convert a directory of tags from 30 fps to 60 fps, or from 60 to 30. This differs from the
+above program in that this converts every tag type OTHER than animations(and scenarios, but more
+on that in a minute). Not all types of tags contain fps related variables though, so those that
+dont wont need to be converted. Any tags that dont contain any fps related fields(or those whose
+fps related fields are all zero) will be skipped. Scenarios contain fps related data, but most of
+it is stuff that has to be manually changed, such as recorded animations, scripts, and cutscenes.
+
+My parsing libraries add a flag to the header of all tags which determines if the tag is 60fps.
+My tools use this flag to know if a tag needs to be converted to/from 60fps, so it is important.
+All my libraries will preserve that flag(and Mozzarilla will check/uncheck it based on whether
+or not 60fps is set in mozz when you save), but guerilla, sapien, and tool wont. This is why
+the "Do nothing except flag all tags as 30 or 60fps" checkbox exists. This will go through the
+specified directory of tags and set the flag to whatever mode the converter is set to convert to.
+This is so you can easily flag your manually converted tags as 60fps, or fix the fps if you
+accidentally opened a tag in tool/guerilla/sapien and saved it.
+
+
 Halo_Bitmap_Optimizer_&_Converter:
 Read the hboc readme.txt
+
 
 Halo_TeXource:
 Capable of ripping the uncompressed source textures from a directory of tags to tga files.
 
+
 Mozzarilla:
 Read the mozzarilla readme.txt
+
 
 Mozzarilla(console):
 Same as the above, except it runs with a console window so you get a printout of errors if
 it crashes when starting up.
 
+
 Stubbs_Antr_Compiler:
 Capable of compiling meta data extracted from a Stubbs the Zombie map into a working animation tag.
 
+
 Stubbs_Mode_Compiler:
 Capable of compiling meta data extracted from a Stubbs the Zombie map into a working model tag.
+
 
 Stubbs_Soso_Compiler:
 Capable of compiling meta data extracted from a Stubbs the Zombie map into a working open
@@ -64,6 +92,7 @@ little tests that I decided to keep around:
 Halo_Meter_Extractor:
 This is capable of extracting the bitmaps from all meter images in the tags folder to tga files.
 This was a test, so dont even bother with it.
+
 
 Halo_Animation_Decompressor:
 Decompresses compressed animations found in model_animation tags.
