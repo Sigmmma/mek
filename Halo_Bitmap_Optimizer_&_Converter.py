@@ -1,3 +1,4 @@
+import os
 from traceback import format_exc
 from arbytmap import arbytmap
 try:
@@ -13,6 +14,10 @@ try:
         
     #loop the main window
     converter.root_window.mainloop()
-except:
+
+    os._exit(0)
+except SystemExit:
+    pass
+except Exception:
     print(format_exc())
     input()

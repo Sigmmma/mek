@@ -49,6 +49,11 @@ class AnimationDecompressor(Tk):
         self.tags_dir_frame.pack(expand=True, fill='both')
         self.decompress_btn.pack(fill='both', padx=5, pady=5)
 
+    def destroy(self):
+        Tk.destroy(self)
+        #raise SystemExit(0)
+        os._exit(0)
+
     def tags_dir_browse(self):
         dirpath = askdirectory(initialdir=self.tags_dir.get())
         if dirpath:

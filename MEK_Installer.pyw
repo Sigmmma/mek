@@ -242,6 +242,11 @@ class MekInstaller(tk.Tk):
                 "You currently have %s.%s.%s installed instead." %
                 sys.version_info[:3])
 
+    def destroy(self):
+        tk.Tk.destroy(self)
+        #raise SystemExit(0)
+        os._exit(0)
+
     def make_io_text(self):
         self.io_frame = tk.Frame(self, highlightthickness=0)
         self.io_text = tk.Text(self.io_frame, state='disabled')
