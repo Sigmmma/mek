@@ -51,7 +51,7 @@ All my libraries will preserve that flag(and Mozzarilla will check/uncheck it ba
 or not 60fps is set in mozz when you save), but guerilla, sapien, and tool wont. This is why
 the "Do nothing except flag all tags as 30 or 60fps" checkbox exists. This will go through the
 specified directory of tags and set the flag to whatever mode the converter is set to convert to.
-This is so you can easily flag your manually converted tags as 60fps, or fix the fps if you
+This is so you can easily flag your manually converted tags as 60fps, or fix the flag if you
 accidentally opened a tag in tool/guerilla/sapien and saved it.
 
 
