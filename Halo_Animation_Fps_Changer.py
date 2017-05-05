@@ -1,19 +1,19 @@
 import os, supyr_struct
 
 from array import array
-from math import sqrt, acos, sin
+from math import acos, ceil, sqrt, sin
 from struct import unpack, pack
 from time import time
 from tkinter import *
 from tkinter.filedialog import askdirectory
 from traceback import format_exc
-
-from supyr_struct.defs.constants import PATHDIV, MOST_SHOW
+from reclaimer.common_descs import tag_header_os
 from supyr_struct.defs.block_def import BlockDef
 from reclaimer.hek.defs.antr import antr_def
+from reclaimer.hek.defs.objs.antr import compressed_frames
 
-PATHDIV = PATHDIV
-curr_dir = os.path.abspath(os.curdir) + PATHDIV
+tag_header_def = BlockDef(tag_header_os)
+curr_dir = os.path.join(os.path.abspath(os.curdir), '')
 
 
 def get_node_frames(anim):
@@ -194,14 +194,15 @@ def convert_30fps_to_60fps(anim):
     anim.frame_size = f_size
     anim.flags.fps_60 = True
 
-    # recalculate the frame indices
-    anim.loop_frame_index = anim.loop_frame_index*new_frame_count//old_frame_count
-    anim.key_frame_index = anim.key_frame_index*new_frame_count//old_frame_count
-    anim.second_key_frame_index = anim.second_key_frame_index*new_frame_count//old_frame_count
-    anim.sound_frame_index = anim.sound_frame_index*new_frame_count//old_frame_count
-    anim.left_foot_frame_index = anim.left_foot_frame_index*new_frame_count//old_frame_count
-    anim.right_foot_frame_index = anim.right_foot_frame_index*new_frame_count//old_frame_count
+    index_scale = new_frame_count/old_frame_count
 
+    # recalculate the frame indices
+    anim.loop_frame_index       = int((anim.loop_frame_index + 0.5)*index_scale)
+    anim.key_frame_index        = int((anim.key_frame_index + 0.5)*index_scale)
+    anim.second_key_frame_index = int((anim.second_key_frame_index + 0.5)*index_scale)
+    anim.sound_frame_index      = int((anim.sound_frame_index + 0.5)*index_scale)
+    anim.left_foot_frame_index  = int((anim.left_foot_frame_index + 0.5)*index_scale)
+    anim.right_foot_frame_index = int((anim.right_foot_frame_index + 0.5)*index_scale)
     return 1
 
 
@@ -270,13 +271,82 @@ def convert_60fps_to_30fps(anim):
     anim.flags.fps_60 = False
     anim.frame_count = new_frame_count
 
+    index_scale = new_frame_count/old_frame_count
+    
+
+    anim.loop_frame_index       = int(ceil(anim.loop_frame_index*index_scale) - 0.5)
+    anim.key_frame_index        = int(ceil(anim.key_frame_index*index_scale) - 0.5)
+    anim.second_key_frame_index = int(ceil(anim.second_key_frame_index*index_scale) - 0.5)
+    anim.sound_frame_index      = int(ceil(anim.sound_frame_index*index_scale) - 0.5)
+    anim.left_foot_frame_index  = int(ceil(anim.left_foot_frame_index*index_scale) - 0.5)
+    anim.right_foot_frame_index = int(ceil(anim.right_foot_frame_index*index_scale) - 0.5)
+    return 1
+
+
+def convert_30fps_to_60fps_compressed(anim):
+    old_frame_count = anim.frame_count
+    new_frame_count = old_frame_count*2 - 1
+
+    index_scale = new_frame_count/old_frame_count
+    frame_data = anim.frame_data.data
+
+    uncomp_frame_data = frame_data[: anim.offset_to_compressed_data]
+    comp_frame_data = frame_data[anim.offset_to_compressed_data: ]
+    frame_data = compressed_frames.build(rawdata=comp_frame_data)
+
+    # make new frame_info by halving all the old values
+    if anim.frame_info_type.data:
+        f_info_ct = anim.frame_info_type.data + 1
+        pack_code = ">%sf" % f_info_ct
+        i_off = 0
+        frame_info = anim.frame_info.data
+        new_frame_info = b''
+
+        for f in range(new_frame_count):
+            if not (f%2):
+                info = unpack(pack_code, frame_info[i_off: i_off+f_info_ct*4])
+                i_off += f_info_ct*4
+                if f+1 != new_frame_count or anim.flags.final_velocity_kept:
+                    # not the last frame, so halve the dx, dy, dz, dyaw
+                    half_info = [val/2 for val in info]
+                    if len(half_info) == 4:
+                        # don't cut the dyaw in half
+                        half_info[-1] = info[-1]
+                    info = half_info
+
+            # write the info to the new_frame_info for the current frame
+            new_frame_info += pack(pack_code, *info)
+                
+        # put the new_frame_info into the anim block
+        anim.frame_info.data = new_frame_info
+
+    # scale all the frame numbers
+    for transform in (frame_data.rotation, frame_data.translation, frame_data.scale):
+        frame_nums = transform.frame_nums
+        for i in range(len(frame_nums)):
+            frame_nums[i] = int((frame_nums[i] + 0.5)*index_scale)
+
+    # change header information
+    anim.frame_count = new_frame_count
+    anim.offset_to_compressed_data = anim.frame_size*new_frame_count
+    anim.flags.fps_60 = True
+
+    # put the uncompressed frame data back into the anim block
+    anim.frame_data.data = uncomp_frame_data
+
+    # pad the frame_data with 0x00 to fill in the new, empty frames
+    anim.frame_data.data += b'\x00'*(anim.frame_size*(new_frame_count-old_frame_count))
+
+    # add the new 
+    anim.frame_data.data += frame_data.serialize()
+
     # recalculate the frame indices
-    anim.loop_frame_index = (anim.loop_frame_index-1)//2 + 1
-    anim.key_frame_index = (anim.key_frame_index-1)//2 + 1
-    anim.second_key_frame_index = (anim.second_key_frame_index-1)//2 + 1
-    anim.sound_frame_index = (anim.sound_frame_index-1)//2 + 1
-    anim.left_foot_frame_index = (anim.left_foot_frame_index-1)//2 + 1
-    anim.right_foot_frame_index = (anim.right_foot_frame_index-1)//2 + 1
+    anim.loop_frame_index       = int((anim.loop_frame_index + 0.5)*index_scale)
+    anim.key_frame_index        = int((anim.key_frame_index + 0.5)*index_scale)
+    anim.second_key_frame_index = int((anim.second_key_frame_index + 0.5)*index_scale)
+    anim.sound_frame_index      = int((anim.sound_frame_index + 0.5)*index_scale)
+    anim.left_foot_frame_index  = int((anim.left_foot_frame_index + 0.5)*index_scale)
+    anim.right_foot_frame_index = int((anim.right_foot_frame_index + 0.5)*index_scale)
     return 1
 
 
@@ -284,14 +354,14 @@ class AntrFpsConvertor(Tk):
     def __init__(self, *args, **kwargs):
         Tk.__init__(self, *args, **kwargs)
 
-        self.title("Animation Fps Changer v1.0")
+        self.title("Animation Fps Changer v1.5")
         self.geometry("400x120+0+0")
         self.resizable(0, 0)
 
         self.tags_dir = StringVar(self)
         self.fps = IntVar(self)
         self.overwrite_old = IntVar(self)
-        self.tags_dir.set(curr_dir + 'tags' + PATHDIV)
+        self.tags_dir.set(os.path.join(curr_dir + 'tags', ''))
         self.fps.set(60)
 
         # make the frames
@@ -337,25 +407,34 @@ class AntrFpsConvertor(Tk):
         if dirpath:
             self.tags_dir.set(dirpath)
 
+    def destroy(self):
+        Tk.destroy(self)
+        #raise SystemExit(0)
+        os._exit(0)
+
     def convert(self):
         start = time()
         fps = self.fps.get()
-        tags_dir = self.tags_dir.get()
-        prefix = PATHDIV + '%sfps_' % fps
+        tags_dir = os.path.join(self.tags_dir.get(), '')
+        prefix = '%sfps_' % fps
         overwrite_old = self.overwrite_old.get()
+        convert_to_60 = (fps == 60)
+        all_count = 0
 
         print('Converting animations to %s fps\n' % fps)
 
-        if not tags_dir.endswith(PATHDIV):
-            tags_dir += PATHDIV
-
         for root, dirs, files in os.walk(tags_dir):
-            if not root.endswith(PATHDIV):
-                root += PATHDIV
+            root = os.path.join(root, '')
 
             for filename in files:
                 filepath = root + filename
                 if os.path.splitext(filename)[-1].lower() != '.model_animations':
+                    continue
+
+                blam_header = tag_header_def.build(filepath=filepath)
+                if bool(blam_header.flags.fps_60) == convert_to_60:
+                    # tag is already the correct fps, so skip it
+                    del blam_header
                     continue
 
                 print('Converting %s' % filepath.split(tags_dir)[-1])
@@ -365,37 +444,54 @@ class AntrFpsConvertor(Tk):
                 # rename the tag to the converted filepath
                 if not overwrite_old:
                     dirpath, filename = os.path.split(filepath)
-                    antr_tag.filepath = dirpath + prefix + filename
+                    antr_tag.filepath = os.path.join(dirpath, prefix + filename)
 
                 anims = antr_tag.data.tagdata.animations.STEPTREE
-                converted_count = 0
+                count = 0
                 for i in range(len(anims)):
                     anim = anims[i]
+                    compressed = anim.flags.compressed_data
                     if anim.flags.special:
                         # animation is marked as a special overlay. ignore it
+                        del antr_tag
                         continue
-                    elif anim.flags.compressed_data:
-                        print("    %s   is compressed and cant be converted" %
-                              anim.name)
+                    elif not anim.frame_count:
+                        print("    '%s' has a frame count of zero. Cannot convert.")
+                        del antr_tag
                         continue
 
                     try:
-                        if fps == 60 and not anim.flags.fps_60:
-                            print("    %s" % anim.name)
-                            converted_count += convert_30fps_to_60fps(anim)
-                        elif fps == 30 and anim.flags.fps_60:
-                            print("    %s" % anim.name)
-                            converted_count += convert_60fps_to_30fps(anim)
+                        if convert_to_60 and not anim.flags.fps_60:
+                            if compressed:
+                                print("    [COMPRESSED] %s" % anim.name)
+                                count += convert_30fps_to_60fps_compressed(anim)
+                            else:
+                                print("    %s" % anim.name)
+                                count += convert_30fps_to_60fps(anim)
+                        elif not convert_to_60 and anim.flags.fps_60:
+                            if compressed:
+                                print(("    '%s' is compressed. 60fps " +
+                                       "compressed animations cannot be " +
+                                       "converted to 30fps.") % anim.name)
+                                continue
+                            else:
+                                print("    %s" % anim.name)
+                                count += convert_60fps_to_30fps(anim)
                     except Exception:
                         print(format_exc())
                         print("        Could not convert the above animation.")
 
-                if converted_count:
-                    print("    Converted %s animations." % converted_count)
+                if count:
+                    print("\n    Converted %s animations." % count)
+                    antr_tag.data.blam_header.flags.fps_60 = bool(convert_to_60)
                     antr_tag.serialize(temp=False, backup=False)
+                    all_count += count
+                else:
+                    print("    No animations needed to be converted.")
 
                 del antr_tag
         print('\nFinished. Took %s seconds' % (time() - start))
+        print('Converted %s animations in total.' % all_count)
 
 try:
     converter = AntrFpsConvertor()
