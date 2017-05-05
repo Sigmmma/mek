@@ -15,7 +15,8 @@ try:
     from mozzarilla.app_window import Mozzarilla
     main_window = Mozzarilla(debug=3)
     main_window.mainloop()
-    
+except SystemExit:
+    pass
 except Exception:
     exception = format_exc()
     try:
