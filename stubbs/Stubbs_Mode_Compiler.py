@@ -13,13 +13,9 @@ from reclaimer.stubbs.defs.mode import mode_def
 force_little = FieldType.force_little
 force_normal = FieldType.force_normal
 
-def undef_size(node, *a, **kwa):
-    if node is None:
-        return 0
-    return len(node)
-
 raw_block_def = BlockDef("raw_block",
-    BytearrayRaw('data', SIZE=undef_size)
+    BytearrayRaw('data',
+        SIZE=lambda node, *a, **kw: 0 if node is None else len(node))
     )
 
 PATHDIV = PATHDIV
@@ -58,8 +54,7 @@ def make_mode_tag(meta_path, tags_dir=curr_dir + "tags" + PATHDIV):
                 if key in verts:
                     raw_data = verts[key]
                     raw_block = raw_block_def.build()
-                    raw_block.data = new_raw = bytearray(
-                        b'\x00'*32*(len(raw_data)//32))
+                    raw_block.data = new_raw = bytearray(32*(len(raw_data)//32))
 
                     # byteswap each of the floats, ints, and shorts
                     for ii in range(0, len(new_raw), 32):
@@ -91,8 +86,7 @@ def make_mode_tag(meta_path, tags_dir=curr_dir + "tags" + PATHDIV):
                 if key in tris:
                     raw_data = tris[key]
                     raw_block = raw_block_def.build()
-                    raw_block.data = new_raw = bytearray(
-                        b'\x00'*6*(len(raw_data)//6))
+                    raw_block.data = new_raw = bytearray(6*(len(raw_data)//6))
 
                     # byteswap each of the shorts
                     for ii in range(0, len(new_raw), 2):

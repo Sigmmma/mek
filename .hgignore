@@ -10,3 +10,5 @@ ripper/defs/__pycache__/
 *.lnk
 *.log
 H2EK/
+refinery/defs/__pycache__/
+refinery/__pycache__/
