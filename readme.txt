@@ -82,15 +82,15 @@ Same as the above, except it runs with a console window so you get a printout of
 it crashes when starting up.
 
 
-Stubbs_Antr_Compiler:
+stubbs\Stubbs_Antr_Compiler:
 Capable of compiling meta data extracted from a Stubbs the Zombie map into a working animation tag.
 
 
-Stubbs_Mode_Compiler:
+stubbs\Stubbs_Mode_Compiler:
 Capable of compiling meta data extracted from a Stubbs the Zombie map into a working model tag.
 
 
-Stubbs_Soso_Compiler:
+stubbs\Stubbs_Soso_Compiler:
 Capable of compiling meta data extracted from a Stubbs the Zombie map into a working open
 sauce shader_model tag.
 
