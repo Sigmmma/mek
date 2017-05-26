@@ -353,7 +353,7 @@ class AntrFpsConvertor(Tk):
         Tk.__init__(self, *args, **kwargs)
 
         self.title("Animation Fps Changer v1.5")
-        self.geometry("400x120+0+0")
+        self.geometry("400x160+0+0")
         self.resizable(0, 0)
 
         self.tags_dir = StringVar(self)
@@ -390,7 +390,7 @@ class AntrFpsConvertor(Tk):
 
         # pack everything
         self.tags_dir_entry.pack(expand=True, fill='x', side='left')
-        self.tags_dir_browse_btn.pack(fill='both', side='left')
+        self.tags_dir_browse_btn.pack(fill='x', side='left')
 
         for w in (self.checkbox_30_to_60, self.checkbox_60_to_30,
                   self.checkbox_overwrite_tags):

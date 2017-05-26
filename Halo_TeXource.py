@@ -14,7 +14,7 @@ class TeXource(Tk):
         Tk.__init__(self, *args, **kwargs)
 
         self.title("Halo TeXource v2.1")
-        self.geometry("400x120+0+0")
+        self.geometry("400x150+0+0")
         self.resizable(0, 0)
 
         self.tags_dir = StringVar(self)
@@ -48,8 +48,8 @@ class TeXource(Tk):
         # pack everything
         self.tags_dir_entry.pack(expand=True, fill='x', side='left')
         self.data_dir_entry.pack(expand=True, fill='x', side='left')
-        self.tags_dir_browse_btn.pack(fill='both', side='left')
-        self.data_dir_browse_btn.pack(fill='both', side='left')
+        self.tags_dir_browse_btn.pack(fill='x', side='left')
+        self.data_dir_browse_btn.pack(fill='x', side='left')
 
         self.tags_dir_frame.pack(expand=True, fill='both')
         self.data_dir_frame.pack(expand=True, fill='both')
