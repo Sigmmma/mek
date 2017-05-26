@@ -475,10 +475,6 @@ class Refinery(BinillaWidget, tk.Tk):
                 print(format_exc())
                 print("Could not read globals tag")
 
-            self.display_map_info()
-            self.hierarchy_frame.map_magic = self.map_magic
-            self.reload_map_explorer()
-
             maps_dir = dirname(map_path)
 
             bitmap_data = sound_data = loc_data = None
@@ -564,6 +560,10 @@ class Refinery(BinillaWidget, tk.Tk):
             self.sound_rsrc_header  = sound_rsrc
             self.loc_rsrc_header    = loc_rsrc
 
+            self.display_map_info()
+            self.hierarchy_frame.map_magic = self.map_magic
+            self.reload_map_explorer()
+
             try:
                 if comp_data is not self.map_data:
                     comp_data.close()
@@ -618,21 +618,19 @@ class Refinery(BinillaWidget, tk.Tk):
                     "    tag count           == %s\n" +
                     "    scenario tag id     == %s\n" +
                     "    index array offset  == %s   non-magic == %s\n" +
+                    "    model data offset   == %s\n"+
                     "    meta data length    == %s\n" +
                     "    vertex parts count  == %s\n" +
-                    "    index  parts count  == %s\n" ) %
+                    "    index  parts count  == %s\n") %
                 (index.tag_count, index.scenario_tag_id[0],
                  tag_index_offset, tag_index_offset - self.map_magic,
-                 header.tag_index_meta_len,
+                 index.model_data_offset, header.tag_index_meta_len,
                  index.vertex_parts_count, index.index_parts_count))
 
                 if index.SIZE == 36:
                     string += ((
-                        "    vertex parts offset == %s   non-magic == %s\n" +
                         "    index  parts offset == %s   non-magic == %s\n") %
-                    (index.vertex_parts_offset,
-                     index.vertex_parts_offset - self.map_magic,
-                     index.index_parts_offset,
+                    (index.index_parts_offset,
                      index.index_parts_offset - self.map_magic))
                 else:
                     string += ((
@@ -735,8 +733,7 @@ class Refinery(BinillaWidget, tk.Tk):
     def is_indexed(self, tag_index_ref):
         if self.engine in ("ce", "yelo"):
             return bool(tag_index_ref.indexed)
-        else:
-            return False
+        return False
 
     def basic_deprotection(self):
         if not self._map_loaded:
@@ -935,9 +932,17 @@ class Refinery(BinillaWidget, tk.Tk):
                 map_data  = self.loc_data
                 rsrc_head = self.loc_rsrc_header
 
+            if rsrc_head is None:
+                # resource map not loaded
+                return
+
             meta_offset = tag_index_ref.meta_offset
             meta_offset = rsrc_head.tag_headers[meta_offset].offset
             kwargs = dict(magic=0)
+
+        if map_data is None:
+            # resource map not loaded
+            return
 
         h_desc  = self.handler.defs[tag_cls].descriptor[1]
         h_block = [None]
@@ -992,6 +997,7 @@ class Refinery(BinillaWidget, tk.Tk):
         elif self.is_indexed(tag_index_ref) and self.engine in ("ce", "yelo"):
             # tag exists in a resource cache
             return self.get_ce_resource_tag(tag_cls, tag_index_ref)
+
 
         if tag_cls != "gelo":
             h_desc = self.handler.defs[tag_cls].descriptor[1]
@@ -1086,9 +1092,12 @@ class Refinery(BinillaWidget, tk.Tk):
             if engine in ("yelo", "ce", "pc", "pcdemo", "pcstubbs"):
                 # model_magic seems to be the same for all pc maps
                 # need to figure out what that magic is though.........
-                model_magic = 0
+                verts_start = self.tag_index.model_data_offset
+                tris_start  = verts_start + self.tag_index.vertex_data_size
+                model_magic = None
             else:
                 model_magic = magic
+
             # grab vertices and indices from the map
             if tag_cls == "mode":
                 verts_attr_name = "compressed_vertices"
@@ -1115,7 +1124,6 @@ class Refinery(BinillaWidget, tk.Tk):
 
             for geom in meta.geometries.STEPTREE:
                 for part in geom.parts.STEPTREE:
-                    input(part)
                     verts_block = part[verts_attr_name]
                     tris_block  = part.triangles
                     info  = part.model_meta_info
@@ -1132,16 +1140,24 @@ class Refinery(BinillaWidget, tk.Tk):
                     tris_block.STEPTREE  = raw_block_def.build()
 
                     # read the offsets of the vertices and indices from the map
-                    map_data.seek(info.vertices_reflexive_offset+4-model_magic)
-                    verts_off = unpack("<I", map_data.read(4))[0]
-                    map_data.seek(info.indices_reflexive_offset +4-model_magic)
-                    tris_off  = unpack("<I", map_data.read(4))[0]
+                    if model_magic is None:
+                        verts_off = verts_start + info.vertices_offset
+                        tris_off  = tris_start  + info.indices_offset
+                    else:
+                        map_data.seek(
+                            info.vertices_reflexive_offset + 4 - model_magic)
+                        verts_off = unpack(
+                            "<I", map_data.read(4))[0] - model_magic
+                        map_data.seek(
+                            info.indices_reflexive_offset  + 4 - model_magic)
+                        tris_off  = unpack(
+                            "<I", map_data.read(4))[0] - model_magic
 
                     # read the raw data from the map
-                    map_data.seek(verts_off - model_magic)
+                    map_data.seek(verts_off)
                     raw_verts = map_data.read(vert_size*info.vertex_count)
-                    map_data.seek(tris_off - model_magic)
-                    raw_tris  = map_data.read(2*info.index_count)
+                    map_data.seek(tris_off)
+                    raw_tris  = map_data.read(2*(info.index_count + 3))
 
                     # put the raw data in the verts and tris blocks
                     verts_block.STEPTREE.data = raw_verts
@@ -1154,8 +1170,14 @@ class Refinery(BinillaWidget, tk.Tk):
                     # null out the model_meta_info
                     info.index_type.data  = info.index_count  = 0
                     info.vertex_type.data = info.vertex_count = 0
-                    info.indices_offset   = info.indices_reflexive_offset  = 0
-                    info.vertices_offset  = info.vertices_reflexive_offset = 0
+                    info.indices_offset = info.vertices_offset  = 0
+                    if model_magic is None:
+                        info.indices_magic_offset  = 0
+                        info.vertices_magic_offset = 0
+                    else:
+                        info.indices_reflexive_offset  = 0
+                        info.vertices_reflexive_offset = 0
+
         elif tag_cls == "scnr":
             # need to remove the references to the child scenarios
             del meta.child_scenarios.STEPTREE[:]

@@ -10,12 +10,17 @@ from traceback import format_exc
 
 from reclaimer.hek.defs.coll import coll_def
 from reclaimer.hek.defs.mod2 import mod2_def
+from reclaimer.hek.defs.mode import mode_def
+from reclaimer.stubbs.defs.mode import mode_def as stubbs_mode_def
+from reclaimer.stubbs.defs.coll import coll_def as stubbs_coll_def
+from reclaimer.common_descs import tag_header
 from reclaimer.hek.defs.objs.matrices import quaternion_to_matrix, Matrix
 from supyr_struct.buffer import get_rawdata
 from supyr_struct.defs.block_def import BlockDef
 from supyr_struct.defs.constants import PATHDIV
 from supyr_struct.field_types import FieldType, BytearrayRaw
 
+tag_header_def = BlockDef(tag_header)
 
 PATHDIV = PATHDIV
 curr_dir = abspath(os.curdir) + PATHDIV
@@ -47,46 +52,63 @@ class Region():
         self.perms = {}
 
 
-def get_tags(coll_path, mod2_in_path):
-    mod2_path = splitext(mod2_in_path)[0] + "_COLLISION.gbxmodel"
+def get_tags(coll_path, model_in_path):
+    mod2_path = splitext(model_in_path)[0] + "_COLLISION.gbxmodel"
 
-    coll_tag = coll_def.build(filepath=coll_path)
+    # get whether or not the collision tag is stubbs
+    stubbs = tag_header_def.build(filepath=coll_path).version == 11
+
+    if stubbs:
+        coll_tag = stubbs_coll_def.build(filepath=coll_path)
+    else:
+        coll_tag = coll_def.build(filepath=coll_path)
+
     mod2_tag = mod2_def.build()
     mod2_tag.filepath = mod2_path
+    model_in_rawdata = None
 
-    mod2_in_rawdata = None
-    while mod2_in_rawdata is None and mod2_in_path:
+    guessed_mode = False
+    while model_in_rawdata is None and model_in_path:
         try:
-            mod2_in_rawdata = get_rawdata(filepath=mod2_in_path)
+            model_in_rawdata = get_rawdata(filepath=model_in_path)
         except Exception:
-            mod2_in_rawdata = None
-            mod2_in_path = askopenfilename(
-                initialdir=dirname(mod2_in_path), filetypes=(
-                    ('All', '*'), ('Gbxmodel', '*.gbxmodel')),
-                title="Select the gbxmodel to extract nodes from")
+            if guessed_mode:
+                model_in_rawdata = None
+                model_in_path = askopenfilename(
+                    initialdir=dirname(model_in_path), filetypes=(
+                        ('All', '*'), ('Gbxmodel', '*.gbxmodel')),
+                    title="Select the gbxmodel to extract nodes from")
+            else:
+                model_in_path = splitext(model_in_path)[0] + ".model"
+                guessed_mode = True
 
-    if mod2_in_rawdata is not None:
+    if model_in_rawdata is not None:
         # we dont actually care about the geometries or shaders of the gbxmodel
         # tag we're loading, so null them out to speed up the loading process.
         geom_off = 64 + 4*9 + 2*5 + 126 + 12*3
 
         # make a copy so we dont edit the file
-        mod2_in_rawdata = bytearray(mod2_in_rawdata)
-        mod2_in_rawdata[geom_off:64 + 232] = b'\x00'*(64 + 232 - geom_off)
+        model_in_rawdata = bytearray(model_in_rawdata)
+        model_in_rawdata[geom_off:64 + 232] = b'\x00'*(64 + 232 - geom_off)
 
-        mod2_in_tag = mod2_def.build(rawdata=mod2_in_rawdata)
+        if model_in_rawdata[36:40] == b"mod2":
+            model_in_tag = mod2_def.build(rawdata=model_in_rawdata)
+        elif stubbs:
+            model_in_tag = stubbs_mode_def.build(rawdata=model_in_rawdata)
+        else:
+            model_in_tag = mode_def.build(rawdata=model_in_rawdata)
 
-        mod2_tag.data.tagdata.nodes = mod2_in_tag.data.tagdata.nodes
+        mod2_tag.data.tagdata.nodes = model_in_tag.data.tagdata.nodes
     else:
-        mod2_in_tag = None
+        model_in_tag = None
         mod2_tag.data.tagdata.nodes.STEPTREE.append()
         node = mod2_tag.data.tagdata.nodes.STEPTREE[-1]
         node.name = "COLLISION ROOT"
-        print("    %s" %mod2_in_path)
+        print("    %s" %model_in_path)
         print("    Could not load gbxmodel. Gbxmodel wont have nodes and " +
               "the geometry will not be positioned or rotated properly.")
 
-    return coll_tag, mod2_in_tag, mod2_tag
+    return coll_tag, model_in_tag, mod2_tag
 
 
 def get_collections(coll_tag):
@@ -219,7 +241,7 @@ def make_parts_by_mats(faces, raw_verts, parts, node_i,
         # if there are no frames, all parts
         # will be left parented to frame 0
         if has_frames:
-            part.local_nodes = array("B", (node_i,) + ((0,)*20))
+            part.local_nodes[0] = node_i
 
         part.uncompressed_vertices.size = len(raw_verts.data)//68
         part.uncompressed_vertices.STEPTREE = raw_verts
@@ -298,16 +320,16 @@ def fill_parts_by_mats(parts_by_mats, edge_loops_by_mats):
         tris.STEPTREE.data = uncomp_tris
 
 
-def coll_to_mod2(coll_path, mod2_in_path=None, guess_mod2=True, use_mats=True):
+def coll_to_mod2(coll_path, model_in_path=None, guess_mod2=True, use_mats=True):
     if guess_mod2:
-        mod2_in_path = splitext(coll_path)[0] + ".gbxmodel"
+        model_in_path = splitext(coll_path)[0] + ".gbxmodel"
 
     print("    Loading tags")
-    coll_tag, mod2_in_tag, mod2_tag = get_tags(coll_path, mod2_in_path)
+    coll_tag, model_in_tag, mod2_tag = get_tags(coll_path, model_in_path)
     mod2_data = mod2_tag.data.tagdata
 
     
-    # MAKE SURE REGIONS AND PERMUTATIONS MATCH BETWEEN mod2_in_tag AND coll_tag
+    # MAKE SURE REGIONS AND PERMUTATIONS MATCH BETWEEN model_in_tag AND coll_tag
     mod2_data.flags.parts_have_local_nodes = True
     mod2_data.base_map_u_scale = 1.0
     mod2_data.base_map_v_scale = 1.0
@@ -359,7 +381,7 @@ def coll_to_mod2(coll_path, mod2_in_path=None, guess_mod2=True, use_mats=True):
             # create as many parts as we need for this geometry
             for node_i in range(len(node_names)):
                 node_name = node_names[node_i]
-                if not mod2_in_tag:
+                if not model_in_tag:
                     node_i = 0
 
                 if node_name not in node_bsps_by_perm:
@@ -375,7 +397,7 @@ def coll_to_mod2(coll_path, mod2_in_path=None, guess_mod2=True, use_mats=True):
                 # find out how many materials are in this node_bsp
                 # and create parts blocks for each of them.
                 parts_by_mats = make_parts_by_mats(
-                    faces, raw_verts, parts, node_i, use_mats, mod2_in_tag)
+                    faces, raw_verts, parts, node_i, use_mats, model_in_tag)
 
                 # collect all the edge loops that make up all the faces
                 edge_loops_by_mats = get_edge_loops_by_mats(faces, edges)
@@ -408,8 +430,8 @@ class CollToMod2Convertor(Tk):
     def __init__(self, *args, **kwargs):
         Tk.__init__(self, *args, **kwargs)
 
-        self.title("Collision Geometry to Gbxmodel Convertor v1.0")
-        self.geometry("400x70+0+0")
+        self.title("Collision Geometry to Gbxmodel Convertor v1.5")
+        self.geometry("400x150+0+0")
         self.resizable(0, 0)
 
         self.tags_dir = StringVar(self)
@@ -421,8 +443,9 @@ class CollToMod2Convertor(Tk):
         self.guess_mod2.set(1)
         self.use_mats.set(1)
 
-        # make the frame
+        # make the frames
         self.tags_dir_frame = LabelFrame(self, text="Tags directory")
+        self.checkbox_frame = LabelFrame(self, text="Conversion settings")
         
         # add the filepath boxes
         self.tags_dir_entry = Entry(
@@ -436,11 +459,22 @@ class CollToMod2Convertor(Tk):
             self.tags_dir_frame, text="Browse",
             width=6, command=self.tags_dir_browse)
 
+        self.guess_mod2_checkbutton = Checkbutton(
+            self.checkbox_frame, variable=self.guess_mod2,
+            text="Locate gbxmodel in directory")
+        self.use_mats_checkbutton = Checkbutton(
+            self.checkbox_frame, variable=self.use_mats,
+            text="Use collision materials as shaders")
+
         # pack everything
         self.tags_dir_entry.pack(expand=True, fill='x', side='left')
-        self.tags_dir_browse_btn.pack(fill='both', side='left')
+        self.tags_dir_browse_btn.pack(fill='x', side='left')
+
+        self.guess_mod2_checkbutton.pack(anchor='w', padx=10)
+        self.use_mats_checkbutton.pack(anchor='w', padx=10)
 
         self.tags_dir_frame.pack(expand=True, fill='both')
+        self.checkbox_frame.pack(fill='both', anchor='nw')
         self.convert_btn.pack(fill='both', padx=5, pady=5)
 
     def destroy(self):
@@ -477,11 +511,10 @@ class CollToMod2Convertor(Tk):
                     mod2_tag = coll_to_mod2(filepath,
                                             guess_mod2=self.guess_mod2.get(),
                                             use_mats=self.use_mats.get())
+                    if mod2_tag:
+                        mod2_tag.serialize(temp=False, backup=False, int_test=False)
                 except Exception:
                     print(format_exc())
-
-                if mod2_tag:
-                    mod2_tag.serialize(temp=False, backup=False, int_test=False)
                 print()
         print('\nFinished. Took %s seconds' % (time() - start))
 

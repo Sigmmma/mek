@@ -28,7 +28,7 @@ class TagsetFpsConvertor(Tk):
         self.handler = OsV4HaloHandler(valid_def_ids=fps_related_tag_classes)
 
         self.title("Tagset Fps Changer v1.0")
-        self.geometry("400x140+0+0")
+        self.geometry("400x180+0+0")
         self.resizable(0, 0)
 
         self.tags_dir = StringVar(self)

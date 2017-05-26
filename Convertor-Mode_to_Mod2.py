@@ -147,7 +147,7 @@ class ModeToMod2Convertor(Tk):
         Tk.__init__(self, *args, **kwargs)
 
         self.title("Model to Gbxmodel Convertor v1.0")
-        self.geometry("400x70+0+0")
+        self.geometry("400x100+0+0")
         self.resizable(0, 0)
 
         self.tags_dir = StringVar(self)
@@ -170,7 +170,7 @@ class ModeToMod2Convertor(Tk):
 
         # pack everything
         self.tags_dir_entry.pack(expand=True, fill='x', side='left')
-        self.tags_dir_browse_btn.pack(fill='both', side='left')
+        self.tags_dir_browse_btn.pack(fill='x', side='left')
 
         self.tags_dir_frame.pack(expand=True, fill='both')
         self.convert_btn.pack(fill='both', padx=5, pady=5)
