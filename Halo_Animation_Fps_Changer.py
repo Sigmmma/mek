@@ -7,12 +7,10 @@ from time import time
 from tkinter import *
 from tkinter.filedialog import askdirectory
 from traceback import format_exc
-from reclaimer.common_descs import tag_header_os
 from supyr_struct.defs.block_def import BlockDef
 from reclaimer.hek.defs.antr import antr_def
 from reclaimer.hek.defs.objs.antr import compressed_frames
 
-tag_header_def = BlockDef(tag_header_os)
 curr_dir = os.path.join(os.path.abspath(os.curdir), '')
 
 
@@ -431,13 +429,7 @@ class AntrFpsConvertor(Tk):
                 if os.path.splitext(filename)[-1].lower() != '.model_animations':
                     continue
 
-                blam_header = tag_header_def.build(filepath=filepath)
-                if bool(blam_header.flags.fps_60) == convert_to_60:
-                    # tag is already the correct fps, so skip it
-                    del blam_header
-                    continue
-
-                print('Converting %s' % filepath.split(tags_dir)[-1])
+                print('%s' % filepath.split(tags_dir)[-1])
 
                 antr_tag = antr_def.build(filepath=filepath)
 
@@ -452,12 +444,10 @@ class AntrFpsConvertor(Tk):
                     anim = anims[i]
                     compressed = anim.flags.compressed_data
                     if anim.flags.special:
-                        # animation is marked as a special overlay. ignore it
-                        del antr_tag
+                        # animation is marked as a special overlay. ignore it                        del antr_tag
                         continue
                     elif not anim.frame_count:
                         print("    '%s' has a frame count of zero. Cannot convert.")
-                        del antr_tag
                         continue
 
                     try:
