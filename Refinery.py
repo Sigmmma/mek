@@ -3,6 +3,7 @@ import os
 import zlib
 
 from os.path import dirname, exists, join
+from struct import unpack
 from time import time
 from tkinter.filedialog import askopenfilename, asksaveasfilename, askdirectory
 from tkinter.font import Font
@@ -96,6 +97,7 @@ class Refinery(BinillaWidget, tk.Tk):
     loc_rsrc_header    = None
 
     bsp_magics = None
+    bsp_sizes  = None
     bsp_headers = None
     bsp_header_offsets = None
 
@@ -353,7 +355,8 @@ class Refinery(BinillaWidget, tk.Tk):
         self.scnr_meta = self.matg_meta = None
         self.bitmap_data = self.sound_data = self.loc_data = self.map_data = None
         self.map_magic = self.index_magic = None
-        self.bsp_magics = self.bsp_header_offsets = self.bsp_headers = None
+        self.bsp_magics = self.bsp_sizes = self.bsp_headers = None
+        self.bsp_header_offsets = None
         self._map_loaded = self._running = False
         self.stop_processing = True
         self.classes_repaired = False
@@ -434,6 +437,7 @@ class Refinery(BinillaWidget, tk.Tk):
             # get the scenario meta
             try:
                 self.bsp_magics = bsp_magics = {}
+                self.bsp_sizes  = bsp_sizes  = {}
                 self.bsp_header_offsets = bsp_offsets = {}
                 self.bsp_headers = {}
 
@@ -442,6 +446,7 @@ class Refinery(BinillaWidget, tk.Tk):
                     bsp = b.structure_bsp
                     bsp_offsets[bsp.id[0]] = b.bsp_pointer
                     bsp_magics[bsp.id[0]]  = b.bsp_magic
+                    bsp_sizes[bsp.id[0]]   = b.bsp_size
 
                 # read the sbsp headers
                 for tag_id in self.bsp_header_offsets:
@@ -700,13 +705,15 @@ class Refinery(BinillaWidget, tk.Tk):
                         "    %s.structure_scenario_bsp\n" +
                         "        bsp base pointer               == %s\n" +
                         "        bsp magic                      == %s\n" +
+                        "        bsp size                       == %s\n" +
                         "        bsp metadata pointer           == %s   non-magic == %s\n" +
                         "        uncompressed lightmaps count   == %s\n" +
                         "        uncompressed lightmaps pointer == %s   non-magic == %s\n" +
                         "        compressed   lightmaps count   == %s\n" +
                         "        compressed   lightmaps pointer == %s   non-magic == %s\n") %
                     (index.tag_index[tag_id].tag.tag_path,
-                     self.bsp_header_offsets[tag_id], magic,
+                     self.bsp_header_offsets[tag_id],
+                     magic, self.bsp_sizes[tag_id],
                      header.meta_pointer, header.meta_pointer - magic,
                      header.uncompressed_lightmap_materials_count,
                      header.uncompressed_lightmap_materials_pointer,
@@ -1075,37 +1082,80 @@ class Refinery(BinillaWidget, tk.Tk):
             # mask away the meta-only flags
             meta.flags.data &= 3
         elif tag_cls in ("mode", "mod2"):
-            return
+
+            if engine in ("yelo", "ce", "pc", "pcdemo", "pcstubbs"):
+                # model_magic seems to be the same for all pc maps
+                # need to figure out what that magic is though.........
+                model_magic = 0
+            else:
+                model_magic = magic
             # grab vertices and indices from the map
             if tag_cls == "mode":
                 verts_attr_name = "compressed_vertices"
-                verts_byteswapper = byteswap_comp_verts
+                byteswap_verts = byteswap_comp_verts
+                vert_size = 32
             else:
                 verts_attr_name = "uncompressed_vertices"
-                verts_byteswapper = byteswap_uncomp_verts
+                byteswap_verts = byteswap_uncomp_verts
+                vert_size = 68
+
+                # need to swap the lod cutoff and nodes values around
+                cutoffs = (meta.superlow_lod_cutoff, meta.low_lod_cutoff,
+                           meta.high_lod_cutoff, meta.superhigh_lod_cutoff)
+                nodes = (meta.superlow_lod_nodes, meta.low_lod_nodes,
+                         meta.high_lod_nodes, meta.superhigh_lod_nodes)
+                meta.superlow_lod_cutoff  = cutoffs[3]
+                meta.low_lod_cutoff       = cutoffs[2]
+                meta.high_lod_cutoff      = cutoffs[1]
+                meta.superhigh_lod_cutoff = cutoffs[0]
+                meta.superlow_lod_nodes  = nodes[3]
+                meta.low_lod_nodes       = nodes[2]
+                meta.high_lod_nodes      = nodes[1]
+                meta.superhigh_lod_nodes = nodes[0]
 
             for geom in meta.geometries.STEPTREE:
                 for part in geom.parts.STEPTREE:
+                    input(part)
                     verts_block = part[verts_attr_name]
                     tris_block  = part.triangles
-                    model_info  = part.model_meta_info
+                    info  = part.model_meta_info
+
+                    # null out certain things in the part
+                    part.previous_part_index = part.next_part_index = 0
+                    part.centroid_primary_node = 0
+                    part.centroid_secondary_node = 0
+                    part.centroid_primary_weight = 0.0
+                    part.centroid_secondary_weight = 0.0
 
                     # make the new blocks to hold the raw data
                     verts_block.STEPTREE = raw_block_def.build()
                     tris_block.STEPTREE  = raw_block_def.build()
 
+                    # read the offsets of the vertices and indices from the map
+                    map_data.seek(info.vertices_reflexive_offset+4-model_magic)
+                    verts_off = unpack("<I", map_data.read(4))[0]
+                    map_data.seek(info.indices_reflexive_offset +4-model_magic)
+                    tris_off  = unpack("<I", map_data.read(4))[0]
+
                     # read the raw data from the map
-                    raw_verts = asdf
-                    raw_tris  = qwer
+                    map_data.seek(verts_off - model_magic)
+                    raw_verts = map_data.read(vert_size*info.vertex_count)
+                    map_data.seek(tris_off - model_magic)
+                    raw_tris  = map_data.read(2*info.index_count)
 
                     # put the raw data in the verts and tris blocks
                     verts_block.STEPTREE.data = raw_verts
                     tris_block.STEPTREE.data  = raw_tris
 
                     # call the byteswappers
-                    verts_byteswapper(verts_block)
+                    byteswap_verts(verts_block)
                     byteswap_tris(tris_block)
-                    
+
+                    # null out the model_meta_info
+                    info.index_type.data  = info.index_count  = 0
+                    info.vertex_type.data = info.vertex_count = 0
+                    info.indices_offset   = info.indices_reflexive_offset  = 0
+                    info.vertices_offset  = info.vertices_reflexive_offset = 0
         elif tag_cls == "scnr":
             # need to remove the references to the child scenarios
             del meta.child_scenarios.STEPTREE[:]
@@ -1335,8 +1385,9 @@ if __name__ == "__main__":
               "bsps, and certain fields are incorrectly extracted.\n" +
               "If something seems wrong, it might be. Use with care.\n")
         input("Press enter to continue.")'''
-        extractor = run()
-        extractor.mainloop()
+        input("Refinery is not ready for public use yet. Ignore it for now.")
+        #extractor = run()
+        #extractor.mainloop()
     except Exception:
         print(format_exc())
         input()

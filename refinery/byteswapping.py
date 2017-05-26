@@ -114,7 +114,7 @@ def byteswap_tris(tris_block):
     raw_data  = raw_block.data
 
     if len(raw_data)%6 == 4:
-        raw_data.extend(b'\xff\xff')
+        raw_data += b'\xff\xff'
 
     # replace the verts with the byteswapped and trimmed ones
     raw_block.data = new_raw = bytearray(6*(len(raw_data)//6))
