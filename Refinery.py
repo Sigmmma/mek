@@ -54,7 +54,8 @@ from reclaimer.stubbs.defs.antr import antr_def as stubbs_antr_def
 from reclaimer.stubbs.defs.cdmg import cdmg_def as stubbs_cdmg_def
 from reclaimer.stubbs.defs.coll import coll_def as stubbs_coll_def
 from reclaimer.stubbs.defs.jpt_ import jpt__def as stubbs_jpt__def
-from reclaimer.stubbs.defs.mode import mode_def as stubbs_mode_def
+from reclaimer.stubbs.defs.mode import mode_def as stubbs_mode_def,\
+     pc_mode_def as stubbs_pc_mode_def
 from reclaimer.stubbs.defs.soso import soso_def as stubbs_soso_def
 from reclaimer.stubbs.defs.sbsp import fast_sbsp_def as stubbs_fast_sbsp_def
 from reclaimer.stubbs.defs.coll import fast_coll_def as stubbs_fast_coll_def
@@ -303,6 +304,13 @@ class Refinery(BinillaWidget, tk.Tk):
             self.tag_headers[def_id] = bytes(b_buffer)
             del b_buffer[:]
 
+        h_block = [None]
+        h_desc = stubbs_mode_def.descriptor[0]
+        h_desc['TYPE'].parser(h_desc, parent=h_block, attr_index=0)
+        self.tag_headers["mode_halo"]   = self.tag_headers["mode"]
+        self.tag_headers["mode_stubbs"] = bytes(
+            h_block[0].serialize(buffer=BytearrayBuffer(), calc_pointers=0))
+
     @property
     def running(self):
         return self._running
@@ -386,12 +394,17 @@ class Refinery(BinillaWidget, tk.Tk):
     def set_defs(self):
         '''Switch definitions based on which game the map is for'''
         defs = self.handler.defs
+        headers = self.tag_headers
         if "stubbs" in self.engine:
+            headers["mode"] = headers["mode_stubbs"]
+            if self.engine == "pcstubbs":
+                defs["mode"] = stubbs_pc_mode_def
+            else:
+                defs["mode"] = stubbs_mode_def
             defs["antr"] = stubbs_antr_def
             defs["bipd"] = None
             defs["cdmg"] = stubbs_cdmg_def
             defs["jpt!"] = stubbs_jpt__def
-            defs["mode"] = stubbs_mode_def
             defs["soso"] = stubbs_soso_def
             defs["unit"] = None
             defs["vehi"] = None
@@ -401,11 +414,12 @@ class Refinery(BinillaWidget, tk.Tk):
             #defs["vege"] = vege_def
             #defs["terr"] = terr_def
         else:
+            headers["mode"] = headers["mode_halo"]
+            defs["mode"] = mode_def
             defs["antr"] = antr_def
             defs["bipd"] = bipd_def
             defs["cdmg"] = cdmg_def
             defs["jpt!"] = jpt__def
-            defs["mode"] = mode_def
             defs["soso"] = soso_def
             defs["unit"] = unit_def
             defs["vehi"] = vehi_def
@@ -1333,11 +1347,7 @@ class Refinery(BinillaWidget, tk.Tk):
                 model_magic = magic
 
             # grab vertices and indices from the map
-            if tag_cls == "mode":
-                verts_attr_name = "compressed_vertices"
-                byteswap_verts = byteswap_comp_verts
-                vert_size = 32
-            else:
+            if model_magic is None:
                 verts_attr_name = "uncompressed_vertices"
                 byteswap_verts = byteswap_uncomp_verts
                 vert_size = 68
@@ -1355,6 +1365,10 @@ class Refinery(BinillaWidget, tk.Tk):
                 meta.low_lod_nodes       = nodes[2]
                 meta.high_lod_nodes      = nodes[1]
                 meta.superhigh_lod_nodes = nodes[0]
+            else:
+                verts_attr_name = "compressed_vertices"
+                byteswap_verts = byteswap_comp_verts
+                vert_size = 32
 
             for geom in meta.geometries.STEPTREE:
                 for part in geom.parts.STEPTREE:
