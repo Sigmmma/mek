@@ -49,6 +49,48 @@ def byteswap_sbsp_meta(meta):
               meta.pathfinding_surfaces, meta.pathfinding_edges, meta.markers):
         byteswap_raw_reflexive(b)
 
+def byteswap_scnr_script_syntax_data(meta):
+    syntax_data = meta.script_syntax_data.data
+    swapped = bytearray(syntax_data)
+    # swap the 56 byte header
+    # first 32 bytes are a string
+    for i in (32, 34, 38, 44, 46, 48, 50):
+        # swap the Int16's
+        swapped[i] = syntax_data[i+1]
+        swapped[i+1] = syntax_data[i]
+
+    for i in (40, 52):
+        # swap the Int32's
+        swapped[i] = syntax_data[i+3]
+        swapped[i+1] = syntax_data[i+2]
+        swapped[i+2] = syntax_data[i+1]
+        swapped[i+3] = syntax_data[i]
+
+    # swap the 20 byte blocks
+    for i in range(56, len(swapped), 20):
+        # swap the Int16's
+        swapped[i] = syntax_data[i+1];   swapped[i+1] = syntax_data[i]
+        swapped[i+2] = syntax_data[i+3]; swapped[i+3] = syntax_data[i+2]
+        swapped[i+4] = syntax_data[i+5]; swapped[i+5] = syntax_data[i+4]
+        swapped[i+6] = syntax_data[i+7]; swapped[i+7] = syntax_data[i+6]
+
+        # swap the Int32's
+        swapped[i+8] = syntax_data[i+11]
+        swapped[i+9] = syntax_data[i+10]
+        swapped[i+10] = syntax_data[i+9]
+        swapped[i+11] = syntax_data[i+8]
+
+        swapped[i+12] = syntax_data[i+15]
+        swapped[i+13] = syntax_data[i+14]
+        swapped[i+14] = syntax_data[i+13]
+        swapped[i+15] = syntax_data[i+12]
+
+        swapped[i+16] = syntax_data[i+19]
+        swapped[i+17] = syntax_data[i+18]
+        swapped[i+18] = syntax_data[i+17]
+        swapped[i+19] = syntax_data[i+16]
+
+    meta.script_syntax_data.data = swapped
 
 def byteswap_uncomp_verts(verts_block):
     raw_block = verts_block.STEPTREE

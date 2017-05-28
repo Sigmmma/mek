@@ -1,6 +1,7 @@
 import tkinter as tk
 import os
 import zlib
+from math import pi
 
 from os.path import dirname, exists, join
 from struct import unpack
@@ -12,11 +13,13 @@ from traceback import format_exc
 #from refinery.resource_tagpaths import ce_resource_names, pc_resource_names
 from refinery.byteswapping import raw_block_def, byteswap_animation,\
      byteswap_uncomp_verts, byteswap_comp_verts, byteswap_tris,\
-     byteswap_coll_bsp, byteswap_sbsp_meta
+     byteswap_coll_bsp, byteswap_sbsp_meta, byteswap_scnr_script_syntax_data
 from refinery.hashcacher_window import RESERVED_WINDOWS_FILENAME_MAP,\
      INVALID_PATH_CHARS, sanitize_filename, HashcacherWindow
 from refinery.class_repair import class_repair_functions,\
      tag_cls_int_to_fcc, tag_cls_int_to_ext
+from refinery.resource_cache_extensions import bitmap_tag_extensions,\
+     sound_tag_extensions, loc_tag_extensions
 
 from mozzarilla.tools.shared_widgets import HierarchyFrame
 
@@ -28,7 +31,7 @@ from supyr_struct.field_types import FieldType
 from reclaimer.os_v4_hek.handler import OsV4HaloHandler
 from reclaimer.meta.halo1_map import get_map_version, get_map_header,\
      get_tag_index, get_index_magic, get_map_magic,\
-     decompress_map, is_compressed
+     decompress_map, is_compressed, map_header_demo_def, tag_index_pc_def
 from reclaimer.meta.resource import resource_def
 from reclaimer.os_hek.defs.gelc import gelc_def
 
@@ -83,6 +86,7 @@ class Refinery(BinillaWidget, tk.Tk):
 
     last_load_dir = this_dir
 
+    map_is_resource = False
     engine = None
     map_magic = None
     map_data    = None  # the complete uncompressed map
@@ -92,6 +96,7 @@ class Refinery(BinillaWidget, tk.Tk):
 
     ce_sound_offsets_by_path = None
 
+    loaded_rsrc_header = None
     bitmap_rsrc_header = None
     sound_rsrc_header  = None
     loc_rsrc_header    = None
@@ -131,8 +136,13 @@ class Refinery(BinillaWidget, tk.Tk):
         self.use_resource_names = tk.IntVar(self)
         self.use_hashcaches = tk.IntVar(self)
         self.use_heuristics = tk.IntVar(self)
+        self.extract_cheape = tk.IntVar(self)
+        self.extract_from_ce_resources = tk.IntVar(self)
+
         self.fix_tag_classes.set(1)
+        self.extract_from_ce_resources.set(1)
         self.use_resource_names.set(1)
+
         self.out_dir.set(join(this_dir, "tags", ""))
 
         self.map_path.set("Click browse to load a map for extraction")
@@ -183,6 +193,12 @@ class Refinery(BinillaWidget, tk.Tk):
         self.map_info_scrollbar.config(command=self.map_info_text.yview)
 
         # make the buttons
+        self.extract_from_ce_resources_checkbutton = tk.Checkbutton(
+            self.map_action_frame, variable=self.extract_from_ce_resources,
+            text="Extract from CE bitmaps/sounds/loc.map")
+        self.extract_cheape_checkbutton = tk.Checkbutton(
+            self.map_action_frame, variable=self.extract_cheape,
+            text="Extract cheape.map")
         self.begin_button = tk.Button(
             self.map_action_frame, text="Start extraction",
             command=self.start_extraction)
@@ -223,6 +239,8 @@ class Refinery(BinillaWidget, tk.Tk):
             padx=(4, 0), pady=2, side='left', expand=True, fill='x')
         self.map_path_browse_button.pack(padx=(0, 4), pady=2, side='left')
 
+        self.extract_from_ce_resources_checkbutton.pack(side='left', padx=4, pady=4)
+        self.extract_cheape_checkbutton.pack(side='left', padx=4, pady=4)
         self.cancel_button.pack(side='right', padx=4, pady=4)
         self.begin_button.pack(side='right', padx=4, pady=4)
 
@@ -254,6 +272,8 @@ class Refinery(BinillaWidget, tk.Tk):
 
         self.map_frame.pack(fill='x', padx=1)
         self.out_dir_frame.pack(fill='x', padx=1)
+
+        self.extract_cheape_checkbutton.config(state='disabled')
 
         # Not gonna do anything with deprotecting for a while.
         # just gonna remove this from the ui for the time being
@@ -348,7 +368,8 @@ class Refinery(BinillaWidget, tk.Tk):
         try: self.loc_data.close()
         except Exception: pass
         self.tag_index = self.map_header = self.ce_sound_offsets_by_path = None
-        
+
+        self.loaded_rsrc_header = None
         self.bitmap_rsrc_header = None
         self.sound_rsrc_header  = None
         self.loc_rsrc_header    = None
@@ -360,6 +381,7 @@ class Refinery(BinillaWidget, tk.Tk):
         self._map_loaded = self._running = False
         self.stop_processing = True
         self.classes_repaired = False
+        self.map_is_resource  = False
 
     def set_defs(self):
         '''Switch definitions based on which game the map is for'''
@@ -393,7 +415,248 @@ class Refinery(BinillaWidget, tk.Tk):
             defs.pop("vege", None)
             defs.pop("terr", None)
 
+        state = 'disabled'
+        if self.engine == "yelo" and not self.map_is_resource:
+            state = 'normal'
+        self.extract_cheape_checkbutton.config(state=state)
+
         self.handler.reset_tags()
+
+
+    def _load_regular_map(self, comp_data):
+        map_path = self.map_path.get()
+        self.map_is_resource = False
+        self.map_header = get_map_header(comp_data)
+
+        self.engine     = get_map_version(self.map_header)
+        self.map_is_compressed = is_compressed(comp_data, self.map_header)
+
+        decomp_path = None
+        if self.map_is_compressed:
+            decomp_path = asksaveasfilename(
+                initialdir=dirname(map_path), parent=self,
+                title="Choose where to save the decompressed map",
+                filetypes=(("mapfile", "*.map"), ("All", "*")))
+
+        self.map_data   = decompress_map(
+            comp_data, self.map_header, decomp_path)
+
+        self.index_magic = get_index_magic(self.map_header)
+        self.map_magic   = get_map_magic(self.map_header)
+        self.tag_index   = get_tag_index(self.map_data, self.map_header)
+        tag_index_array  = self.tag_index.tag_index
+
+        self.set_defs()
+
+        # make all contents of the map parasble
+        self.basic_deprotection()
+
+        # get the scenario meta
+        try:
+            bsp_magics = self.bsp_magics
+            bsp_sizes = self.bsp_sizes
+            bsp_offsets = self.bsp_header_offsets
+
+            self.scnr_meta = self.get_meta(self.tag_index.scenario_tag_id[0])
+            for b in self.scnr_meta.structure_bsps.STEPTREE:
+                bsp = b.structure_bsp
+                bsp_offsets[bsp.id[0]] = b.bsp_pointer
+                bsp_magics[bsp.id[0]]  = b.bsp_magic
+                bsp_sizes[bsp.id[0]]   = b.bsp_size
+
+            # read the sbsp headers
+            for tag_id in self.bsp_header_offsets:
+                header = sbsp_meta_header_def.build(
+                    rawdata=self.map_data, offset=bsp_offsets[tag_id])
+                self.bsp_headers[tag_id] = header
+                if header.sig != header.get_desc("DEFAULT", "sig"):
+                    print("Sbsp header is invalid for '%s'" %
+                          tag_index_array[tag_id].tag.tag_path)
+
+            if self.scnr_meta is None:
+                print("Could not read scenario tag")
+        except Exception:
+            print(format_exc())
+            print("Could not read scenario tag")
+
+        # get the globals meta
+        try:
+            for b in tag_index_array:
+                if tag_cls_int_to_fcc.get(b.class_1.data) == "matg":
+                    self.matg_meta = self.get_meta(b.id[0])
+                    break
+            if self.matg_meta is None:
+                print("Could not read globals tag")
+        except Exception:
+            print(format_exc())
+            print("Could not read globals tag")
+
+        maps_dir = dirname(map_path)
+
+        bitmap_data = sound_data = loc_data = None
+        bitmap_path = sound_path = loc_path = None
+        bitmap_rsrc = sound_rsrc = loc_rsrc = None
+
+        if self.engine in ("pc", "pcdemo"):
+            bitmap_path = join(maps_dir, "bitmaps.map")
+            sound_path  = "sounds.map"
+        elif self.engine in ("ce", "yelo"):
+            bitmap_path = join(maps_dir, "bitmaps.map")
+            sound_path  = "sounds.map"
+            loc_path    = "loc.map"
+
+        while bitmap_data is None and bitmap_path:
+            print("Loading bitmaps.map...")
+            try:
+                with open(bitmap_path, 'rb+') as f:
+                    bitmap_data = PeekableMmap(f.fileno(), 0)
+                    maps_dir = dirname(bitmap_path)
+                    bitmap_rsrc = resource_def.build(rawdata=bitmap_data)
+                    bitmap_data.seek(0)
+                    print("    Finished")
+            except Exception:
+                print("    Could not locate.")
+                bitmap_path = askopenfilename(
+                    initialdir=maps_dir, parent=self,
+                    title="Select the %s bitmaps.map" % self.engine,
+                    filetypes=(("bitmaps.map", "*.map"), ("All", "*")))
+            if not bitmap_path:
+                print("    You will be unable to extract " +
+                      "bitmaps stored in bitmaps.map")
+
+        while sound_data is None and sound_path:
+            print("Loading sounds.map...")
+            if sound_path == "sounds.map":
+                sound_path = join(maps_dir, sound_path)
+
+            try:
+                with open(sound_path, 'rb+') as f:
+                    sound_data = PeekableMmap(f.fileno(), 0)
+                    maps_dir = dirname(sound_path)
+                    sound_rsrc = resource_def.build(rawdata=sound_data)
+                    sound_data.seek(0)
+                    print("    Finished")
+
+                    if self.engine in ("ce", "yelo"):
+                        # ce resource sounds are recognized by tag_path
+                        # so we must cache their offsets by their paths
+                        self.ce_sound_offsets_by_path = sound_map = {}
+                        for i in range(len(sound_rsrc.tag_paths)):
+                            tag_path   = sound_rsrc.tag_paths[i].tag_path
+                            tag_offset = sound_rsrc.tag_headers[i].offset
+                            sound_map[tag_path] = tag_offset
+
+            except Exception:
+                print("    Could not locate.")
+                sound_path = askopenfilename(
+                    initialdir=maps_dir, parent=self,
+                    title="Select the %s sounds.map" % self.engine,
+                    filetypes=(("sounds.map", "*.map"), ("All", "*")))
+            if not sound_path:
+                print("    You will be unable to extract " +
+                      "sounds stored in sounds.map")
+
+        while loc_data is None and loc_path:
+            print("Loading loc.map...")
+            if loc_path == "loc.map":
+                loc_path = join(maps_dir, loc_path)
+
+            try:
+                with open(loc_path, 'rb+') as f:
+                    loc_data = PeekableMmap(f.fileno(), 0)
+                    maps_dir = dirname(loc_path)
+                    loc_rsrc = resource_def.build(rawdata=loc_data)
+                    loc_data.seek(0)
+                    print("    Finished")
+            except Exception:
+                print("    Could not locate.")
+                loc_path = askopenfilename(
+                    initialdir=maps_dir,
+                    title="Select the loc.map", parent=self,
+                    filetypes=(("loc.map", "*.map"), ("All", "*")))
+            if not loc_path:
+                print("    You will be unable to extract " +
+                      "tags stored in loc.map")
+
+        self.bitmap_data = bitmap_data
+        self.sound_data  = sound_data
+        self.loc_data    = loc_data
+        self.bitmap_rsrc_header = bitmap_rsrc
+        self.sound_rsrc_header  = sound_rsrc
+        self.loc_rsrc_header    = loc_rsrc
+
+    def _load_resource_map(self, map_data, resource_type):
+        self.map_data = map_data
+        rsrc_head = resource_def.build(rawdata=self.map_data)
+
+        # check if this is a pc or ce cache. cant rip pc ones
+        pth = rsrc_head.tag_paths[0].tag_path
+        self.engine = "ce"
+        if resource_type < 3 and not (pth.endswith('__pixels') or
+                                      pth.endswith('__permutations')):
+            self.engine = "pc"
+
+        # so we don't have to redo a lot of code, we'll make a
+        # fake tag_index and map_header and just fill in info
+        self.map_header = head = map_header_demo_def.build()
+        self.tag_index  = tags = tag_index_pc_def.build()
+        self.map_magic  = 0
+
+        head.version.set_to(self.engine)
+        self.index_magic = 0
+        self.map_is_resource = True
+
+        if self.engine == "pc":
+            index_mul = 1
+        else:
+            index_mul = 2
+
+        rsrc_tag_count = len(rsrc_head.tag_paths)
+        if   resource_type == 1:
+            # bitmaps.map resource cache
+            head.map_name = "bitmaps"
+            self.bitmap_data = map_data
+            self.bitmap_rsrc_header = rsrc_head
+            tag_classes = bitmap_tag_extensions
+            def_class = 'bitmap'
+        elif resource_type == 2:
+            # sounds.map resource cache
+            head.map_name = "sounds"
+            self.sound_data = map_data
+            self.sound_rsrc_header = rsrc_head
+            tag_classes = sound_tag_extensions
+            def_class = 'sound'
+        elif resource_type == 3:
+            # loc.map resource cache
+            head.map_name = "localization"
+            self.loc_data = map_data
+            self.loc_rsrc_header = rsrc_head
+            tag_classes = loc_tag_extensions
+            index_mul = 1
+            def_class = 'unicode_strings_list'
+
+        self.loaded_rsrc_header = rsrc_head
+
+        rsrc_tag_count = rsrc_tag_count//index_mul
+        tag_classes += (def_class,)*(rsrc_tag_count - len(tag_classes))
+        tags.tag_index.extend(rsrc_tag_count)
+        tags.scenario_tag_id[:] = (0, 0)
+
+        tags.tag_count = rsrc_tag_count
+        # fill in the fake tag_index
+        for i in range(rsrc_tag_count):
+            j = i*index_mul
+            if index_mul != 1:
+                j += 1
+
+            tag_ref = tags.tag_index[i]
+            tag_ref.class_1.set_to(tag_classes[i])
+
+            tag_ref.id           = rsrc_head.tag_headers[j].id
+            tag_ref.meta_offset  = rsrc_head.tag_headers[j].offset
+            tag_ref.indexed      = 1
+            tag_ref.tag.tag_path = rsrc_head.tag_paths[j].tag_path
+            tagid = (tag_ref.id[0], tag_ref.id[1])
 
     def load_map(self, map_path=None):
         try:
@@ -404,161 +667,27 @@ class Refinery(BinillaWidget, tk.Tk):
             elif self.running:
                 return
 
+            self.unload_maps()
+
             self._running = True
             self.map_path.set(map_path)
 
+            self.map_is_resource = True
             with open(map_path, 'rb+') as f:
                 comp_data = PeekableMmap(f.fileno(), 0)
 
-            self.map_header = get_map_header(comp_data)
-            self.engine     = get_map_version(self.map_header)
-            self.map_is_compressed = is_compressed(comp_data, self.map_header)
+            self.bsp_magics = {}
+            self.bsp_sizes  = {}
+            self.bsp_header_offsets = {}
+            self.bsp_headers = {}
 
-            decomp_path = None
-            if self.map_is_compressed:
-                decomp_path = asksaveasfilename(
-                    initialdir=dirname(map_path), parent=self,
-                    title="Choose where to save the decompressed map",
-                    filetypes=(("mapfile", "*.map"), ("All", "*")))
-            self.map_data   = decompress_map(
-                comp_data, self.map_header, decomp_path)
+            header_integ = unpack("<I", comp_data[:4])[0]
+            if header_integ not in (1, 2, 3):
+                self._load_regular_map(comp_data)
+            else:
+                self._load_resource_map(comp_data, header_integ)
 
-            self.index_magic = get_index_magic(self.map_header)
-            self.map_magic = get_map_magic(self.map_header)
-            self.tag_index = get_tag_index(self.map_data, self.map_header)
-            tag_index_array = self.tag_index.tag_index
-
-            self.set_defs()
             self._map_loaded = True
-
-            # make all contents of the map parasble
-            self.basic_deprotection()
-
-            # get the scenario meta
-            try:
-                self.bsp_magics = bsp_magics = {}
-                self.bsp_sizes  = bsp_sizes  = {}
-                self.bsp_header_offsets = bsp_offsets = {}
-                self.bsp_headers = {}
-
-                self.scnr_meta = self.get_meta(self.tag_index.scenario_tag_id[0])
-                for b in self.scnr_meta.structure_bsps.STEPTREE:
-                    bsp = b.structure_bsp
-                    bsp_offsets[bsp.id[0]] = b.bsp_pointer
-                    bsp_magics[bsp.id[0]]  = b.bsp_magic
-                    bsp_sizes[bsp.id[0]]   = b.bsp_size
-
-                # read the sbsp headers
-                for tag_id in self.bsp_header_offsets:
-                    header = sbsp_meta_header_def.build(
-                        rawdata=self.map_data, offset=bsp_offsets[tag_id])
-                    self.bsp_headers[tag_id] = header
-                    if header.sig != header.get_desc("DEFAULT", "sig"):
-                        print("Sbsp header is invalid for '%s'" %
-                              tag_index_array[tag_id].tag.tag_path)
-
-                if self.scnr_meta is None:
-                    print("Could not read scenario tag")
-            except Exception:
-                print(format_exc())
-                print("Could not read scenario tag")
-
-            # get the globals meta
-            try:
-                for b in tag_index_array:
-                    if tag_cls_int_to_fcc.get(b.class_1.data) == "matg":
-                        self.matg_meta = self.get_meta(b.id[0])
-                        break
-                if self.matg_meta is None:
-                    print("Could not read globals tag")
-            except Exception:
-                print(format_exc())
-                print("Could not read globals tag")
-
-            maps_dir = dirname(map_path)
-
-            bitmap_data = sound_data = loc_data = None
-            bitmap_path = sound_path = loc_path = None
-            bitmap_rsrc = sound_rsrc = loc_rsrc = None
-
-            if self.engine in ("pc", "pcdemo"):
-                bitmap_path = join(maps_dir, "bitmaps.map")
-                sound_path  = join(maps_dir, "sounds.map")
-            elif self.engine in ("ce", "yelo"):
-                bitmap_path = join(maps_dir, "bitmaps.map")
-                sound_path  = join(maps_dir, "sounds.map")
-                loc_path    = join(maps_dir, "loc.map")
-
-            while bitmap_data is None and bitmap_path:
-                print("Loading bitmaps.map...")
-                try:
-                    with open(bitmap_path, 'rb+') as f:
-                        bitmap_data = PeekableMmap(f.fileno(), 0)
-                        maps_dir = dirname(bitmap_path)
-                        bitmap_rsrc = resource_def.build(rawdata=bitmap_data)
-                        bitmap_data.seek(0)
-                        print("    Finished")
-                except Exception:
-                    bitmap_path = askopenfilename(
-                        initialdir=maps_dir, parent=self,
-                        title="Select the %s bitmaps.map" % self.engine,
-                        filetypes=(("bitmaps.map", "*.map"), ("All", "*")))
-                if not bitmap_path:
-                    print("    You will be unable to extract " +
-                          "bitmaps stored in bitmaps.map")
-
-            while sound_data is None and sound_path:
-                print("Loading sounds.map...")
-                try:
-                    with open(sound_path, 'rb+') as f:
-                        sound_data = PeekableMmap(f.fileno(), 0)
-                        maps_dir = dirname(sound_path)
-                        sound_rsrc = resource_def.build(rawdata=sound_data)
-                        sound_data.seek(0)
-                        print("    Finished")
-
-                        if self.engine in ("ce", "yelo"):
-                            # ce resource sounds are recognized by tag_path
-                            # so we must cache their offsets by their paths
-                            self.ce_sound_offsets_by_path = sound_map = {}
-                            for i in range(len(sound_rsrc.tag_paths)):
-                                tag_path   = sound_rsrc.tag_paths[i].tag_path
-                                tag_offset = sound_rsrc.tag_headers[i].offset
-                                sound_map[tag_path] = tag_offset
-
-                except Exception:
-                    sound_path = askopenfilename(
-                        initialdir=maps_dir, parent=self,
-                        title="Select the %s sounds.map" % self.engine,
-                        filetypes=(("sounds.map", "*.map"), ("All", "*")))
-                if not sound_path:
-                    print("    You will be unable to extract " +
-                          "sounds stored in sounds.map")
-
-            while loc_data is None and loc_path:
-                print("Loading loc.map...")
-                try:
-                    with open(loc_path, 'rb+') as f:
-                        loc_data = PeekableMmap(f.fileno(), 0)
-                        maps_dir = dirname(loc_path)
-                        loc_rsrc = resource_def.build(rawdata=loc_data)
-                        loc_data.seek(0)
-                        print("    Finished")
-                except Exception:
-                    loc_path = askopenfilename(
-                        initialdir=maps_dir,
-                        title="Select the loc.map", parent=self,
-                        filetypes=(("loc.map", "*.map"), ("All", "*")))
-                if not loc_path:
-                    print("    You will be unable to extract " +
-                          "tags stored in loc.map")
-
-            self.bitmap_data = bitmap_data
-            self.sound_data  = sound_data
-            self.loc_data    = loc_data
-            self.bitmap_rsrc_header = bitmap_rsrc
-            self.sound_rsrc_header  = sound_rsrc
-            self.loc_rsrc_header    = loc_rsrc
 
             self.display_map_info()
             self.hierarchy_frame.map_magic = self.map_magic
@@ -574,6 +703,7 @@ class Refinery(BinillaWidget, tk.Tk):
             except Exception: pass
             self.display_map_info(
                 "Could not load map.\nCheck console window for error.")
+            self.unload_maps()
             self.reload_map_explorer()
             raise
 
@@ -591,9 +721,10 @@ class Refinery(BinillaWidget, tk.Tk):
                     decomp_size = len(self.map_data)
 
                 map_type = header.map_type.enum_name
-                if   map_type == "sp": map_type = "singleplayer"
-                elif map_type == "mp": map_type = "multiplayer"
-                elif map_type == "ui": map_type = "user interface"
+                if self.map_is_resource: map_type = "resource cache"
+                elif map_type == "sp":   map_type = "singleplayer"
+                elif map_type == "mp":   map_type = "multiplayer"
+                elif map_type == "ui":   map_type = "user interface"
                 else: map_type = "unknown"
                 string = ((
                     "Header:\n" +
@@ -639,13 +770,13 @@ class Refinery(BinillaWidget, tk.Tk):
                     (index.vertex_data_size, index.index_data_size))
 
                 if self.engine == "yelo":
-                    yelo = header.yelo_header
-                    flags = yelo.flags
-                    info = yelo.build_info
-                    min_os = info.minimum_os_build
+                    yelo    = header.yelo_header
+                    flags   = yelo.flags
+                    info    = yelo.build_info
                     version = yelo.tag_versioning
-                    cheape = yelo.cheape_definitions
-                    rsrc = yelo.resources
+                    cheape  = yelo.cheape_definitions
+                    rsrc    = yelo.resources
+                    min_os  = info.minimum_os_build
                     string += ((
                         "\n\nYelo information:\n" +
                         "    Mod name              == '%s'\n" +
@@ -695,7 +826,9 @@ class Refinery(BinillaWidget, tk.Tk):
                      rsrc.tag_string_to_id_storage_header_offset,
                     ))
 
-                string += "\nSbsp magic and headers:\n"
+                if self.bsp_magics:
+                    string += "\nSbsp magic and headers:\n"
+
                 for tag_id in self.bsp_magics:
                     header = self.bsp_headers[tag_id]
                     magic  = self.bsp_magics[tag_id]
@@ -738,6 +871,8 @@ class Refinery(BinillaWidget, tk.Tk):
     def basic_deprotection(self):
         if not self._map_loaded:
             return
+        elif self.running or self.map_is_resource:
+            return
         print("Running basic deprotection...")
         # rename all invalid names to usable ones
         i = 0
@@ -750,7 +885,7 @@ class Refinery(BinillaWidget, tk.Tk):
     def deprotect(self, e=None):
         if not self._map_loaded:
             return
-        elif self.running:
+        elif self.running or self.map_is_resource:
             return
 
         start = time()
@@ -850,6 +985,11 @@ class Refinery(BinillaWidget, tk.Tk):
         elif self.running:
             return
 
+        if self.engine == "pc" and self.map_is_resource:
+            print("\nCannot extract HaloPC resource caches, as they contain\n" +
+                  "only rawdata(pixels/sound samples) and no meta data.\n")
+            return
+
         self._running = True
         out_dir = self.out_dir.get()
         handler = self.handler
@@ -858,6 +998,36 @@ class Refinery(BinillaWidget, tk.Tk):
         tag_index_array = tag_index.tag_index
         start = time()
         self.stop_processing = False
+        total = 0
+
+        if self.extract_cheape and self.engine == "yelo":
+            scnr_tag_index_ref = tag_index_array[tag_index.scenario_tag_id[0]]
+            tag_path = dirname(scnr_tag_index_ref.tag.tag_path)
+            tag_path = join(tag_path, "cheape.map")
+            print(tag_path)
+            tag_path = join(out_dir, tag_path)
+
+            try:
+                if not exists(dirname(tag_path)):
+                    os.makedirs(dirname(tag_path))
+
+                cheape_defs = self.map_header.yelo_header.cheape_definitions
+                size        = cheape_defs.size
+                decomp_size = cheape_defs.decompressed_size
+
+                self.map_data.seek(cheape_defs.offset)
+                cheape_data = self.map_data.read(cheape_defs.size)
+                with open(tag_path, "wb") as f:
+                    if decomp_size and decomp_size != size:
+                        cheape_data = zlib.decompress(cheape_data)
+                    f.write(cheape_data)
+                    
+            except Exception:
+                print(format_exc())
+                print("Error ocurred while extracting '%s'" % tag_path)
+
+        extract_resources = self.engine in ("ce", "yelo") and \
+                            self.extract_from_ce_resources.get()
 
         for i in range(len(tag_index_array)):
             try:
@@ -865,9 +1035,11 @@ class Refinery(BinillaWidget, tk.Tk):
                 tag_path = "<could not get tag path>"
                 if self.stop_processing:
                     print("Extraction stopped by user\n")
-                    self._running = False
-                    return
+                    break
                 tag_index_ref = tag_index_array[i]
+
+                if self.is_indexed(tag_index_ref) and not extract_resources:
+                    continue
 
                 tag_cls = tag_cls_int_to_fcc.get(tag_index_ref.class_1.data)
                 tag_ext = tag_cls_int_to_ext.get(
@@ -880,12 +1052,15 @@ class Refinery(BinillaWidget, tk.Tk):
                     continue
 
                 meta = self.get_meta(i)
+                self.update()
                 if not meta:
+                    print("    Could not get: %s" % tag_path)
                     continue
 
                 meta = self.meta_to_tag_data(meta, tag_cls, tag_index_ref)
                 self.update()
                 if not meta:
+                    print("    Could not get: %s" % tag_path)
                     continue
 
                 print(tag_path)
@@ -897,6 +1072,8 @@ class Refinery(BinillaWidget, tk.Tk):
                 with open(abs_tag_path, "wb") as f:
                     f.write(self.tag_headers[tag_cls])
                     f.write(meta.serialize(calc_pointers=False))
+
+                total += 1
             except Exception:
                 print(format_exc())
                 print("Error ocurred while extracting '%s'" % tag_path)
@@ -904,7 +1081,8 @@ class Refinery(BinillaWidget, tk.Tk):
             FieldType.force_normal()
 
         self._running = False
-        print("Extraction complete. Took %s seconds\n" % round(time()-start, 1))
+        print("Extracted %s tags. Took %s seconds\n" %
+              (total, round(time()-start, 1)))
 
     def get_ce_resource_tag(self, tag_cls, tag_index_ref):
         '''Returns just the meta of the tag without any raw data.'''
@@ -915,11 +1093,18 @@ class Refinery(BinillaWidget, tk.Tk):
             return
 
         kwargs = dict(parsing_resource=True)
-        if tag_cls == "snd!":
+        if self.map_is_resource:
+            # we have JUST a resource map loaded. not a real map
+            rsrc_head = self.loaded_rsrc_header
+            map_data = self.map_data
+            meta_offset = tag_index_ref.meta_offset
+
+        elif tag_cls == "snd!":
             map_data = self.sound_data
 
             sound_map = self.ce_sound_offsets_by_path
             tag_path  = tag_index_ref.tag.tag_path
+            rsrc_head = self.sound_rsrc_header
             if sound_map is None or tag_path not in sound_map:
                 return
 
@@ -938,7 +1123,9 @@ class Refinery(BinillaWidget, tk.Tk):
 
             meta_offset = tag_index_ref.meta_offset
             meta_offset = rsrc_head.tag_headers[meta_offset].offset
-            kwargs = dict(magic=0)
+
+        if tag_cls != 'snd!':
+            kwargs['magic'] = 0
 
         if map_data is None:
             # resource map not loaded
@@ -951,16 +1138,11 @@ class Refinery(BinillaWidget, tk.Tk):
             FieldType.force_little()
             h_desc['TYPE'].parser(
                 h_desc, parent=h_block, attr_index=0, rawdata=map_data,
-                tag_index=self.tag_index, root_offset=meta_offset, **kwargs)
+                tag_index=rsrc_head.tag_paths, root_offset=meta_offset,
+                tag_cls=tag_cls, **kwargs)
             FieldType.force_normal()
         except Exception:
             print(format_exc())
-            FieldType.force_normal()
-            for line in h_block[0].__str__().split("\n"):
-                try:
-                    print(line)
-                except Exception:
-                    print("Could not print line")
             return
 
         return h_block[0]
@@ -978,7 +1160,7 @@ class Refinery(BinillaWidget, tk.Tk):
         tag_id &= 0xFFFF
 
         tag_index_ref = tag_index.tag_index[tag_id]
-        if tag_id != tag_index.scenario_tag_id[0]:
+        if tag_id != tag_index.scenario_tag_id[0] or self.map_is_resource:
             tag_cls = tag_cls_int_to_fcc.get(tag_index_ref.class_1.data)
         else:
             tag_cls = "scnr"
@@ -1019,7 +1201,7 @@ class Refinery(BinillaWidget, tk.Tk):
             FieldType.force_little()
             h_desc['TYPE'].parser(
                 h_desc, parent=h_block, attr_index=0, magic=magic,
-                tag_index=tag_index, rawdata=map_data, offset=offset)
+                tag_index=tag_index.tag_index, rawdata=map_data, offset=offset)
             FieldType.force_normal()
         except Exception:
             print(format_exc())
@@ -1029,6 +1211,12 @@ class Refinery(BinillaWidget, tk.Tk):
         return h_block[0]
 
     def meta_to_tag_data(self, meta, tag_cls, tag_index_ref):
+        '''
+        Changes anything in a meta data block that needs to be changed for
+        it to be a working tag. This includes removing predicted_resource
+        references, fetching rawdata for the bitmaps, sounds, and models,
+        and byteswapping any rawdata that needs it(animations, bsp, etc).
+        '''
         tag_index = self.tag_index
         magic = self.map_magic
         engine = self.engine
@@ -1039,8 +1227,13 @@ class Refinery(BinillaWidget, tk.Tk):
         loc_data    = self.loc_data
         tag_index   = tag_index.tag_index
 
-        # need to treat all a8r8g8b8 values in each tag as a UInt32
-        # so it can be byteswapped when going from meta to tag
+        is_not_indexed = not self.is_indexed(tag_index_ref)
+
+        predicted_resources = []
+
+        if hasattr(meta, "obje_attrs"):
+            predicted_resources.append(meta.obje_attrs.predicted_resources)
+
         if tag_cls == "antr":
             # byteswap animation data
             for anim in meta.animations.STEPTREE:
@@ -1053,11 +1246,16 @@ class Refinery(BinillaWidget, tk.Tk):
             new_pixels = BytearrayBuffer()
             meta.compressed_color_plate_data.STEPTREE = BytearrayBuffer()
 
-            if engine in ("ce", "yelo") and not self.is_indexed(tag_index_ref):
-                bitmap_data = map_data
+            if engine in ("ce", "yelo"):
+                if is_not_indexed:
+                    # non-indexed custom edition bitmaps use the map_data
+                    bitmap_data = map_data
             elif engine in ("stubbs", "pcstubbs", "xbox"):
+                # xbox and stubbs maps use the map_data
                 bitmap_data = map_data
-            elif engine in ("pc", "ce") and bitmap_data is None:
+            elif bitmap_data is None:
+                # everything else uses the bitmaps.map, but if it is
+                # currently None(it wasn't loaded) we cant extract it
                 return
 
             is_xbox = engine == "stubbs" or "xbox" in engine
@@ -1065,7 +1263,7 @@ class Refinery(BinillaWidget, tk.Tk):
             # uncheck the prefer_low_detail flag, get the pixel data
             # from the map, and set up the pixels_offset correctly.
             for bitmap in meta.bitmaps.STEPTREE:
-                bitmap.flags.xbox_bitmap = False
+                bitmap.flags.xbox_bitmap = is_xbox
                 new_pixels_offset = len(new_pixels)
 
                 # grab the bitmap data from this map(no magic used)
@@ -1084,9 +1282,45 @@ class Refinery(BinillaWidget, tk.Tk):
             for node in meta.nodes.STEPTREE:
                 for perm_bsp in node.bsps.STEPTREE:
                     byteswap_coll_bsp(perm_bsp)
-        elif tag_cls == 'effe':
+        elif tag_cls == "effe":
             # mask away the meta-only flags
             meta.flags.data &= 3
+
+        elif tag_cls == "font":
+            # might need to grab pixel data correctly from resource map
+            meta_offset = tag_index_ref.meta_offset
+
+            if is_not_indexed:
+                return meta
+            elif not self.map_is_resource:
+                meta_offset = self.loc_rsrc_header.tag_headers\
+                              [meta_offset].offset
+
+            loc_data.seek(meta.pixels.pointer + meta_offset)
+            meta.pixels.data = loc_data.read(meta.pixels.size)
+
+        elif tag_cls == "hmt ":
+            # might need to grab string data correctly from resource map
+            meta_offset = tag_index_ref.meta_offset
+
+            if is_not_indexed:
+                return meta
+            elif not self.map_is_resource:
+                meta_offset = self.loc_rsrc_header.tag_headers\
+                              [meta_offset].offset
+
+            b = meta.string
+            loc_data.seek(b.pointer + meta_offset)
+            meta.string.data = loc_data.read(b.size).decode('utf-16-le')
+
+        elif tag_cls == "lens":
+            # multiply corona rotation by pi/180
+            meta.corona_rotation.function_scale /= 30
+
+        elif tag_cls == "ligh":
+            # divide light time by 30
+            meta.effect_parameters.duration /= 30
+
         elif tag_cls in ("mode", "mod2"):
 
             if engine in ("yelo", "ce", "pc", "pcdemo", "pcstubbs"):
@@ -1178,27 +1412,59 @@ class Refinery(BinillaWidget, tk.Tk):
                         info.indices_reflexive_offset  = 0
                         info.vertices_reflexive_offset = 0
 
-        elif tag_cls == "scnr":
-            # need to remove the references to the child scenarios
-            del meta.child_scenarios.STEPTREE[:]
-        elif tag_cls == 'pphy':
+        elif tag_cls == "pphy":
             # set the meta-only values to 0
             meta.wind_coefficient = 0
             meta.wind_sine_modifier = 0
             meta.z_translation_rate = 0
+
+            # scale friction values
+            meta.air_friction /= 10000
+            meta.water_friction /= 10000
+
+        elif tag_cls == "proj":
+            # need to scale velocities by 30
+            meta.proj_attrs.physics.initial_velocity *= 30
+            meta.proj_attrs.physics.final_velocity *= 30
+
         elif tag_cls == "sbsp":
             byteswap_sbsp_meta(meta)
+
             # null the first 8 bytes of each leaf
+            leaves = meta.leaves.STEPTREE
+            for i in range(0, len(leaves), 16):
+                leaves[i: i+8] = b'\x00' * 8
 
             # null the last 28 bytes of each breakable_surface
+            breakable_surfaces = meta.breakable_surfaces.STEPTREE
+            for i in range(0, len(leaves), 48):
+                breakable_surfaces[i+20: i+48] = b'\x00' * 28
+
+            for cluster in meta.clusters.STEPTREE:
+                predicted_resources.append(cluster.predicted_resources)
+
         elif tag_cls == "scnr":
+            # need to remove the references to the child scenarios
+            del meta.child_scenarios.STEPTREE[:]
+
             # set the bsp pointers and stuff to 0
             for b in meta.structure_bsps.STEPTREE:
                 b.bsp_pointer = b.bsp_size = b.bsp_magic = 0
+
+            predicted_resources.append(meta.predicted_resources)
+
+            # byteswap the script syntax data
+            byteswap_scnr_script_syntax_data(meta)
+
+        elif tag_cls == "shpp":
+            predicted_resources.append(meta.predicted_resources)
+
         elif tag_cls == "snd!":
             # might need to get samples and permutations from the resource map
-
-            if not(self.is_indexed(tag_index_ref) or engine in ("pc","pcdemo")):
+            if engine in ("ce", "yelo"):
+                if is_not_indexed:
+                    return meta
+            elif engine not in ("pc", "pcdemo"):
                 return meta
 
             # ce tagpaths are in the format:  path__permutations
@@ -1210,9 +1476,47 @@ class Refinery(BinillaWidget, tk.Tk):
                 for perm in pitches.permutations.STEPTREE:
                     for b in (perm.samples, perm.mouth_data, perm.subtitle_data):
                         if not b.size:
+                            # no data. set it to an empty bytes object(the data
+                            # is currently set to None, which cant serialize)
+                            b.STEPTREE = b''
                             continue
                         sound_data.seek(b.raw_pointer)
                         b.STEPTREE = sound_data.read(b.size)
+
+        elif tag_cls == "ustr":
+            # might need to grab string data correctly from resource map
+            meta_offset = tag_index_ref.meta_offset
+
+            if is_not_indexed:
+                return meta
+            elif not self.map_is_resource:
+                meta_offset = self.loc_rsrc_header.tag_headers\
+                              [meta_offset].offset
+
+            string_blocks = meta.strings.STEPTREE
+
+            if len(string_blocks):
+                desc = string_blocks[0].get_desc('STEPTREE')
+                parser = desc['TYPE'].parser
+
+            try:
+                FieldType.force_little()
+                for b in string_blocks:
+                    parser(desc, None, b, 'STEPTREE',
+                           loc_data, meta_offset, b.pointer)
+                FieldType.force_normal()
+            except Exception:
+                print(format_exc())
+                FieldType.force_normal()
+                raise
+
+        elif tag_cls == "weap":
+            predicted_resources.append(meta.weap_attrs.predicted_resources)
+
+        # remove any predicted resources
+        for pr in predicted_resources:
+            del pr.STEPTREE[:]
+
         return meta
 
     def cancel_extraction(self, e=None):
@@ -1334,17 +1638,25 @@ class ExplorerHierarchyFrame(HierarchyFrame):
         for filename in sorted(files):
             # add the file to the treeview
             b = files[filename]
-            if b.indexed:
+            tag_id = b.id[0]
+            if b.indexed and map_magic:
                 pointer = "not in map"
             else:
                 pointer = b.meta_offset - map_magic
 
-            self.tags_tree.insert(
-                dir_name, 'end', iid=b.id[0], text=filename,
-                values=(tag_cls_int_to_fcc.get(b.class_1.data, ''),
-                        tag_cls_int_to_fcc.get(b.class_2.data, ''),
-                        tag_cls_int_to_fcc.get(b.class_3.data, ''),
-                        b.meta_offset, pointer, b.id[0], b))
+            if not map_magic:
+                # resource cache tag
+                tag_id += (b.id[1] << 16)
+
+            try:
+                self.tags_tree.insert(
+                    dir_name, 'end', iid=tag_id, text=filename,
+                    values=(tag_cls_int_to_fcc.get(b.class_1.data, ''),
+                            tag_cls_int_to_fcc.get(b.class_2.data, ''),
+                            tag_cls_int_to_fcc.get(b.class_3.data, ''),
+                            b.meta_offset, pointer, tag_id, b))
+            except Exception:
+                print(format_exc())
 
     def get_hierarchy_map(self):
         # the keys are the names of the directories and files.
@@ -1407,9 +1719,9 @@ if __name__ == "__main__":
               "bsps, and certain fields are incorrectly extracted.\n" +
               "If something seems wrong, it might be. Use with care.\n")
         input("Press enter to continue.")'''
-        input("Refinery is not ready for public use yet. Ignore it for now.")
-        #extractor = run()
-        #extractor.mainloop()
+        #input("Refinery is not ready for public use yet. Ignore it for now.")
+        extractor = run()
+        extractor.mainloop()
     except Exception:
         print(format_exc())
         input()
