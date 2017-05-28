@@ -1,5 +1,5 @@
 --***************************************************************************
---*					  GBX/Xbox Model Impoter v3.9 by TheGhost\Moses			*
+--*					  GBX/Xbox Model Impoter v4.0 by TheGhost\Moses			*
 --*					   for 3ds Max v5+ and gmax v1.2						*
 --*				http://ghost.halomaps.org/bluestreak/gbxmodel/				*
 --*					   as part of Project BlueStreak						*
@@ -68,13 +68,16 @@ region_permutation_marker_translation = #()
 geometry_blocks = 0
 geometry_part_blocks = #()
 geometry_part_shader_index = #()
-geometry_part_data_offset = #()
+geometry_part_vert_offset = #()
+geometry_part_tri_offset = #()
 geometry_part_uncompressed_vertex_blocks = #()
 geometry_part_compressed_vertex_blocks = #()
 geometry_part_vertex_blocks = #()
 geometry_part_triangle_blocks = #()
 geometry_part_local_nodes = #()
 
+uncompressed_vert_sum = 0
+compressed_vert_sum   = 0
 shader_blocks = 0
 shader_name = #()
 
@@ -82,6 +85,7 @@ node_array = #()
 marker_array = #()
 
 model_type = 0
+vertex_type = 0
 node_list_checksum = 0
 in_file = undefined
 in_name = undefined
@@ -91,7 +95,6 @@ v_scale = 1.0
 ceRoot = ""
 tagLoc = ""
 maxver = maxVersion()
-arsenicgenerated = 0
 
 fn readShortB strType =
 (
@@ -225,7 +228,7 @@ fn getFlagArray num =
 	myBitArray
 )
 
-rollout roll "GBX/XBOX Model Importer v3.9 by TheGhost/Moses" width:408 height:450
+rollout roll "GBX/XBOX Model Importer v4.0 by TheGhost/Moses" width:408 height:450
 (
 	GroupBox grp_load "Load File" pos:[8,8] width:392 height:77
 	button unload_button "Unload GBX/XBOX Model" pos:[211,22] width:127 height:29 enabled:false
@@ -261,12 +264,12 @@ rollout roll "GBX/XBOX Model Importer v3.9 by TheGhost/Moses" width:408 height:4
 	GroupBox grp_import "Import Button" pos:[8,388] width:392 height:54 enabled:false
 	button import_button "Import GBX/XBOX Model" pos:[144,403] width:141 height:29 enabled:false
 	label lbl_by "Script by TheGhost/Moses." pos:[16,423] width:105 height:15 enabled:false
-	label lbl_version "v3.9.0" pos:[357,423] width:37 height:15 enabled:false
+	label lbl_version "v4.0.0" pos:[357,423] width:37 height:15 enabled:false
 	
 	on roll open do
 	(
 		ClearListener()
-		format "-- Halo Model Importer v3.9 by TheGhost/Moses --\n"
+		format "-- Halo Model Importer v4.0 by TheGhost/Moses --\n"
 		format "Using max version: %\n" (maxver[1] / 1000.0)
 	)
 	on roll close do
@@ -324,14 +327,19 @@ rollout roll "GBX/XBOX Model Importer v3.9 by TheGhost/Moses" width:408 height:4
 				fseek in_file 36 #seek_set
 				tag_type = readLongB "#unsigned"
 				print ("Tag type check: " + tag_type as string)
-				model_type = -1
+				model_type  = -1
+				vertex_type = -1
+				
+				--*vertex_type: 0 == compressed   1 == uncompressed*
 				if tag_type == 1836016741 then
 				(
-					model_type = 0--*recognized as Xbox Model*
+					model_type  = 0--*recognized as Xbox Model*
+					vertex_type = 0
 				)
 				if tag_type == 1836016690 then
 				(
-					model_type = 1--*recognized as GBX Model*
+					model_type  = 1--*recognized as GBX Model*
+					vertex_type = 1
 				)
 
 				if model_type == -1 then
@@ -400,13 +408,16 @@ rollout roll "GBX/XBOX Model Importer v3.9 by TheGhost/Moses" width:408 height:4
 					geometry_blocks = 0
 					geometry_part_blocks = #()
 					geometry_part_shader_index = #()
-					geometry_part_data_offset = #()
+					geometry_part_vert_offset = #()
+                    geometry_part_tri_offset = #()
 					geometry_part_uncompressed_vertex_blocks = #()
 					geometry_part_compressed_vertex_blocks = #()
 					geometry_part_vertex_blocks = #()
 					geometry_part_triangle_blocks = #()
 					geometry_part_local_nodes = #()
 					shader_blocks = 0
+					uncompressed_vert_sum = 0
+					compressed_vert_sum   = 0
 					shader_name = #()
 					
 					ss = in_name as StringStream
@@ -431,14 +442,12 @@ rollout roll "GBX/XBOX Model Importer v3.9 by TheGhost/Moses" width:408 height:4
 					flags = readShortB "#unsigned"
 					model_flags = getFlagArray flags
 					print ("Model Flags: " + model_flags as string)
-					if model_flags[2] == true then
+
+					local_nodes = false--*local nodes were implemented in PC and don't exist on XBOX*
+					if model_flags[2] == true and model_type == 1 then
 					(
 						local_nodes = true
 						print ("Model uses local nodes")
-					)
-					if model_type == 0 then
-					(
-						local_nodes = false--*local nodes were implemented in PC and don't exist on XBOX*
 					)
 					
 					fseek in_file 68 #seek_set
@@ -617,40 +626,36 @@ rollout roll "GBX/XBOX Model Importer v3.9 by TheGhost/Moses" width:408 height:4
 						geometry_part_blocks[g] = readShortB "#unsigned"
 						fseek in_file 8 #seek_cur
 					)
+
+					uncompressed_vert_sum = 0
+					compressed_vert_sum   = 0
 					for g = 1 to geometry_blocks do
 					(
 						temp_part_shader_index = #()
-						if model_type == 1 then
-						(
-							temp_part_uncompressed_vertex_blocks = #()
-						)
+						temp_part_uncompressed_vertex_blocks = #()
 						temp_part_compressed_vertex_blocks = #()
 						temp_part_vertex_blocks = #()
 						temp_part_triangle_blocks = #()
 						if local_nodes == true do temp_part_local_nodes = #()
 						for p = 1 to geometry_part_blocks[g] do
 						(
-
+							fseek in_file 4 #seek_cur
+							temp_part_shader_index[p] = readShortB "#signed"
+							fseek in_file 28 #seek_cur
+							temp_part_uncompressed_vertex_blocks[p] = readShortB "#unsigned"
+							fseek in_file 10 #seek_cur
+							temp_part_compressed_vertex_blocks[p] = readShortB "#unsigned"
+							fseek in_file 10 #seek_cur
+							temp_part_triangle_blocks[p] = readShortB "#unsigned"
+							
+							uncompressed_vert_sum = uncompressed_vert_sum + temp_part_uncompressed_vertex_blocks[p]
+							compressed_vert_sum   = compressed_vert_sum   + temp_part_compressed_vertex_blocks[p]
 							if model_type == 0 then
 							(
-								fseek in_file 4 #seek_cur
-								temp_part_shader_index[p] = readShortB "#signed"
-								fseek in_file 40 #seek_cur
-								temp_part_compressed_vertex_blocks[p] = readShortB "#unsigned"
-								fseek in_file 10 #seek_cur
-								temp_part_triangle_blocks[p] = readShortB "#unsigned"
 								fseek in_file 44 #seek_cur
 							)
 							else
 							(
-								fseek in_file 4 #seek_cur
-								temp_part_shader_index[p] = readShortB "#signed"
-								fseek in_file 28 #seek_cur
-								temp_part_uncompressed_vertex_blocks[p] = readShortB "#unsigned"
-								fseek in_file 10 #seek_cur
-								temp_part_compressed_vertex_blocks[p] = readShortB "#unsigned"
-								fseek in_file 10 #seek_cur
-								temp_part_triangle_blocks[p] = readShortB "#unsigned"
 								offset = (ftell in_file)
 								if local_nodes == true then
 								(
@@ -665,41 +670,48 @@ rollout roll "GBX/XBOX Model Importer v3.9 by TheGhost/Moses" width:408 height:4
 								)
 								fseek in_file (offset + 72) #seek_set
 							)
-
-							if model_type == 1 then
-							(
-								if temp_part_uncompressed_vertex_blocks[1] == 0 and temp_part_compressed_vertex_blocks[1] > 0 then
-								(
-									arsenicgenerated = 1
-								)
-							)
+						)
+						if model_type == 1 and uncompressed_vert_sum == 0 and compressed_vert_sum > 0 then
+						(
+							vertex_type = 0
+						)
+						if model_type == 0 and compressed_vert_sum == 0 and uncompressed_vert_sum > 0 then
+						(
+							vertex_type = 1
 						)
 						geometry_part_shader_index[g] = temp_part_shader_index
 						geometry_part_compressed_vertex_blocks[g] = temp_part_compressed_vertex_blocks
-						if model_type == 0 or arsenicgenerated == 1 then
+						geometry_part_uncompressed_vertex_blocks[g] = temp_part_uncompressed_vertex_blocks
+						geometry_part_triangle_blocks[g] = temp_part_triangle_blocks
+						if vertex_type == 0 then
 						(
 							geometry_part_vertex_blocks[g] = temp_part_compressed_vertex_blocks
 						)
 						else
 						(
-							geometry_part_uncompressed_vertex_blocks[g] = temp_part_uncompressed_vertex_blocks
 							geometry_part_vertex_blocks[g] = temp_part_uncompressed_vertex_blocks
 						)
-						geometry_part_triangle_blocks[g] = temp_part_triangle_blocks
 						if local_nodes == true do geometry_part_local_nodes[g] = temp_part_local_nodes
 						
-						temp_part_data_offset = #()
+						temp_part_vert_offset = #()
+						temp_part_tri_offset  = #()
 						for p = 1 to geometry_part_blocks[g] do
 						(
-							temp_part_data_offset[p] = ftell in_file
-							if model_type == 1 and arsenicgenerated == 0 then
+							if vertex_type == 1 then
 							(
-								fseek in_file (geometry_part_uncompressed_vertex_blocks[g][p] * 68) #seek_cur
+							    temp_part_vert_offset[p] = ftell in_file
+							)
+							fseek in_file (geometry_part_uncompressed_vertex_blocks[g][p] * 68) #seek_cur
+							if vertex_type == 0 then
+							(
+							    temp_part_vert_offset[p] = ftell in_file
 							)
 							fseek in_file (geometry_part_compressed_vertex_blocks[g][p] * 32) #seek_cur
+							temp_part_tri_offset[p] = ftell in_file
 							fseek in_file (geometry_part_triangle_blocks[g][p] * 6) #seek_cur
 						)
-						geometry_part_data_offset[g] = temp_part_data_offset
+						geometry_part_vert_offset[g] = temp_part_vert_offset
+						geometry_part_tri_offset[g]  = temp_part_tri_offset
 					)
 					
 					print ("Shader block offset: " + (ftell in_file) as string)
@@ -1072,9 +1084,9 @@ rollout roll "GBX/XBOX Model Importer v3.9 by TheGhost/Moses" width:408 height:4
 					vertex_xyz[geometry_part_vertex_blocks[g][p]] = 0
 					vertex_uvw[geometry_part_vertex_blocks[g][p]] = 0
 					
-					fseek in_file geometry_part_data_offset[g][p] #seek_set
+					fseek in_file geometry_part_vert_offset[g][p] #seek_set
 						
-					if model_type == 0 or arsenicgenerated == 1 then
+					if vertex_type == 0 then
 					(
 						for v = 1 to geometry_part_vertex_blocks[g][p] do
 						(
@@ -1178,12 +1190,7 @@ rollout roll "GBX/XBOX Model Importer v3.9 by TheGhost/Moses" width:408 height:4
 						)
 					)
 
-
-
-					if model_type == 1 and arsenicgenerated == 0 then
-					(
-						fseek in_file (geometry_part_compressed_vertex_blocks[g][p] * 32) #seek_cur
-					)
+					fseek in_file geometry_part_tri_offset[g][p] #seek_set
 
 					triangle_vertices = (geometry_part_triangle_blocks[g][p] * 3)
 					for t = 1 to triangle_vertices do
