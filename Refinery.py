@@ -1,3 +1,7 @@
+print_startup = __name__ == "__main__"
+if print_startup:
+    print("Refinery is warming up...")
+
 import tkinter as tk
 import os
 import zlib
@@ -10,6 +14,9 @@ from tkinter.filedialog import askopenfilename, asksaveasfilename, askdirectory
 from tkinter.font import Font
 from traceback import format_exc
 
+if print_startup:
+    print("    Importing refinery modules")
+
 #from refinery.resource_tagpaths import ce_resource_names, pc_resource_names
 from refinery.byteswapping import raw_block_def, byteswap_animation,\
      byteswap_uncomp_verts, byteswap_comp_verts, byteswap_tris,\
@@ -21,21 +28,32 @@ from refinery.class_repair import class_repair_functions,\
 from refinery.resource_cache_extensions import bitmap_tag_extensions,\
      sound_tag_extensions, loc_tag_extensions
 
-from mozzarilla.tools.shared_widgets import HierarchyFrame
+if print_startup:
+    print("    Importing mozzarilla modules")
 
+from mozzarilla.tools.shared_widgets import HierarchyFrame
 from binilla.widgets import BinillaWidget
+
+if print_startup:
+    print("    Importing supyr_struct modules")
+
 from supyr_struct.buffer import BytearrayBuffer, PeekableMmap
 from supyr_struct.defs.constants import *
 from supyr_struct.field_types import FieldType
 
-from reclaimer.os_v4_hek.handler import OsV4HaloHandler
+if print_startup:
+    print("    Loading halo 1 map definitions")
+
 from reclaimer.meta.halo1_map import get_map_version, get_map_header,\
      get_tag_index, get_index_magic, get_map_magic,\
      decompress_map, is_compressed, map_header_demo_def, tag_index_pc_def
 from reclaimer.meta.resource import resource_def
-from reclaimer.os_hek.defs.gelc import gelc_def
+
+if print_startup:
+    print("    Loading halo 1 open sauce tag definitions")
 
 from reclaimer.hek.defs.sbsp import sbsp_meta_header_def
+from reclaimer.os_hek.defs.gelc import gelc_def
 from reclaimer.os_hek.defs.gelo    import gelo_def as old_gelo_def
 from reclaimer.os_v4_hek.defs.gelo import gelo_def as new_gelo_def
 from reclaimer.os_v4_hek.defs.antr import antr_def
@@ -49,6 +67,10 @@ from reclaimer.os_v4_hek.defs.unit import unit_def
 from reclaimer.os_v4_hek.defs.vehi import vehi_def
 from reclaimer.os_v4_hek.defs.sbsp import fast_sbsp_def
 from reclaimer.os_v4_hek.defs.coll import fast_coll_def
+from reclaimer.os_v4_hek.handler import OsV4HaloHandler
+
+if print_startup:
+    print("    Loading stubbs tag definitions")
 
 from reclaimer.stubbs.defs.antr import antr_def as stubbs_antr_def
 from reclaimer.stubbs.defs.cdmg import cdmg_def as stubbs_cdmg_def
@@ -62,6 +84,9 @@ from reclaimer.stubbs.defs.coll import fast_coll_def as stubbs_fast_coll_def
 #from reclaimer.stubbs.defs.imef import imef_def
 #from reclaimer.stubbs.defs.terr import terr_def
 #from reclaimer.stubbs.defs.vege import vege_def
+
+if print_startup:
+    print("    Initializing Refinery")
 
 no_op = lambda *a, **kw: None
 
@@ -999,7 +1024,7 @@ class Refinery(BinillaWidget, tk.Tk):
         elif self.running:
             return
 
-        if self.engine == "pc" and self.map_is_resource:
+        if self.engine in ("pc", "pcdemo") and self.map_is_resource:
             print("\nCannot extract HaloPC resource caches, as they contain\n" +
                   "only rawdata(pixels/sound samples) and no meta data.\n")
             return
@@ -1016,14 +1041,15 @@ class Refinery(BinillaWidget, tk.Tk):
 
         if self.extract_cheape and self.engine == "yelo":
             scnr_tag_index_ref = tag_index_array[tag_index.scenario_tag_id[0]]
-            tag_path = dirname(scnr_tag_index_ref.tag.tag_path)
-            tag_path = join(tag_path, "cheape.map")
+            tag_path = join(
+                dirname(scnr_tag_index_ref.tag.tag_path), "cheape.map")
+            abs_tag_path = join(out_dir, tag_path)
+
             print(tag_path)
-            tag_path = join(out_dir, tag_path)
 
             try:
-                if not exists(dirname(tag_path)):
-                    os.makedirs(dirname(tag_path))
+                if not exists(dirname(abs_tag_path)):
+                    os.makedirs(dirname(abs_tag_path))
 
                 cheape_defs = self.map_header.yelo_header.cheape_definitions
                 size        = cheape_defs.size
@@ -1031,7 +1057,7 @@ class Refinery(BinillaWidget, tk.Tk):
 
                 self.map_data.seek(cheape_defs.offset)
                 cheape_data = self.map_data.read(cheape_defs.size)
-                with open(tag_path, "wb") as f:
+                with open(abs_tag_path, "wb") as f:
                     if decomp_size and decomp_size != size:
                         cheape_data = zlib.decompress(cheape_data)
                     f.write(cheape_data)
@@ -1085,7 +1111,12 @@ class Refinery(BinillaWidget, tk.Tk):
                 FieldType.force_big()
                 with open(abs_tag_path, "wb") as f:
                     f.write(self.tag_headers[tag_cls])
-                    f.write(meta.serialize(calc_pointers=False))
+                    try:
+                        f.write(meta.serialize(calc_pointers=False))
+                    except Exception:
+                        print(format_exc())
+                        print(meta)
+                        continue
 
                 total += 1
             except Exception:
@@ -1159,6 +1190,8 @@ class Refinery(BinillaWidget, tk.Tk):
             print(format_exc())
             return
 
+        self.inject_rawdata(h_block[0], tag_cls, tag_index_ref)
+
         return h_block[0]
 
     def get_meta(self, tag_id):
@@ -1167,13 +1200,16 @@ class Refinery(BinillaWidget, tk.Tk):
         Returns that tags meta data as a parsed block.
         '''
         tag_index = self.tag_index
-        map_data = self.map_data
-        magic = self.map_magic
+        tag_index_array = tag_index.tag_index
+        magic     = self.map_magic
+        engine    = self.engine
+        map_data  = self.map_data
 
         # if we are given a 32bit tag id, mask it off
         tag_id &= 0xFFFF
 
-        tag_index_ref = tag_index.tag_index[tag_id]
+        tag_index_ref = tag_index_array[tag_id]
+
         if tag_id != tag_index.scenario_tag_id[0] or self.map_is_resource:
             tag_cls = tag_cls_int_to_fcc.get(tag_index_ref.class_1.data)
         else:
@@ -1190,7 +1226,7 @@ class Refinery(BinillaWidget, tk.Tk):
             return self.scnr_meta
         elif tag_cls == "matg" and self.matg_meta:
             return self.matg_meta
-        elif self.is_indexed(tag_index_ref) and self.engine in ("ce", "yelo"):
+        elif self.is_indexed(tag_index_ref) and engine in ("ce", "yelo"):
             # tag exists in a resource cache
             return self.get_ce_resource_tag(tag_cls, tag_index_ref)
 
@@ -1207,7 +1243,7 @@ class Refinery(BinillaWidget, tk.Tk):
         if tag_cls == "sbsp":
             # bsps use their own magic because they are stored in
             # their own section of the map, directly after the header
-            magic = self.bsp_magics[tag_id] - self.bsp_header_offsets[tag_id]
+            magic  = self.bsp_magics[tag_id] - self.bsp_header_offsets[tag_id]
             offset = self.bsp_headers[tag_id].meta_pointer - magic
 
         try:
@@ -1215,74 +1251,62 @@ class Refinery(BinillaWidget, tk.Tk):
             FieldType.force_little()
             h_desc['TYPE'].parser(
                 h_desc, parent=h_block, attr_index=0, magic=magic,
-                tag_index=tag_index.tag_index, rawdata=map_data, offset=offset)
+                tag_index=tag_index_array, rawdata=map_data, offset=offset)
             FieldType.force_normal()
         except Exception:
             print(format_exc())
             FieldType.force_normal()
             return
 
+        self.inject_rawdata(h_block[0], tag_cls, tag_index_ref)
+
         return h_block[0]
 
-    def meta_to_tag_data(self, meta, tag_cls, tag_index_ref):
-        '''
-        Changes anything in a meta data block that needs to be changed for
-        it to be a working tag. This includes removing predicted_resource
-        references, fetching rawdata for the bitmaps, sounds, and models,
-        and byteswapping any rawdata that needs it(animations, bsp, etc).
-        '''
-        tag_index = self.tag_index
-        magic = self.map_magic
+    def inject_rawdata(self, meta, tag_cls, tag_index_ref):
+        magic  = self.map_magic
         engine = self.engine
 
-        map_data = self.map_data
+        map_data    = self.map_data
         bitmap_data = self.bitmap_data
         sound_data  = self.sound_data
         loc_data    = self.loc_data
-        tag_index   = tag_index.tag_index
-
         is_not_indexed = not self.is_indexed(tag_index_ref)
 
-        predicted_resources = []
-
-        if hasattr(meta, "obje_attrs"):
-            predicted_resources.append(meta.obje_attrs.predicted_resources)
-
-        if tag_cls == "antr":
-            # byteswap animation data
-            for anim in meta.animations.STEPTREE:
-                byteswap_animation(anim)
-
-        elif tag_cls == "bitm":
-            # grab bitmap data correctly from map and set the
-            # size of the compressed plate data to nothing
+        # get some rawdata that would be pretty annoying to do in the parser
+        if tag_cls == "bitm":
+            # grab bitmap data correctly from map
 
             new_pixels = BytearrayBuffer()
-            meta.compressed_color_plate_data.STEPTREE = BytearrayBuffer()
 
+            pixel_data = map_data
+            can_be_indexed = True
             if engine in ("ce", "yelo"):
                 if is_not_indexed:
                     # non-indexed custom edition bitmaps use the map_data
-                    bitmap_data = map_data
+                    pixel_data = map_data
             elif engine in ("stubbs", "pcstubbs", "xbox"):
                 # xbox and stubbs maps use the map_data
-                bitmap_data = map_data
+                pixel_data = map_data
+                can_be_indexed = False
             elif bitmap_data is None:
                 # everything else uses the bitmaps.map, but if it is
                 # currently None(it wasn't loaded) we cant extract it
-                return
+                pass
 
             is_xbox = engine == "stubbs" or "xbox" in engine
 
             # uncheck the prefer_low_detail flag, get the pixel data
             # from the map, and set up the pixels_offset correctly.
             for bitmap in meta.bitmaps.STEPTREE:
-                bitmap.flags.xbox_bitmap = is_xbox
+                bitmap.flags.prefer_low_detail = is_xbox
                 new_pixels_offset = len(new_pixels)
+                pixel_data = map_data
+                if can_be_indexed and bitmap.flags.data_in_resource_map:
+                    pixel_data = bitmap_data
 
                 # grab the bitmap data from this map(no magic used)
-                bitmap_data.seek(bitmap.pixels_offset)
-                new_pixels += bitmap_data.read(bitmap.pixels_meta_size)
+                pixel_data.seek(bitmap.pixels_offset)
+                new_pixels += pixel_data.read(bitmap.pixels_meta_size)
 
                 bitmap.pixels_offset = new_pixels_offset
                 # clear some meta-only fields
@@ -1291,14 +1315,6 @@ class Refinery(BinillaWidget, tk.Tk):
                 bitmap.bitmap_data_pointer = bitmap.base_address = 0
 
             meta.processed_pixel_data.STEPTREE = new_pixels
-        elif tag_cls == "coll":
-            # byteswap the raw bsp collision data
-            for node in meta.nodes.STEPTREE:
-                for perm_bsp in node.bsps.STEPTREE:
-                    byteswap_coll_bsp(perm_bsp)
-        elif tag_cls == "effe":
-            # mask away the meta-only flags
-            meta.flags.data &= 3
 
         elif tag_cls == "font":
             # might need to grab pixel data correctly from resource map
@@ -1327,6 +1343,124 @@ class Refinery(BinillaWidget, tk.Tk):
             loc_data.seek(b.pointer + meta_offset)
             meta.string.data = loc_data.read(b.size).decode('utf-16-le')
 
+        elif tag_cls == "snd!":
+            # might need to get samples and permutations from the resource map
+            is_pc = engine in ("pc", "pcdemo")
+            is_ce = engine in ("ce", "yelo")
+            if not (is_pc or is_ce):
+                return meta
+
+            # ce tagpaths are in the format:  path__permutations
+            #     ex: sound\sfx\impulse\coolant\enter_water__permutations
+            #
+            # pc tagpaths are in the format:  path__pitch_range__permutation
+            #     ex: sound\sfx\impulse\coolant\enter_water__0__0
+
+            # why do ce and pc have to store shit so differently.
+            # it was really annoying to figure out the differences
+            other_data = sound_data
+            if is_pc:
+                sound_magic = 0 - magic
+                other_data = map_data
+            elif not self.map_is_resource:
+                sound_map = self.ce_sound_offsets_by_path
+                tag_path  = tag_index_ref.tag.tag_path
+                if sound_map is None or tag_path not in sound_map:
+                    return
+                sound_magic = sound_map[tag_path] + meta.get_size()
+            else:
+                sound_magic = tag_index_ref.meta_offset + meta.get_size()
+
+            for pitches in meta.pitch_ranges.STEPTREE:
+                for perm in pitches.permutations.STEPTREE:
+                    samples = perm.samples
+                    mouth_data = perm.mouth_data
+                    subtitle_data = perm.subtitle_data
+
+                    if is_ce and not samples.flags.data_in_resource_map:
+                        continue
+
+                    if samples.size:
+                        sound_data.seek(samples.raw_pointer)
+                        samples.data = sound_data.read(samples.size)
+                    else:
+                        samples.data = b''
+
+                    if mouth_data.size:
+                        other_data.seek(mouth_data.pointer + sound_magic)
+                        mouth_data.data = other_data.read(mouth_data.size)
+                    else:
+                        mouth_data.data = b''
+
+                    if subtitle_data.size:
+                        other_data.seek(subtitle_data.pointer + sound_magic)
+                        subtitle_data.data = other_data.read(subtitle_data.size)
+                    else:
+                        subtitle_data.data = b''
+
+        elif tag_cls == "ustr":
+            # might need to grab string data correctly from resource map
+            meta_offset = tag_index_ref.meta_offset
+
+            if is_not_indexed:
+                return meta
+            elif not self.map_is_resource:
+                meta_offset = self.loc_rsrc_header.tag_headers\
+                              [meta_offset].offset
+
+            string_blocks = meta.strings.STEPTREE
+
+            if len(string_blocks):
+                desc = string_blocks[0].get_desc('STEPTREE')
+                parser = desc['TYPE'].parser
+
+            try:
+                FieldType.force_little()
+                for b in string_blocks:
+                    parser(desc, None, b, 'STEPTREE',
+                           loc_data, meta_offset, b.pointer)
+                FieldType.force_normal()
+            except Exception:
+                print(format_exc())
+                FieldType.force_normal()
+                raise
+
+    def meta_to_tag_data(self, meta, tag_cls, tag_index_ref):
+        '''
+        Changes anything in a meta data block that needs to be changed for
+        it to be a working tag. This includes removing predicted_resource
+        references, fetching rawdata for the bitmaps, sounds, and models,
+        and byteswapping any rawdata that needs it(animations, bsp, etc).
+        '''
+        magic     = self.map_magic
+        engine    = self.engine
+        map_data  = self.map_data
+        tag_index = self.tag_index
+
+        predicted_resources = []
+
+        if hasattr(meta, "obje_attrs"):
+            predicted_resources.append(meta.obje_attrs.predicted_resources)
+
+        if tag_cls == "antr":
+            # byteswap animation data
+            for anim in meta.animations.STEPTREE:
+                byteswap_animation(anim)
+
+        elif tag_cls == "bitm":
+            # set the size of the compressed plate data to nothing
+            meta.compressed_color_plate_data.STEPTREE = BytearrayBuffer()
+
+        elif tag_cls == "coll":
+            # byteswap the raw bsp collision data
+            for node in meta.nodes.STEPTREE:
+                for perm_bsp in node.bsps.STEPTREE:
+                    byteswap_coll_bsp(perm_bsp)
+
+        elif tag_cls == "effe":
+            # mask away the meta-only flags
+            meta.flags.data &= 3
+
         elif tag_cls == "lens":
             # multiply corona rotation by pi/180
             meta.corona_rotation.function_scale /= 30
@@ -1335,13 +1469,18 @@ class Refinery(BinillaWidget, tk.Tk):
             # divide light time by 30
             meta.effect_parameters.duration /= 30
 
-        elif tag_cls in ("mode", "mod2"):
+        elif tag_cls == "metr":
+            # The meter bitmaps can literally point to not
+            # only the wrong tag, but the wrong TYPE of tag.
+            # Since dependencies in meter tags are useless, we null them out.
+            meta.stencil_bitmap.filepath = meta.source_bitmap.filepath = ''
 
+        elif tag_cls in ("mode", "mod2"):
             if engine in ("yelo", "ce", "pc", "pcdemo", "pcstubbs"):
                 # model_magic seems to be the same for all pc maps
                 # need to figure out what that magic is though.........
-                verts_start = self.tag_index.model_data_offset
-                tris_start  = verts_start + self.tag_index.vertex_data_size
+                verts_start = tag_index.model_data_offset
+                tris_start  = verts_start + tag_index.vertex_data_size
                 model_magic = None
             else:
                 model_magic = magic
@@ -1352,19 +1491,20 @@ class Refinery(BinillaWidget, tk.Tk):
                 byteswap_verts = byteswap_uncomp_verts
                 vert_size = 68
 
-                # need to swap the lod cutoff and nodes values around
-                cutoffs = (meta.superlow_lod_cutoff, meta.low_lod_cutoff,
-                           meta.high_lod_cutoff, meta.superhigh_lod_cutoff)
-                nodes = (meta.superlow_lod_nodes, meta.low_lod_nodes,
-                         meta.high_lod_nodes, meta.superhigh_lod_nodes)
-                meta.superlow_lod_cutoff  = cutoffs[3]
-                meta.low_lod_cutoff       = cutoffs[2]
-                meta.high_lod_cutoff      = cutoffs[1]
-                meta.superhigh_lod_cutoff = cutoffs[0]
-                meta.superlow_lod_nodes  = nodes[3]
-                meta.low_lod_nodes       = nodes[2]
-                meta.high_lod_nodes      = nodes[1]
-                meta.superhigh_lod_nodes = nodes[0]
+                if engine != "pcstubbs":
+                    # need to swap the lod cutoff and nodes values around
+                    cutoffs = (meta.superlow_lod_cutoff, meta.low_lod_cutoff,
+                               meta.high_lod_cutoff, meta.superhigh_lod_cutoff)
+                    nodes = (meta.superlow_lod_nodes, meta.low_lod_nodes,
+                             meta.high_lod_nodes, meta.superhigh_lod_nodes)
+                    meta.superlow_lod_cutoff  = cutoffs[3]
+                    meta.low_lod_cutoff       = cutoffs[2]
+                    meta.high_lod_cutoff      = cutoffs[1]
+                    meta.superhigh_lod_cutoff = cutoffs[0]
+                    meta.superlow_lod_nodes  = nodes[3]
+                    meta.low_lod_nodes       = nodes[2]
+                    meta.high_lod_nodes      = nodes[1]
+                    meta.superhigh_lod_nodes = nodes[0]
             else:
                 verts_attr_name = "compressed_vertices"
                 byteswap_verts = byteswap_comp_verts
@@ -1451,8 +1591,11 @@ class Refinery(BinillaWidget, tk.Tk):
 
             # null the last 28 bytes of each breakable_surface
             breakable_surfaces = meta.breakable_surfaces.STEPTREE
-            for i in range(0, len(leaves), 48):
+            for i in range(0, len(breakable_surfaces), 48):
                 breakable_surfaces[i+20: i+48] = b'\x00' * 28
+
+            # null out the runtime decals
+            del meta.runtime_decals.STEPTREE[:]
 
             for cluster in meta.clusters.STEPTREE:
                 predicted_resources.append(cluster.predicted_resources)
@@ -1472,57 +1615,6 @@ class Refinery(BinillaWidget, tk.Tk):
 
         elif tag_cls == "shpp":
             predicted_resources.append(meta.predicted_resources)
-
-        elif tag_cls == "snd!":
-            # might need to get samples and permutations from the resource map
-            if engine in ("ce", "yelo"):
-                if is_not_indexed:
-                    return meta
-            elif engine not in ("pc", "pcdemo"):
-                return meta
-
-            # ce tagpaths are in the format:  path__permutations
-            #     ex: sound\sfx\impulse\coolant\enter_water__permutations
-            #
-            # pc tagpaths are in the format:  path__pitch_range__permutation
-            #     ex: sound\sfx\impulse\coolant\enter_water__0__0
-            for pitches in meta.pitch_ranges.STEPTREE:
-                for perm in pitches.permutations.STEPTREE:
-                    for b in (perm.samples, perm.mouth_data, perm.subtitle_data):
-                        if not b.size:
-                            # no data. set it to an empty bytes object(the data
-                            # is currently set to None, which cant serialize)
-                            b.STEPTREE = b''
-                            continue
-                        sound_data.seek(b.raw_pointer)
-                        b.STEPTREE = sound_data.read(b.size)
-
-        elif tag_cls == "ustr":
-            # might need to grab string data correctly from resource map
-            meta_offset = tag_index_ref.meta_offset
-
-            if is_not_indexed:
-                return meta
-            elif not self.map_is_resource:
-                meta_offset = self.loc_rsrc_header.tag_headers\
-                              [meta_offset].offset
-
-            string_blocks = meta.strings.STEPTREE
-
-            if len(string_blocks):
-                desc = string_blocks[0].get_desc('STEPTREE')
-                parser = desc['TYPE'].parser
-
-            try:
-                FieldType.force_little()
-                for b in string_blocks:
-                    parser(desc, None, b, 'STEPTREE',
-                           loc_data, meta_offset, b.pointer)
-                FieldType.force_normal()
-            except Exception:
-                print(format_exc())
-                FieldType.force_normal()
-                raise
 
         elif tag_cls == "weap":
             predicted_resources.append(meta.weap_attrs.predicted_resources)
@@ -1734,6 +1826,9 @@ if __name__ == "__main__":
               "If something seems wrong, it might be. Use with care.\n")
         input("Press enter to continue.")'''
         #input("Refinery is not ready for public use yet. Ignore it for now.")
+
+        if print_startup:
+            print("    Starting Refinery\n\n")
         extractor = run()
         extractor.mainloop()
     except Exception:
