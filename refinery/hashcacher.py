@@ -24,7 +24,7 @@ def clear_meta_only_fields(tagdata, def_id):
     elif def_id == 'scnr':
         # remove the sbsp references from the meta
         for b in tagdata.structure_bsps.STEPTREE:
-            b.bsp_meta_pointer = b.bsp_meta_size = b.unknown = 0
+            b.bsp_pointer = b.bsp_size = b.bsp_magic = 0
     elif def_id == 'bitm':
         # clear some meta-only fields
         for b in tagdata.bitmaps.STEPTREE:
