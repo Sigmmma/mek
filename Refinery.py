@@ -10,6 +10,8 @@ from math import pi
 from os.path import dirname, exists, join
 from struct import unpack
 from time import time
+from tkinter.font import Font
+from tkinter import messagebox
 from tkinter.filedialog import askopenfilename, asksaveasfilename, askdirectory
 from tkinter.font import Font
 from traceback import format_exc
@@ -27,12 +29,10 @@ from refinery.class_repair import class_repair_functions,\
      tag_cls_int_to_fcc, tag_cls_int_to_ext
 from refinery.resource_cache_extensions import bitmap_tag_extensions,\
      sound_tag_extensions, loc_tag_extensions
-
-if print_startup:
-    print("    Importing mozzarilla modules")
-
-from mozzarilla.tools.shared_widgets import HierarchyFrame
-from binilla.widgets import BinillaWidget
+from refinery.widgets import QueueTree, RefinerySettingsWindow,\
+     ExplorerHierarchyTree, ExplorerClassTree, ExplorerHybridTree
+from refinery.meta_window import MetaWindow
+     
 
 if print_startup:
     print("    Importing supyr_struct modules")
@@ -88,8 +88,6 @@ from reclaimer.stubbs.defs.coll import fast_coll_def as stubbs_fast_coll_def
 if print_startup:
     print("    Initializing Refinery")
 
-no_op = lambda *a, **kw: None
-
 this_dir = dirname(__file__)
 
 def run():
@@ -101,10 +99,13 @@ def is_protected(tagpath):
         not INVALID_PATH_CHARS.isdisjoint(set(tagpath)))
 
 
-class Refinery(BinillaWidget, tk.Tk):
+class Refinery(tk.Tk):
     map_path = None
     out_dir  = None
     handler  = None
+
+    settings_window =None
+    tk_vars = None
 
     _map_loaded = False
     _running = False
@@ -151,23 +152,37 @@ class Refinery(BinillaWidget, tk.Tk):
         tk.Tk.__init__(self, *args, **kwargs)
 
         self.title("Refinery v1.0")
-        self.minsize(width=640, height=480)
-        self.geometry("%sx%s" % (640, 480))
+        self.minsize(width=640, height=450)
+        self.geometry("640x480")
 
         # make the tkinter variables
         self.map_path = tk.StringVar(self)
         self.out_dir = tk.StringVar(self)
+
         self.fix_tag_classes = tk.IntVar(self)
-        self.use_old_gelo = tk.IntVar(self)
-        self.use_resource_names = tk.IntVar(self)
         self.use_hashcaches = tk.IntVar(self)
         self.use_heuristics = tk.IntVar(self)
+        self.use_old_gelo = tk.IntVar(self)
         self.extract_cheape = tk.IntVar(self)
         self.extract_from_ce_resources = tk.IntVar(self)
 
+        self.tk_vars = dict(
+            fix_tag_classes=self.fix_tag_classes,
+            use_hashcaches=self.use_hashcaches,
+            use_heuristics=self.use_heuristics,
+
+            use_old_gelo=self.use_old_gelo,
+            extract_cheape=self.extract_cheape,
+            extract_from_ce_resources=self.extract_from_ce_resources)
+
+        #fonts
+        self.fixed_font = Font(family="Courier", size=8)
+        self.container_title_font = Font(
+            family="Courier", size=10, weight='bold')
+        self.comment_font = Font(family="Courier", size=9)
+
         self.fix_tag_classes.set(1)
         self.extract_from_ce_resources.set(1)
-        self.use_resource_names.set(1)
 
         self.out_dir.set(join(this_dir, "tags", ""))
 
@@ -177,23 +192,23 @@ class Refinery(BinillaWidget, tk.Tk):
         self.panes = tk.PanedWindow(self, sashwidth=4)
 
         # make the frames
+        self.out_dir_frame    = tk.LabelFrame(self, text="Folder to extract to")
         self.map_frame        = tk.LabelFrame(self, text="Map to extract from")
         self.map_select_frame = tk.Frame(self.map_frame)
         self.map_info_frame   = tk.Frame(self.map_frame)
-        self.map_action_frame = tk.Frame(self.map_frame)
-        self.deprotect_frame  = tk.LabelFrame(self, text="Deprotection settings")
-        self.out_dir_frame    = tk.LabelFrame(self, text="Location to extract to")
+        self.map_action_frame = tk.LabelFrame(self, text="Actions")
 
         self.explorer_frame = tk.LabelFrame(self.panes, text="Map contents")
         self.add_del_frame = tk.Frame(self.explorer_frame)
         self.queue_frame = tk.LabelFrame(self.panes, text="Extraction queue")
 
-        self.hierarchy_frame = ExplorerHierarchyFrame(
-            self.explorer_frame, app_root=self, select_mode='extended')
-
-        # bind the queue_add to activating the hierarchy frame in some way
-        self.hierarchy_frame.tags_tree.bind('<Double-Button-1>', self.queue_add)
-        self.hierarchy_frame.tags_tree.bind('<Return>', self.queue_add)
+        self.queue_tree = QueueTree(self.queue_frame, app_root=self)
+        self.hierarchy_tree = ExplorerHierarchyTree(
+            self.explorer_frame, app_root=self, queue_tree=self.queue_tree)
+        self.class_tree = ExplorerClassTree(
+            self.explorer_frame, app_root=self, queue_tree=self.queue_tree)
+        self.hybrid_tree = ExplorerHybridTree(
+            self.explorer_frame, app_root=self, queue_tree=self.queue_tree)
 
         self.panes.add(self.explorer_frame)
         self.panes.add(self.queue_frame)
@@ -219,40 +234,29 @@ class Refinery(BinillaWidget, tk.Tk):
         self.map_info_scrollbar.config(command=self.map_info_text.yview)
 
         # make the buttons
-        self.extract_from_ce_resources_checkbutton = tk.Checkbutton(
-            self.map_action_frame, variable=self.extract_from_ce_resources,
-            text="Extract from CE bitmaps/sounds/loc.map")
-        self.extract_cheape_checkbutton = tk.Checkbutton(
-            self.map_action_frame, variable=self.extract_cheape,
-            text="Extract cheape.map")
+        self.settings_button = tk.Button(
+            self.map_action_frame, text="Settings",
+            command=self.show_settings)
+        self.toggle_display_button = tk.Button(
+            self.map_action_frame, text="Toggle explorer display",
+            command=self.toggle_display_mode)
+        self.deprotect_button = tk.Button(
+            self.map_action_frame, text="Run deprotection",
+            command=self.deprotect)
         self.begin_button = tk.Button(
-            self.map_action_frame, text="Start extraction",
+            self.map_action_frame, text="Run extraction",
             command=self.start_extraction)
         self.cancel_button = tk.Button(
-            self.map_action_frame, text="Cancel extraction",
-            command=self.cancel_extraction)
+            self.map_action_frame, text="Cancel",
+            command=self.cancel_action)
 
-        self.fix_tag_classes_checkbutton = tk.Checkbutton(
-            self.deprotect_frame, text="Fix tag classes",
-            variable=self.fix_tag_classes)
-        self.use_resource_names_checkbutton = tk.Checkbutton(
-            self.deprotect_frame, text="Use resource names",
-            variable=self.use_resource_names)
-        self.use_hashcaches_checkbutton = tk.Checkbutton(
-            self.deprotect_frame, text="Use hashcaches",
-            variable=self.use_hashcaches)
-        self.use_heuristics_checkbutton = tk.Checkbutton(
-            self.deprotect_frame, text="Use heuristics",
-            variable=self.use_heuristics)
-        self.deprotect_button = tk.Button(
-            self.deprotect_frame, text="Run deprotection",
-            command=self.deprotect)
 
-        self.add_button = tk.Button(self.add_del_frame, text="Add",
-                                    width=4, command=self.queue_add)
-        self.del_button = tk.Button(self.add_del_frame, text="Del",
-                                    width=4, command=self.queue_del)
-
+        self.add_button = tk.Button(
+            self.add_del_frame, text="Add", width=4,
+            command=self.add_pressed)
+        self.del_button = tk.Button(
+            self.add_del_frame, text="Del", width=4,
+            command=self.queue_tree.remove_curr_selection)
         self.add_all_button = tk.Button(
             self.add_del_frame, text="Add\nAll", width=4,
             command=self.queue_add_all)
@@ -260,27 +264,22 @@ class Refinery(BinillaWidget, tk.Tk):
             self.add_del_frame, text="Del\nAll", width=4,
             command=self.queue_del_all)
 
+
         # pack everything
         self.map_path_entry.pack(
             padx=(4, 0), pady=2, side='left', expand=True, fill='x')
         self.map_path_browse_button.pack(padx=(0, 4), pady=2, side='left')
 
-        self.extract_from_ce_resources_checkbutton.pack(side='left', padx=4, pady=4)
-        self.extract_cheape_checkbutton.pack(side='left', padx=4, pady=4)
+        self.settings_button.pack(side='left', padx=4, pady=4)
+        self.toggle_display_button.pack(side='left', padx=4, pady=4)
         self.cancel_button.pack(side='right', padx=4, pady=4)
         self.begin_button.pack(side='right', padx=4, pady=4)
-
-        self.fix_tag_classes_checkbutton.pack(side='left', padx=4, pady=4)
-        #self.use_resource_names_checkbutton.pack(side='left', padx=4, pady=4)
-        self.use_hashcaches_checkbutton.pack(side='left', padx=4, pady=4)
-        self.use_heuristics_checkbutton.pack(side='left', padx=4, pady=4)
         self.deprotect_button.pack(side='right', padx=4, pady=4)
 
         self.map_select_frame.pack(fill='x', expand=True, padx=1)
         self.map_info_frame.pack(fill='x', expand=True, padx=1)
         self.map_info_scrollbar.pack(fill='y', side='right', padx=1)
         self.map_info_text.pack(fill='x', side='right', expand=True, padx=1)
-        self.map_action_frame.pack(fill='x', expand=True, padx=1)
 
         self.out_dir_entry.pack(
             padx=(4, 0), pady=2, side='left', expand=True, fill='x')
@@ -292,22 +291,20 @@ class Refinery(BinillaWidget, tk.Tk):
         self.del_all_button.pack(side='top', padx=2, pady=4)
 
         self.explorer_frame.pack(fill='both', padx=1, expand=True)
-        self.add_del_frame.pack(side='right', fill='y', anchor='center')
-        self.hierarchy_frame.pack(side='right', fill='both', expand=True)
-        self.queue_frame.pack(fill='y', padx=1, expand=True)
+        self.add_del_frame.pack(fill='y', side='right', anchor='center')
+        self.queue_tree.pack(fill='both', side='right', expand=True)
+        self.queue_frame.pack(fill='both', padx=1, expand=True)
 
         self.map_frame.pack(fill='x', padx=1)
-        self.out_dir_frame.pack(fill='x', padx=1)
+        self.out_dir_frame.pack(fill='x')
+        self.map_action_frame.pack(fill='x', padx=1)
 
-        self.extract_cheape_checkbutton.config(state='disabled')
-
-        # Not gonna do anything with deprotecting for a while.
-        # just gonna remove this from the ui for the time being
-        #self.deprotect_frame.pack(fill='x', padx=1)
         self.panes.pack(fill='both', expand=True)
 
         self.panes.paneconfig(self.explorer_frame, sticky='nsew')
         self.panes.paneconfig(self.queue_frame, sticky='nsew')
+
+        self.set_display_mode("hierarchy")
 
         self.handler = handler = OsV4HaloHandler()
         self.handler.add_def(gelc_def)
@@ -316,10 +313,11 @@ class Refinery(BinillaWidget, tk.Tk):
         #self.handler.add_def(vege_def)
         
         # create a bunch of tag headers for each type of tag
+        defs = handler.defs
         for def_id in sorted(handler.defs):
             if len(def_id) != 4:
                 continue
-            h_desc = handler.defs[def_id].descriptor[0]
+            h_desc = defs[def_id].descriptor[0]
             
             h_block = [None]
             h_desc['TYPE'].parser(h_desc, parent=h_block, attr_index=0)
@@ -344,6 +342,75 @@ class Refinery(BinillaWidget, tk.Tk):
     def tags_dir(self):
         return self.out_dir.get()
 
+    def get_meta_descriptor(self, tag_cls):
+        if tag_cls == "gelo":
+            if self.use_old_gelo.get():
+                return old_gelo_def.descriptor[1]
+            return new_gelo_def.descriptor[1]
+        return self.handler.defs[tag_cls].descriptor[1]
+
+    def place_window_relative(self, window, x=0, y=0):
+        # calculate x and y coordinates for this window
+        x_base, y_base = self.winfo_x(), self.winfo_y()
+        w, h = window.geometry().split('+')[0].split('x')[:2]
+        if w == h and w == '1':
+            w = window.winfo_reqwidth()
+            h = window.winfo_reqheight()
+        window.geometry('%sx%s+%s+%s' % (w, h, x + x_base, y + y_base))
+
+    def toggle_display_mode(self, e=None):
+        if self._display_mode == "hierarchy":
+            self.set_display_mode("class")
+        elif self._display_mode == "class":
+            self.set_display_mode("hybrid")
+        elif self._display_mode == "hybrid":
+            self.set_display_mode("hierarchy")
+
+    def set_display_mode(self, new_mode=None):
+        if new_mode == "hierarchy":
+            self.hybrid_tree.pack_forget()
+            self.class_tree.pack_forget()
+            if self.hierarchy_tree.tag_index is None:
+                self.hierarchy_tree.reload(self.tag_index)
+            self.hierarchy_tree.pack(side='right', fill='both', expand=True)
+            self.toggle_display_button.config(text="Switch to class view")
+        elif new_mode == "class":
+            self.hierarchy_tree.pack_forget()
+            self.hybrid_tree.pack_forget()
+            if self.class_tree.tag_index is None:
+                self.class_tree.reload(self.tag_index)
+            self.class_tree.pack(side='right', fill='both', expand=True)
+            self.toggle_display_button.config(text="Switch to hybrid view")
+        elif new_mode == "hybrid":
+            self.class_tree.pack_forget()
+            self.hierarchy_tree.pack_forget()
+            if self.hybrid_tree.tag_index is None:
+                self.hybrid_tree.reload(self.tag_index)
+            self.hybrid_tree.pack(side='right', fill='both', expand=True)
+            self.toggle_display_button.config(text="Switch to hierarchy view")
+        else:
+            return
+
+        self._display_mode = new_mode
+
+    def show_settings(self):
+        if self.settings_window is not None:
+            return
+
+        self.settings_window = RefinerySettingsWindow(
+            self, tk_vars=self.tk_vars)
+        # make sure the window gets a chance to set its size
+        self.settings_window.update()
+        self.place_window_relative(self.settings_window)
+
+    def show_meta(self):
+        if not self._map_loaded:
+            return
+        ##########################
+        """ THIS IS JUST A TEST"""
+        ##########################
+        MetaWindow(self, self.scnr_meta, tag_path="scenario meta test")
+
     def destroy(self):
         self.unload_maps()
         FieldType.force_normal()
@@ -355,41 +422,53 @@ class Refinery(BinillaWidget, tk.Tk):
         os._exit(0)
         #sys.exit(0)
 
-    def queue_add(self, e=None):
+    def add_pressed(self, e=None):
         if not self._map_loaded:
             return
 
-        tags_tree = self.hierarchy_frame.tags_tree
-
-        iids = tags_tree.selection()
-        if not iids:
-            return
-
-        # make a popup window asking how to extract this tag/directory
-
-    def queue_del(self, e=None):
-        if not self._map_loaded:
-            return
-
-        tags_tree = self.queue_frame.queue_tree
-
-        iids = queue_tree.selection()
-        if not iids:
-            return
+        if self._display_mode == "hierarchy":
+            self.hierarchy_tree.activate_item()
+        elif self._display_mode == "class":
+            self.class_tree.activate_item()
+        elif self._display_mode == "hybrid":
+            self.hybrid_tree.activate_item()
 
     def queue_add_all(self, e=None):
         if not self._map_loaded:
             return
 
-        tags_tree = self.hierarchy_frame.tags_tree
+        if self._display_mode == "hierarchy":
+            tree_frame = self.hierarchy_tree
+        elif self._display_mode == "class":
+            tree_frame = self.class_tree
+        elif self._display_mode == "hybrid":
+            tree_frame = self.hybrid_tree
+        else:
+            return
 
-        # make a popup window asking how to extract this tag/directory
+        tags_tree = tree_frame.tags_tree
+
+        # get the current selection
+        curr_sel = tags_tree.selection()
+        # select all the tags
+        tags_tree.selection_set(tags_tree.get_children())
+        # tell the tree_frame to add the selection to the queue
+        tree_frame.activate_item()
+        # revert the selection to what it was
+        tags_tree.selection_set(curr_sel)
 
     def queue_del_all(self, e=None):
         if not self._map_loaded:
             return
 
-        tags_tree = self.queue_frame.queue_tree
+        ans = messagebox.askyesno(
+            "Clearing queue", "Are you sure you want to clear\n" +
+            "the entire extraction queue?", icon='warning', parent=self)
+
+        if not ans:
+            return True
+
+        self.queue_tree.remove_items()
 
     def unload_maps(self):
         try: self.map_data.close()
@@ -415,6 +494,10 @@ class Refinery(BinillaWidget, tk.Tk):
         self.stop_processing = True
         self.classes_repaired = False
         self.map_is_resource  = False
+        self.hierarchy_tree.reload()
+        self.class_tree.reload()
+        self.hybrid_tree.reload()
+        self.queue_tree.reload()
 
     def set_defs(self):
         '''Switch definitions based on which game the map is for'''
@@ -453,11 +536,6 @@ class Refinery(BinillaWidget, tk.Tk):
             defs.pop("imef", None)
             defs.pop("vege", None)
             defs.pop("terr", None)
-
-        state = 'disabled'
-        if self.engine == "yelo" and not self.map_is_resource:
-            state = 'normal'
-        self.extract_cheape_checkbutton.config(state=state)
 
         self.handler.reset_tags()
 
@@ -729,8 +807,10 @@ class Refinery(BinillaWidget, tk.Tk):
             self._map_loaded = True
 
             self.display_map_info()
-            self.hierarchy_frame.map_magic = self.map_magic
-            self.reload_map_explorer()
+            self.hierarchy_tree.map_magic = self.map_magic
+            self.class_tree.map_magic = self.map_magic
+            self.hybrid_tree.map_magic = self.map_magic
+            self.reload_explorers()
 
             try:
                 if comp_data is not self.map_data:
@@ -743,7 +823,7 @@ class Refinery(BinillaWidget, tk.Tk):
             self.display_map_info(
                 "Could not load map.\nCheck console window for error.")
             self.unload_maps()
-            self.reload_map_explorer()
+            self.reload_explorers()
             raise
 
         self._running = False
@@ -908,17 +988,26 @@ class Refinery(BinillaWidget, tk.Tk):
         return False
 
     def basic_deprotection(self):
-        if not self._map_loaded:
+        if self.tag_index is None:
             return
-        elif self.running or self.map_is_resource:
+        elif self.map_is_resource:
             return
         print("Running basic deprotection...")
         # rename all invalid names to usable ones
         i = 0
+        found_counts = {}
         for b in self.tag_index.tag_index:
-            if is_protected(b.tag.tag_path):
+            tag_path = b.tag.tag_path
+            tag_cls  = tag_cls_int_to_ext.get(b.class_1.data, "INVALID")
+            name_id = (tag_path, tag_cls)
+            if is_protected(tag_path):
                 b.tag.tag_path = "protected_%s" % i
                 i += 1
+            elif name_id in found_counts:
+                b.tag.tag_path = "%s_%s" % (tag_path, found_counts[name_id])
+                found_counts[name_id] += 1
+            else:
+                found_counts[name_id] = 0
         print("    Finished")
 
     def deprotect(self, e=None):
@@ -940,7 +1029,7 @@ class Refinery(BinillaWidget, tk.Tk):
             print("Repairing tag classes")
             repaired = set()
             magic = self.map_magic
-            bsp_magic = self.bsp_magic
+            bsp_magics = self.bsp_magics
 
             # call a recursive deprotect on the globals, scenario, all
             # tag_collections, and all ui_widget_definitions
@@ -979,44 +1068,13 @@ class Refinery(BinillaWidget, tk.Tk):
             self.classes_repaired = True
             # make sure the changes are committed
             map_data.flush()
-        '''
-        if self.use_resource_names.get() and self.engine in ("pc","ce","yelo"):
-            print("Detecting resource tags...")
-            i = 0
-            resource_names = pc_resource_names
-            if self.engine in ("yelo", "ce"):
-                resource_names = ce_resource_names
 
-            for b in tag_index_array:
-                if self.stop_processing:
-                    print("    Deprotection stopped by user.")
-                    self._running = False
-                    return
-
-                cls_fcc = tag_cls_int_to_fcc.get(b.class_1.data)
-                if cls_fcc == "matg" and self.engine != "yelo":
-                    b.tag.tag_path == "globals\\globals"
-                    continue
-
-                if not self.is_indexed(b):
-                    continue
-                try:
-                    b.tag.tag_path = resource_names[cls_fcc][b.meta_offset]
-                except (IndexError, KeyError):
-                    try:
-                        curr_path = b.tag.tag_path
-                        if is_protected(curr_path):
-                            b.tag.tag_path = "indexed_protected_%s" % i
-                            i += 1
-                    except Exception:
-                        print(format_exc())
-        '''
         print("    Finished")
 
         self._running = False
         print("Completed. Took %s seconds." % round(time()-start, 1))
         self.display_map_info()
-        self.reload_map_explorer()
+        self.reload_explorers()
 
     def start_extraction(self, e=None):
         if not self._map_loaded:
@@ -1176,7 +1234,7 @@ class Refinery(BinillaWidget, tk.Tk):
             # resource map not loaded
             return
 
-        h_desc  = self.handler.defs[tag_cls].descriptor[1]
+        h_desc  = self.get_meta_descriptor(tag_cls)
         h_block = [None]
 
         try:
@@ -1231,13 +1289,7 @@ class Refinery(BinillaWidget, tk.Tk):
             return self.get_ce_resource_tag(tag_cls, tag_index_ref)
 
 
-        if tag_cls != "gelo":
-            h_desc = self.handler.defs[tag_cls].descriptor[1]
-        elif self.use_old_gelo.get():
-            h_desc = old_gelo_def.descriptor[1]
-        else: 
-            h_desc = new_gelo_def.descriptor[1]
-        
+        h_desc = self.get_meta_descriptor(tag_cls)
         h_block = [None]
         offset = tag_index_ref.meta_offset - magic
         if tag_cls == "sbsp":
@@ -1469,6 +1521,12 @@ class Refinery(BinillaWidget, tk.Tk):
             # divide light time by 30
             meta.effect_parameters.duration /= 30
 
+        elif tag_cls == "matg":
+            if self.engine in ("yelo", "ce", "pc", "pcdemo"):
+                # SOMETHING IS WRONG WITH EXTRACTING THE PC AND CE GLOBALS.
+                # NEED TO FIGURE IT OUT BEFORE EXTRACTING THEM
+                return
+
         elif tag_cls == "metr":
             # The meter bitmaps can literally point to not
             # only the wrong tag, but the wrong TYPE of tag.
@@ -1625,18 +1683,25 @@ class Refinery(BinillaWidget, tk.Tk):
 
         return meta
 
-    def cancel_extraction(self, e=None):
+    def cancel_action(self, e=None):
         if not self._map_loaded:
             return
         self.stop_processing = True
 
-    def reload_map_explorer(self):
+    def reload_explorers(self):
         if not self._map_loaded:
             return
         print("Reloading map explorer...")
-        self.hierarchy_frame.reload(self.tag_index)
+        if self._display_mode == "hierarchy":
+            self.hierarchy_tree.reload(self.tag_index)
+        elif self._display_mode == "class":
+            self.class_tree.reload(self.tag_index)
+        elif self._display_mode == "hybrid":
+            self.hybrid_tree.reload(self.tag_index)
+
+        self.queue_tree.reload()
         self.update()
-        print("    Finished")
+        print("    Finished\n")
 
     def map_path_browse(self):
         if self.running:
@@ -1673,160 +1738,8 @@ class Refinery(BinillaWidget, tk.Tk):
         self.out_dir.set(dirpath)
 
 
-class ExplorerHierarchyFrame(HierarchyFrame):
-    map_magic = None
-    tag_index = None
-
-    def __init__(self, *args, **kwargs):
-        HierarchyFrame.__init__(self, *args, **kwargs)
-
-    def reload(self, tag_index=None):
-        self.tag_index = tag_index
-        tags_tree = self.tags_tree
-        if not tags_tree['columns']:
-            # dont want to do this more than once
-            tags_tree['columns'] = ('class1', 'class2', 'class3',
-                                    'magic', 'pointer', 'index_id')
-            tags_tree.heading("#0", text='')
-            tags_tree.heading("class1", text='class 1')
-            tags_tree.heading("class2", text='class 2')
-            tags_tree.heading("class3", text='class 3')
-            tags_tree.heading("magic",  text='magic')
-            tags_tree.heading("pointer", text='pointer')
-            tags_tree.heading("index_id",  text='index id')
-
-            tags_tree.column("#0", minwidth=100, width=100)
-            tags_tree.column("class1", minwidth=5, width=40, stretch=False)
-            tags_tree.column("class2", minwidth=5, width=40, stretch=False)
-            tags_tree.column("class3", minwidth=5, width=40, stretch=False)
-            tags_tree.column("magic",  minwidth=5, width=70, stretch=False)
-            tags_tree.column("pointer", minwidth=5, width=70, stretch=False)
-            tags_tree.column("index_id", minwidth=5, width=50, stretch=False)
-
-        if tag_index:
-            # remove any currently existing children
-            for child in tags_tree.get_children():
-                tags_tree.delete(child)
-
-            # generate the hierarchy
-            self.generate_subitems()
-
-    def activate_item(self, e=None):
-        dir_tree = self.tags_tree
-        tag_path = dir_tree.focus()
-        if tag_path is None:
-            return
-
-    def generate_subitems(self, dir_name='', hierarchy=None):
-        tags_tree = self.tags_tree
-
-        if hierarchy is None:
-            hierarchy = self.get_hierarchy_map()
-
-        dirs, files = hierarchy
-        if dir_name:        
-            prefix = dir_name + "\\"
-
-        for subdir_name in sorted(dirs):
-            abs_dir_name = dir_name + subdir_name
-            if self.tags_tree.exists(abs_dir_name):
-                continue
-
-            # add the directory to the treeview
-            self.tags_tree.insert(
-                dir_name, 'end', iid=abs_dir_name, text=subdir_name)
-
-            # generate the subitems for this directory
-            self.generate_subitems(abs_dir_name, dirs[subdir_name])
-
-        map_magic = self.map_magic
-
-        for filename in sorted(files):
-            # add the file to the treeview
-            b = files[filename]
-            tag_id = b.id[0]
-            if b.indexed and map_magic:
-                pointer = "not in map"
-            else:
-                pointer = b.meta_offset - map_magic
-
-            if not map_magic:
-                # resource cache tag
-                tag_id += (b.id[1] << 16)
-
-            try:
-                self.tags_tree.insert(
-                    dir_name, 'end', iid=tag_id, text=filename,
-                    values=(tag_cls_int_to_fcc.get(b.class_1.data, ''),
-                            tag_cls_int_to_fcc.get(b.class_2.data, ''),
-                            tag_cls_int_to_fcc.get(b.class_3.data, ''),
-                            b.meta_offset, pointer, tag_id, b))
-            except Exception:
-                print(format_exc())
-
-    def get_hierarchy_map(self):
-        # the keys are the names of the directories and files.
-        # the values for the files are that tags index block, whereas
-        # the values for the directories are a hierarchy of that folder.
-
-        # the keys will always be lowercased to make things less complicated
-        dirs = {}
-        files = {}
-
-        # loop over each tag in the index and add it to the hierarchy map
-        for b in self.tag_index.tag_index:
-            tagpath = b.tag.tag_path.replace("/", "\\").lower()
-            if is_protected(tagpath):
-                tagpath = "protected"
-            
-            # make sure the tagpath has only valid path characters in it
-            self._add_to_hierarchy_map(dirs, files, tagpath.split("\\"), b)
-
-        return dirs, files
-
-    def _add_to_hierarchy_map(self, dirs, files, tagpath, tagblock):
-        this_name = tagpath[0]
-        if len(tagpath) == 1:
-            i = 1
-            try:
-                ext = "." + tag_cls_int_to_ext[tagblock.class_1.data]
-            except Exception:
-                ext = ".INVALID"
-
-            this_unique_name = this_name + ext
-            # in case certain tags end up having the same name
-            while this_unique_name in files:
-                this_unique_name = "%s_%s%s" % (this_name, i, ext)
-                i += 1
-
-            files[this_unique_name] = tagblock
-        else:
-            # get the dirs dict for this folder, making one if necessary
-            dirs[this_name] = sub_dirs, sub_files = dirs.get(this_name, ({},{}))
-
-            self._add_to_hierarchy_map(sub_dirs, sub_files,
-                                       tagpath[1:], tagblock)
-
-    open_selected = close_selected = no_op
-
-    set_root_dir = add_root_dir = insert_root_dir = del_root_dir = no_op
-
-    destroy_subitems = no_op
-
-    get_item_tags_dir = highlight_tags_dir = no_op
-
-
 if __name__ == "__main__":
     try:
-        '''print("This program is still highly experimental and should\n" +
-              "not be used except for open sauce tags(since there\n" +
-              "is currently no other extractor for those tags).\n\n" +
-              "Refinery currently cant extract models, gbxmodels, or\n" +
-              "bsps, and certain fields are incorrectly extracted.\n" +
-              "If something seems wrong, it might be. Use with care.\n")
-        input("Press enter to continue.")'''
-        #input("Refinery is not ready for public use yet. Ignore it for now.")
-
         if print_startup:
             print("    Starting Refinery\n\n")
         extractor = run()
