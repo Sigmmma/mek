@@ -1,16 +1,25 @@
+import tkinter as tk
 from binilla.tag_window import *
 from mozzarilla.widget_picker import def_halo_widget_picker
 from supyr_struct.defs.constants import *
+
 
 class MetaWindow(TagWindow):
     widget_picker = def_halo_widget_picker
     tag_path = None
     save_as_60 = False
 
-    def __init__(self, master, metadata, *args, **kwargs):
+    def __init__(self, master, tag, *args, **kwargs):
         self.tag_path = kwargs.pop("tag_path", self.tag_path)
+        self.tag = tag
+
+        # delete the tags_dir so the FieldWidgets dont create
+        # unusable browse/open buttons for dependencies
+        self.tag.tags_dir = None
+        del self.tag.tags_dir
+
         kwargs["tag_def"] = None
-        TagWindow.__init__(self, master, metadata, *args, **kwargs)
+        TagWindow.__init__(self, master, tag, *args, **kwargs)
 
     def save(self, **kwargs):
         print("Cannot save meta-data")
@@ -38,7 +47,7 @@ class MetaWindow(TagWindow):
             self.field_widget = None
 
         # Get the desc of the top block in the tag
-        root_block = self.tag
+        root_block = self.tag.data.tagdata
 
         # Get the widget to build
         widget_cls = self.widget_picker.get_widget(root_block.desc)
