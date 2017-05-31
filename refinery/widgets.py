@@ -47,7 +47,7 @@ def ask_extract_settings(parent, def_vars=None, tag_index_ref=None, title=None):
     for k in def_vars:
         settings_vars[k].set(def_vars[k].get())
 
-    w = RefineryActionsWindow(parent, tk_vars=dict(settings_vars),
+    w = RefineryActionsWindow(parent, tk_vars=settings_vars,
                               tag_index_ref=tag_index_ref, title=title)
 
     # make the parent freeze what it's doing until we're destroyed
@@ -180,6 +180,7 @@ class ExplorerHierarchyTree(HierarchyFrame):
 
         child_items = []
         renamed_index_refs = []
+        renaming_multiple = len(index_refs) > 1
 
         for index_ref in index_refs:
             tag_cls = index_ref.class_1.data
@@ -193,14 +194,18 @@ class ExplorerHierarchyTree(HierarchyFrame):
 
             # when renaming only one tag, the basenames COULD BE the full names
             old_name = index_ref.tag.tag_path.lower().replace('/', '\\')
-            new_name = old_name.split(old_basename)
-            if len(new_name) == 1:
-                # tag_path doesnt have the base_name in it
-                continue
-            elif not new_name:
-                print("Cannot rename '%s' to an empty string." % old_name)
-                continue
-            new_name = new_basename + new_name[1]
+            if renaming_multiple:
+                new_name = old_name.split(old_basename)
+                if len(new_name) <= 1:
+                    # tag_path doesnt have the base_name in it
+                    continue
+                elif not new_name[1]:
+                    print("Cannot rename '%s' to an empty string." % old_name)
+                    continue
+
+                new_name = new_basename + new_name[1]
+            else:
+                new_name = new_basename
 
             if index_ref.indexed:
                 print("Cannot rename indexed tag: %s" % old_name)
@@ -380,14 +385,14 @@ class ExplorerClassTree(ExplorerHierarchyTree):
                     ext = "." + tag_cls_int_to_ext[b.class_1.data]
                 except Exception:
                     ext = ".INVALID"
-                tag_cls = tag_cls_int_to_fcc.get(b.class_1.data, '')
+                tag_cls = tag_cls_int_to_fcc.get(b.class_1.data, 'INVALID')
                 sortable_index_refs[tag_cls + '\\' + b.tag.tag_path.replace\
                                    ("/", "\\").lower() + ext] = b
 
         for tag_path in sorted(sortable_index_refs):
             b = sortable_index_refs[tag_path]
             tag_path = tag_path.split('\\', 1)[1]
-            tag_cls = tag_cls_int_to_fcc.get(b.class_1.data, '')
+            tag_cls = tag_cls_int_to_fcc.get(b.class_1.data, 'INVALID')
             tag_id = b.id[0]
             map_magic = self.map_magic
 
@@ -470,6 +475,9 @@ class ExplorerClassTree(ExplorerHierarchyTree):
 class ExplorerHybridTree(ExplorerHierarchyTree):
 
     def add_tag_index_refs(self, index_refs, dont_sort=False):
+        if dont_sort:
+            ExplorerHierarchyTree.add_tag_index_refs(self, index_refs, 1)
+            
         index_refs_by_tag_cls = {}
         if isinstance(index_refs, dict):
             index_refs = index_refs.keys()
@@ -513,12 +521,10 @@ class QueueTree(ExplorerHierarchyTree):
 
         # edit queue
         iids = self.tags_tree.selection()
-        return
-        # FIGURE OUT WHY THE STRINGS ARE BEING ERASED
+
         if len(iids):
             w = RefineryEditActionsWindow(
                 self, tk_vars=self.queue_info[iids[0]])
-
             # make the parent freeze what it's doing until we're destroyed
             w.master.wait_window(self)
 
@@ -632,11 +638,11 @@ class RefineryActionsWindow(tk.Toplevel):
         if self.app_root is None and hasattr(self.master, 'app_root'):
             self.app_root = self.master.app_root
 
-        self.accept_rename   = tk_vars.pop('accept_rename', tk.IntVar(self))
-        self.accept_settings = tk_vars.pop('accept_settings', tk.IntVar(self))
-        self.rename_string   = tk_vars.pop('rename_string', tk.StringVar(self))
-        self.extract_to_dir  = tk_vars.pop('tags_dir', tk.StringVar(self))
-        self.tagslist_path   = tk_vars.pop('tagslist_path', tk.StringVar(self))
+        self.accept_rename   = tk_vars.get('accept_rename', tk.IntVar(self))
+        self.accept_settings = tk_vars.get('accept_settings', tk.IntVar(self))
+        self.rename_string   = tk_vars.get('rename_string', tk.StringVar(self))
+        self.extract_to_dir  = tk_vars.get('tags_dir', tk.StringVar(self))
+        self.tagslist_path   = tk_vars.get('tagslist_path', tk.StringVar(self))
         self.resizable(1, 0)
 
         if not self.tagslist_path.get():
@@ -727,7 +733,8 @@ class RefineryActionsWindow(tk.Toplevel):
         self.browse_tags_list_button.pack(padx=4, side='left', fill='x')
 
         # settings
-        self.recursive_checkbutton.pack(padx=4, anchor='w')
+        # WONT DO ANYTHING YET
+        #self.recursive_checkbutton.pack(padx=4, anchor='w')
         self.overwrite_checkbutton.pack(padx=4, anchor='w')
         self.show_output_checkbutton.pack(padx=4, anchor='w')
 
@@ -741,10 +748,13 @@ class RefineryActionsWindow(tk.Toplevel):
         self.transient(self.master)
         self.grab_set()
 
-        self.update()
-        try: self.app_root.place_window_relative(self)
-        except AttributeError: pass
-        self.focus_set()
+        try:
+            self.update()
+            self.app_root.place_window_relative(self)
+            # I would use focus_set, but it doesn't seem to always work
+            self.accept_button.focus_force()
+        except AttributeError:
+            pass
 
     def add_to_queue(self, e=None):
         self.accept_settings.set(1)
@@ -809,7 +819,8 @@ class RefineryActionsWindow(tk.Toplevel):
             return
 
         try:
-            meta = self.app_root.get_meta(index_ref.id[0])
+            # make sure it's re-extracted
+            meta = self.app_root.get_meta(index_ref.id[0], True)
             if meta is None:
                 print("Could not get meta.")
                 return
