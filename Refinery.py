@@ -7,7 +7,7 @@ import os
 import zlib
 from math import pi
 
-from os.path import dirname, exists, join
+from os.path import dirname, exists, join, isfile
 from struct import unpack
 from time import time
 from tkinter.font import Font
@@ -23,15 +23,12 @@ if print_startup:
 from refinery.byteswapping import raw_block_def, byteswap_animation,\
      byteswap_uncomp_verts, byteswap_comp_verts, byteswap_tris,\
      byteswap_coll_bsp, byteswap_sbsp_meta, byteswap_scnr_script_syntax_data
-from refinery.hashcacher_window import RESERVED_WINDOWS_FILENAME_MAP,\
-     INVALID_PATH_CHARS, sanitize_filename, HashcacherWindow
 from refinery.class_repair import class_repair_functions,\
      tag_cls_int_to_fcc, tag_cls_int_to_ext
 from refinery.resource_cache_extensions import bitmap_tag_extensions,\
      sound_tag_extensions, loc_tag_extensions
-from refinery.widgets import QueueTree, RefinerySettingsWindow,\
+from refinery.widgets import QueueTree, RefinerySettingsWindow, is_protected,\
      ExplorerHierarchyTree, ExplorerClassTree, ExplorerHybridTree
-from refinery.meta_window import MetaWindow
      
 
 if print_startup:
@@ -94,11 +91,6 @@ def run():
     return Refinery()
 
 
-def is_protected(tagpath):
-    return tagpath in RESERVED_WINDOWS_FILENAME_MAP or (
-        not INVALID_PATH_CHARS.isdisjoint(set(tagpath)))
-
-
 class Refinery(tk.Tk):
     map_path = None
     out_dir  = None
@@ -143,6 +135,7 @@ class Refinery(tk.Tk):
 
     matg_meta = None
     scnr_meta = None
+    tree_frames = None
 
     # a cache of all the different headers for
     # each type of tag to speed up writing tags
@@ -151,7 +144,7 @@ class Refinery(tk.Tk):
     def __init__(self, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
 
-        self.title("Refinery v1.0")
+        self.title("Refinery v0.7")
         self.minsize(width=640, height=450)
         self.geometry("640x480")
 
@@ -166,14 +159,22 @@ class Refinery(tk.Tk):
         self.extract_cheape = tk.IntVar(self)
         self.extract_from_ce_resources = tk.IntVar(self)
 
+        self.recursive = tk.IntVar(self)
+        self.overwrite = tk.IntVar(self)
+        self.show_output = tk.IntVar(self)
+
         self.tk_vars = dict(
             fix_tag_classes=self.fix_tag_classes,
             use_hashcaches=self.use_hashcaches,
             use_heuristics=self.use_heuristics,
-
+            extract_from_ce_resources=self.extract_from_ce_resources,
             use_old_gelo=self.use_old_gelo,
             extract_cheape=self.extract_cheape,
-            extract_from_ce_resources=self.extract_from_ce_resources)
+            resursive=self.recursive, overwrite=self.overwrite,
+            show_output=self.show_output,
+            )
+
+        self.show_output.set(1)
 
         #fonts
         self.fixed_font = Font(family="Courier", size=8)
@@ -192,8 +193,8 @@ class Refinery(tk.Tk):
         self.panes = tk.PanedWindow(self, sashwidth=4)
 
         # make the frames
-        self.out_dir_frame    = tk.LabelFrame(self, text="Folder to extract to")
-        self.map_frame        = tk.LabelFrame(self, text="Map to extract from")
+        self.dir_frame = tk.LabelFrame(self, text="Default extraction folder")
+        self.map_frame = tk.LabelFrame(self, text="Map to extract from")
         self.map_select_frame = tk.Frame(self.map_frame)
         self.map_info_frame   = tk.Frame(self.map_frame)
         self.map_action_frame = tk.LabelFrame(self, text="Actions")
@@ -205,10 +206,20 @@ class Refinery(tk.Tk):
         self.queue_tree = QueueTree(self.queue_frame, app_root=self)
         self.hierarchy_tree = ExplorerHierarchyTree(
             self.explorer_frame, app_root=self, queue_tree=self.queue_tree)
-        self.class_tree = ExplorerClassTree(
-            self.explorer_frame, app_root=self, queue_tree=self.queue_tree)
         self.hybrid_tree = ExplorerHybridTree(
             self.explorer_frame, app_root=self, queue_tree=self.queue_tree)
+        self.class_tree = ExplorerClassTree(
+            self.explorer_frame, app_root=self, queue_tree=self.queue_tree)
+
+        self.tree_frames = dict(
+            hierarchy_tree=self.hierarchy_tree,
+            hybrid_tree=self.hybrid_tree,
+            class_tree=self.class_tree)
+
+        # give these each reference to each other so they
+        # can update each other when one has things renamed
+        for tree_frame in self.tree_frames.values():
+            tree_frame.sibling_tree_frames = self.tree_frames
 
         self.panes.add(self.explorer_frame)
         self.panes.add(self.queue_frame)
@@ -221,9 +232,9 @@ class Refinery(tk.Tk):
             command=self.map_path_browse, width=6)
 
         self.out_dir_entry = tk.Entry(
-            self.out_dir_frame, textvariable=self.out_dir, state='disabled')
+            self.dir_frame, textvariable=self.out_dir, state='disabled')
         self.out_dir_browse_button = tk.Button(
-            self.out_dir_frame, text="Browse",
+            self.dir_frame, text="Browse",
             command=self.out_dir_browse, width=6)
 
         self.fixed_font = Font(family="Courier", size=8)
@@ -296,7 +307,7 @@ class Refinery(tk.Tk):
         self.queue_frame.pack(fill='both', padx=1, expand=True)
 
         self.map_frame.pack(fill='x', padx=1)
-        self.out_dir_frame.pack(fill='x')
+        self.dir_frame.pack(fill='x')
         self.map_action_frame.pack(fill='x', padx=1)
 
         self.panes.pack(fill='both', expand=True)
@@ -349,14 +360,19 @@ class Refinery(tk.Tk):
             return new_gelo_def.descriptor[1]
         return self.handler.defs[tag_cls].descriptor[1]
 
-    def place_window_relative(self, window, x=0, y=0):
+    def place_window_relative(self, window, x=None, y=None):
         # calculate x and y coordinates for this window
         x_base, y_base = self.winfo_x(), self.winfo_y()
         w, h = window.geometry().split('+')[0].split('x')[:2]
         if w == h and w == '1':
             w = window.winfo_reqwidth()
             h = window.winfo_reqheight()
-        window.geometry('%sx%s+%s+%s' % (w, h, x + x_base, y + y_base))
+        if x is None:
+            x = self.winfo_width()//2 - int(w)//2
+        if y is None:
+            y = self.winfo_height()//2 - int(h)//2
+        window.geometry(
+            '%sx%s+%s+%s' % (w, h, x+x_base, y+y_base))
 
     def toggle_display_mode(self, e=None):
         if self._display_mode == "hierarchy":
@@ -402,14 +418,6 @@ class Refinery(tk.Tk):
         # make sure the window gets a chance to set its size
         self.settings_window.update()
         self.place_window_relative(self.settings_window)
-
-    def show_meta(self):
-        if not self._map_loaded:
-            return
-        ##########################
-        """ THIS IS JUST A TEST"""
-        ##########################
-        MetaWindow(self, self.scnr_meta, tag_path="scenario meta test")
 
     def destroy(self):
         self.unload_maps()
@@ -1016,6 +1024,9 @@ class Refinery(tk.Tk):
         elif self.running or self.map_is_resource:
             return
 
+        print("Deprotection is not implemented yet.")
+        return
+
         start = time()
         self.stop_processing = False
         self._running = True
@@ -1088,20 +1099,18 @@ class Refinery(tk.Tk):
             return
 
         self._running = True
-        out_dir = self.out_dir.get()
         handler = self.handler
 
         tag_index = self.tag_index
         tag_index_array = tag_index.tag_index
         start = time()
         self.stop_processing = False
-        total = 0
 
         if self.extract_cheape and self.engine == "yelo":
             scnr_tag_index_ref = tag_index_array[tag_index.scenario_tag_id[0]]
             tag_path = join(
                 dirname(scnr_tag_index_ref.tag.tag_path), "cheape.map")
-            abs_tag_path = join(out_dir, tag_path)
+            abs_tag_path = join(self.out_dir.get(), tag_path)
 
             print(tag_path)
 
@@ -1127,61 +1136,135 @@ class Refinery(tk.Tk):
         extract_resources = self.engine in ("ce", "yelo") and \
                             self.extract_from_ce_resources.get()
 
-        for i in range(len(tag_index_array)):
+        extracted = set()
+        map_magic = self.map_magic
+        queue_tree = self.queue_tree.tags_tree
+        queue_info = self.queue_tree.queue_info
+        queue_items = queue_tree.get_children()
+        total = 0
+
+        if not queue_items:
+            print("Queue is empty. Extracting entire map.")
+            queue_info = dict(
+                all_tags=dict(
+                    tag_index_refs=tag_index_array, recursive=self.recursive,
+                    overwrite=self.overwrite, show_output=self.show_output,
+                    tags_dir=self.out_dir, tagslist_path=tk.StringVar(self))
+                )
+            queue_items = ['all_tags']
+
+        for iid in queue_items:
+            if self.stop_processing:
+                print("Extraction stopped by user\n")
+                break
             try:
-                self.update()
-                tag_path = "<could not get tag path>"
-                if self.stop_processing:
-                    print("Extraction stopped by user\n")
-                    break
-                tag_index_ref = tag_index_array[i]
-
-                if self.is_indexed(tag_index_ref) and not extract_resources:
-                    continue
-
-                tag_cls = tag_cls_int_to_fcc.get(tag_index_ref.class_1.data)
-                tag_ext = tag_cls_int_to_ext.get(
-                    tag_index_ref.class_1.data, "INVALID")
-                tag_path = "%s.%s" % (tag_index_ref.tag.tag_path, tag_ext)
-                abs_tag_path = join(out_dir, tag_path)
-                if tag_cls is None:
-                    print(("    Unknown tag class for '%s'\n" +
-                           "    Run deprotection to fix this.") % tag_path)
-                    continue
-
-                meta = self.get_meta(i)
-                self.update()
-                if not meta:
-                    print("    Could not get: %s" % tag_path)
-                    continue
-
-                meta = self.meta_to_tag_data(meta, tag_cls, tag_index_ref)
-                self.update()
-                if not meta:
-                    print("    Could not get: %s" % tag_path)
-                    continue
-
-                print(tag_path)
-
-                if not exists(dirname(abs_tag_path)):
-                    os.makedirs(dirname(abs_tag_path))
-
-                FieldType.force_big()
-                with open(abs_tag_path, "wb") as f:
-                    f.write(self.tag_headers[tag_cls])
-                    try:
-                        f.write(meta.serialize(calc_pointers=False))
-                    except Exception:
-                        print(format_exc())
-                        print(meta)
-                        continue
-
-                total += 1
+                info = queue_info[iid]
+                out_dir        = info['tags_dir'].get()
+                recursive      = info['recursive'].get()
+                overwrite      = info['overwrite'].get()
+                show_output    = info['show_output'].get()
+                tagslist_path  = info['tagslist_path'].get()
+                tag_index_refs = info['tag_index_refs']
             except Exception:
                 print(format_exc())
-                print("Error ocurred while extracting '%s'" % tag_path)
-                
-            FieldType.force_normal()
+                continue
+
+            tagslist = ""
+            local_total = 0
+
+            for tag_index_ref in tag_index_refs:
+                try:
+                    self.update()
+                    tag_path = "<could not get tag path>"
+                    if self.stop_processing:
+                        break
+
+                    tag_id = tag_index_ref.id[0]
+                    if not map_magic:
+                        # resource cache tag
+                        tag_id += (tag_index_ref.id[1] << 16)
+
+                    # dont want to re-extract tags
+                    if tag_id in extracted:
+                        continue
+                    elif (self.is_indexed(tag_index_ref) and
+                          not extract_resources):
+                        continue
+                    extracted.add(tag_id)
+
+                    tag_cls = tag_cls_int_to_fcc.get(
+                        tag_index_ref.class_1.data)
+                    tag_ext = tag_cls_int_to_ext.get(
+                        tag_index_ref.class_1.data, "INVALID")
+                    tag_path = "%s.%s" % (
+                        tag_index_ref.tag.tag_path, tag_ext)
+                    abs_tag_path = join(out_dir, tag_path)
+                    if tag_cls is None:
+                        print(("    Unknown tag class for '%s'\n" +
+                               "    Run deprotection to fix this.") %
+                              tag_path)
+                        continue
+                    elif not overwrite and isfile(abs_tag_path):
+                        # not overwriting, and we are about to
+                        continue
+
+                    meta = self.get_meta(tag_id, True)
+                    self.update()
+                    if not meta:
+                        print("    Could not get: %s" % tag_path)
+                        continue
+
+                    if tag_cls == "scnr":
+                        self.scnr_meta = meta
+                    elif tag_cls == "matg":
+                        self.matg_meta = meta
+
+                    self.meta_to_tag_data(meta, tag_cls, tag_index_ref)
+                    self.update()
+                    if not meta:
+                        print("    Could not get: %s" % tag_path)
+                        continue
+
+                    if show_output:
+                        print(tag_path)
+
+                    if not exists(dirname(abs_tag_path)):
+                        os.makedirs(dirname(abs_tag_path))
+
+                    FieldType.force_big()
+                    with open(abs_tag_path, "wb") as f:
+                        f.write(self.tag_headers[tag_cls])
+                        try:
+                            f.write(meta.serialize(calc_pointers=False))
+                        except Exception:
+                            print(format_exc())
+                            print(meta)
+                            continue
+
+                    if tagslist_path:
+                        tagslist += tag_path + '\n'
+
+                    local_total += 1
+                except Exception:
+                    print(format_exc())
+                    print("Error ocurred while extracting '%s'" % tag_path)
+                    
+                FieldType.force_normal()
+                try: queue_tree.delete(iid)
+                except Exception: pass
+
+            try:
+                if tagslist:
+                    with open(tagslist_path, 'a') as f:
+                        f.write("%s tags in: %s\n" % (local_total, out_dir))
+                        f.write(tagslist)
+                        f.write('\n\n')
+            except Exception:
+                print(format_exc())
+                print("Could not save tagslist.")
+
+            total += local_total
+            local_total = 0
 
         self._running = False
         print("Extracted %s tags. Took %s seconds\n" %
@@ -1252,7 +1335,7 @@ class Refinery(tk.Tk):
 
         return h_block[0]
 
-    def get_meta(self, tag_id):
+    def get_meta(self, tag_id, reextract=False):
         '''
         Takes a tag reference id as the sole argument.
         Returns that tags meta data as a parsed block.
@@ -1280,14 +1363,14 @@ class Refinery(tk.Tk):
         if tag_cls is None:
             # couldn't determine the tag class
             return
-        elif tag_id == tag_index.scenario_tag_id[0] and self.scnr_meta:
-            return self.scnr_meta
-        elif tag_cls == "matg" and self.matg_meta:
-            return self.matg_meta
         elif self.is_indexed(tag_index_ref) and engine in ("ce", "yelo"):
             # tag exists in a resource cache
             return self.get_ce_resource_tag(tag_cls, tag_index_ref)
-
+        elif not reextract:
+            if tag_id == tag_index.scenario_tag_id[0] and self.scnr_meta:
+                return self.scnr_meta
+            elif tag_cls == "matg" and self.matg_meta:
+                return self.matg_meta
 
         h_desc = self.get_meta_descriptor(tag_cls)
         h_block = [None]
