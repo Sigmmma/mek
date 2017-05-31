@@ -7,7 +7,7 @@ import os
 import zlib
 from math import pi
 
-from os.path import dirname, exists, join, isfile
+from os.path import dirname, exists, join, isfile, splitext
 from struct import unpack
 from time import time
 from tkinter.font import Font
@@ -15,6 +15,15 @@ from tkinter import messagebox
 from tkinter.filedialog import askopenfilename, asksaveasfilename, askdirectory
 from tkinter.font import Font
 from traceback import format_exc
+     
+
+if print_startup:
+    print("    Importing supyr_struct modules")
+
+from supyr_struct.buffer import BytearrayBuffer, PeekableMmap
+from supyr_struct.defs.constants import *
+from supyr_struct.field_types import FieldType
+
 
 if print_startup:
     print("    Importing refinery modules")
@@ -29,14 +38,7 @@ from refinery.resource_cache_extensions import bitmap_tag_extensions,\
      sound_tag_extensions, loc_tag_extensions
 from refinery.widgets import QueueTree, RefinerySettingsWindow, is_protected,\
      ExplorerHierarchyTree, ExplorerClassTree, ExplorerHybridTree
-     
 
-if print_startup:
-    print("    Importing supyr_struct modules")
-
-from supyr_struct.buffer import BytearrayBuffer, PeekableMmap
-from supyr_struct.defs.constants import *
-from supyr_struct.field_types import FieldType
 
 if print_startup:
     print("    Loading halo 1 map definitions")
@@ -45,6 +47,7 @@ from reclaimer.meta.halo1_map import get_map_version, get_map_header,\
      get_tag_index, get_index_magic, get_map_magic,\
      decompress_map, is_compressed, map_header_demo_def, tag_index_pc_def
 from reclaimer.meta.resource import resource_def
+
 
 if print_startup:
     print("    Loading halo 1 open sauce tag definitions")
@@ -66,6 +69,7 @@ from reclaimer.os_v4_hek.defs.sbsp import fast_sbsp_def
 from reclaimer.os_v4_hek.defs.coll import fast_coll_def
 from reclaimer.os_v4_hek.handler import OsV4HaloHandler
 
+
 if print_startup:
     print("    Loading stubbs tag definitions")
 
@@ -81,6 +85,7 @@ from reclaimer.stubbs.defs.coll import fast_coll_def as stubbs_fast_coll_def
 #from reclaimer.stubbs.defs.imef import imef_def
 #from reclaimer.stubbs.defs.terr import terr_def
 #from reclaimer.stubbs.defs.vege import vege_def
+
 
 if print_startup:
     print("    Initializing Refinery")
@@ -107,7 +112,8 @@ class Refinery(tk.Tk):
 
     map_is_resource = False
     engine = None
-    map_magic = None
+    index_magic = None
+    map_magic   = None
     map_data    = None  # the complete uncompressed map
     bitmap_data = None
     sound_data  = None
@@ -132,6 +138,9 @@ class Refinery(tk.Tk):
     # these are the different pieces of the map as parsed blocks
     map_header = None
     tag_index = None
+
+    # the original tag_path of each tag in the map before any deprotection
+    orig_tag_paths = ()
 
     matg_meta = None
     scnr_meta = None
@@ -251,6 +260,9 @@ class Refinery(tk.Tk):
         self.toggle_display_button = tk.Button(
             self.map_action_frame, text="Toggle explorer display",
             command=self.toggle_display_mode)
+        self.save_map_button = tk.Button(
+            self.map_action_frame, text="Save map",
+            command=self.save_map)
         self.deprotect_button = tk.Button(
             self.map_action_frame, text="Run deprotection",
             command=self.deprotect)
@@ -283,6 +295,7 @@ class Refinery(tk.Tk):
 
         self.settings_button.pack(side='left', padx=4, pady=4)
         self.toggle_display_button.pack(side='left', padx=4, pady=4)
+        self.save_map_button.pack(side='left', padx=4, pady=4)
         self.cancel_button.pack(side='right', padx=4, pady=4)
         self.begin_button.pack(side='right', padx=4, pady=4)
         self.deprotect_button.pack(side='right', padx=4, pady=4)
@@ -489,6 +502,7 @@ class Refinery(tk.Tk):
         except Exception: pass
         self.tag_index = self.map_header = self.ce_sound_offsets_by_path = None
 
+        self.orig_tag_paths = ()
         self.loaded_rsrc_header = None
         self.bitmap_rsrc_header = None
         self.sound_rsrc_header  = None
@@ -563,13 +577,18 @@ class Refinery(tk.Tk):
                 title="Choose where to save the decompressed map",
                 filetypes=(("mapfile", "*.map"), ("All", "*")))
 
-        self.map_data   = decompress_map(
-            comp_data, self.map_header, decomp_path)
-
+        self.map_data = decompress_map(comp_data, self.map_header, decomp_path)
         self.index_magic = get_index_magic(self.map_header)
         self.map_magic   = get_map_magic(self.map_header)
         self.tag_index   = get_tag_index(self.map_data, self.map_header)
         tag_index_array  = self.tag_index.tag_index
+
+        # record the original tag_paths so we know if any were changed
+        orig_tag_paths = [None]*len(tag_index_array)
+        for i in range(len(tag_index_array)):
+            orig_tag_paths[i] = tag_index_array[i].tag.tag_path
+
+        self.orig_tag_paths = tuple(orig_tag_paths)
 
         self.set_defs()
 
@@ -777,7 +796,10 @@ class Refinery(tk.Tk):
             tag_ref = tags.tag_index[i]
             tag_ref.class_1.set_to(tag_classes[i])
 
-            tag_ref.id           = rsrc_head.tag_headers[j].id
+            # to make extraction easier, modify the id
+            tag_ref.id = rsrc_head.tag_headers[j].id.__copy__()
+            tag_ref.id[:] = (i, 0)
+
             tag_ref.meta_offset  = rsrc_head.tag_headers[j].offset
             tag_ref.indexed      = 1
             tag_ref.tag.tag_path = rsrc_head.tag_paths[j].tag_path
@@ -797,7 +819,6 @@ class Refinery(tk.Tk):
             self._running = True
             self.map_path.set(map_path)
 
-            self.map_is_resource = True
             with open(map_path, 'rb+') as f:
                 comp_data = PeekableMmap(f.fileno(), 0)
 
@@ -1087,6 +1108,108 @@ class Refinery(tk.Tk):
         self.display_map_info()
         self.reload_explorers()
 
+    def save_map(self, e=None):
+        if self.running:
+            return
+        elif self.map_is_resource:
+            print("Cannot save resource maps.")
+            return
+        elif self.engine == "yelo":
+            print("Cannot save yelo maps.")
+            return
+
+        save_path = asksaveasfilename(
+            initialdir=dirname(self.map_path.get()), parent=self,
+            title="Choose where to save the map",
+            filetypes=(("mapfile", "*.map"), ("All", "*")))
+
+        if not save_path:
+            return
+        save_dir  = dirname(save_path)
+        save_path = splitext(save_path)[0] + ".map"
+        if not exists(save_dir):
+            os.makedirs(save_dir)
+
+        self._running = True
+        print("Saving map...")
+        try:
+            out_file = open(save_path, 'wb')
+            map_file = self.map_data
+            map_file.seek(0)
+            chunk = None
+            map_size = 0
+
+            orig_tag_paths = self.orig_tag_paths
+            new_map_magic = old_map_magic = self.map_magic
+            index_magic   = self.index_magic
+            map_header = self.map_header
+            tag_index  = self.tag_index
+            index_array = tag_index.tag_index
+            index_offset = tag_index.tag_index_offset
+
+            while chunk or chunk is None:
+                chunk = map_file.read(1024*1024*32)  # copy in 32Mb chunks
+                map_size += len(chunk)
+                out_file.write(chunk)
+
+            # relocate the tag_index_header and tag_index to the
+            # end of the map if they are not next to each other.
+            index_header_size = tag_index.get_size()
+            if index_offset - index_magic != index_header_size:
+                map_header.tag_index_header_offset = map_size
+                tag_index.tag_index_offset = index_offset = \
+                                             index_header_size + index_magic
+
+                new_map_magic = get_map_magic(map_header)
+                # 32 byte per tag_index_ref
+                map_size += index_header_size + len(tag_index.tag_index) * 32
+
+            # get the non-magic tag_path pointers for each tag
+            path_pointers = [None]*len(index_array)
+            for i in range(len(index_array)):
+                path_pointers[i] = index_array[i].path_offset - old_map_magic
+
+            # recalculate pointers for the strings if they were changed
+            for i in range(len(index_array)):
+                tag_path = index_array[i].tag.tag_path
+                if orig_tag_paths[i].lower() == tag_path.lower():
+                    # path wasnt changed
+                    continue
+                # change the pointer to the end of the map
+                path_pointers[i] = map_size
+                # increment map size by the size of the string
+                map_size += len(tag_path) + 1
+
+            # set the path pointers to their new(or unchanged) values
+            for i in range(len(index_array)):
+                index_array[i].path_offset = path_pointers[i] + new_map_magic
+
+            # write the tag_index_header, tag_index and
+            # all the tag_paths to their locations
+            tag_index.serialize(
+                buffer=out_file, calc_pointers=False, magic=new_map_magic,
+                offset=map_header.tag_index_header_offset)
+
+            # change the decompressed size
+            map_header.decomp_len = map_size
+
+            # write the header to the beginning of the map
+            out_file.seek(0)
+            out_file.write(map_header.serialize(calc_pointers=False))
+            print("    Finished")
+        except Exception:
+            print(format_exc())
+            print("Could not save map")
+            save_path = None
+
+        out_file.close()
+        self._running = False
+
+        if save_path:
+            self.load_map(save_path)
+        else:
+            self.unload_maps()
+
     def start_extraction(self, e=None):
         if not self._map_loaded:
             return
@@ -1214,6 +1337,8 @@ class Refinery(tk.Tk):
                         print("    Could not get: %s" % tag_path)
                         continue
 
+                    # these might have been edited since they
+                    # were first extracted, so re-extract them
                     if tag_cls == "scnr":
                         self.scnr_meta = meta
                     elif tag_cls == "matg":
@@ -1282,7 +1407,7 @@ class Refinery(tk.Tk):
         if self.map_is_resource:
             # we have JUST a resource map loaded. not a real map
             rsrc_head = self.loaded_rsrc_header
-            map_data = self.map_data
+            map_data  = self.map_data
             meta_offset = tag_index_ref.meta_offset
 
         elif tag_cls == "snd!":
@@ -1577,7 +1702,7 @@ class Refinery(tk.Tk):
         if hasattr(meta, "obje_attrs"):
             predicted_resources.append(meta.obje_attrs.predicted_resources)
 
-        if tag_cls == "antr":
+        if tag_cls in ("antr", "magy"):
             # byteswap animation data
             for anim in meta.animations.STEPTREE:
                 byteswap_animation(anim)

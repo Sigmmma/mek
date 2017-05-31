@@ -20,6 +20,8 @@ class MetaWindow(TagWindow):
 
         kwargs["tag_def"] = None
         TagWindow.__init__(self, master, tag, *args, **kwargs)
+        self.bind('<Shift-MouseWheel>', self.mousewheel_scroll_x)
+        self.bind('<MouseWheel>', self.mousewheel_scroll_y)
 
     def save(self, **kwargs):
         print("Cannot save meta-data")
