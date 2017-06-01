@@ -295,10 +295,10 @@ class Refinery(tk.Tk):
 
         self.settings_button.pack(side='left', padx=4, pady=4)
         self.toggle_display_button.pack(side='left', padx=4, pady=4)
-        self.save_map_button.pack(side='right', padx=4, pady=4)
         self.cancel_button.pack(side='right', padx=4, pady=4)
         self.begin_button.pack(side='right', padx=4, pady=4)
         self.deprotect_button.pack(side='right', padx=4, pady=4)
+        self.save_map_button.pack(side='right', padx=4, pady=4)
 
         self.map_select_frame.pack(fill='x', expand=True, padx=1)
         self.map_info_frame.pack(fill='x', expand=True, padx=1)
