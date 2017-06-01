@@ -81,6 +81,9 @@ Mozzarilla(console):
 Same as the above, except it runs with a console window so you get a printout of errors if
 it crashes when starting up.
 
+Refinery:
+A new tag extractor that works for all types of Halo 1 maps and can extract open sauce tags.
+Read the refinery_readme.txt for more information.
 
 stubbs\Stubbs_Antr_Compiler:
 Capable of compiling meta data extracted from a Stubbs the Zombie map into a working animation tag.
