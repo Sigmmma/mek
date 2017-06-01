@@ -662,7 +662,7 @@ class RefineryActionsWindow(tk.Toplevel):
         # frames
         self.rename_frame     = tk.LabelFrame(self, text="Rename to")
         self.tags_list_frame  = tk.LabelFrame(self, text="Tags list")
-        self.extract_to_frame = tk.LabelFrame(self, text="Extract to folder")
+        self.extract_to_frame = tk.LabelFrame(self, text="Tags directory to extract to")
         self.settings_frame   = tk.LabelFrame(self, text="Extract settings")
 
         self.button_frame = tk.Frame(self)

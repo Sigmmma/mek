@@ -295,7 +295,7 @@ class Refinery(tk.Tk):
 
         self.settings_button.pack(side='left', padx=4, pady=4)
         self.toggle_display_button.pack(side='left', padx=4, pady=4)
-        self.save_map_button.pack(side='left', padx=4, pady=4)
+        self.save_map_button.pack(side='right', padx=4, pady=4)
         self.cancel_button.pack(side='right', padx=4, pady=4)
         self.begin_button.pack(side='right', padx=4, pady=4)
         self.deprotect_button.pack(side='right', padx=4, pady=4)
@@ -1373,10 +1373,10 @@ class Refinery(tk.Tk):
                 except Exception:
                     print(format_exc())
                     print("Error ocurred while extracting '%s'" % tag_path)
-                    
-                FieldType.force_normal()
-                try: queue_tree.delete(iid)
-                except Exception: pass
+
+            FieldType.force_normal()
+            try: queue_tree.delete(iid)
+            except Exception: pass
 
             try:
                 if tagslist:
@@ -1730,10 +1730,11 @@ class Refinery(tk.Tk):
             meta.effect_parameters.duration /= 30
 
         elif tag_cls == "matg":
-            if self.engine in ("yelo", "ce", "pc", "pcdemo"):
-                # SOMETHING IS WRONG WITH EXTRACTING THE PC AND CE GLOBALS.
-                # NEED TO FIGURE IT OUT BEFORE EXTRACTING THEM
-                return
+            # make sure there is multiplayer info. tool will fail to compile
+            # maps(even singleplayer and ui) if the multiplayer_info is blank
+            multiplayer_info = meta.multiplayer_informations.STEPTREE
+            if not len(multiplayer_info):
+                multiplayer_info.append()
 
         elif tag_cls == "metr":
             # The meter bitmaps can literally point to not
