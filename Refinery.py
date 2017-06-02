@@ -67,7 +67,7 @@ from reclaimer.os_v4_hek.defs.unit import unit_def
 from reclaimer.os_v4_hek.defs.vehi import vehi_def
 from reclaimer.os_v4_hek.defs.sbsp import fast_sbsp_def
 from reclaimer.os_v4_hek.defs.coll import fast_coll_def
-from reclaimer.os_v4_hek.handler import OsV4HaloHandler
+from reclaimer.os_v4_hek.handler import OsV4HaloHandler, NO_LOC_REFS
 
 
 if print_startup:
@@ -330,12 +330,20 @@ class Refinery(tk.Tk):
 
         self.set_display_mode("hierarchy")
 
+        # we wont need the ability to search for reflexives, rawdata refs,
+        # or fps stuff, so set those to NO_LOC_REFS so they aren't generated.
+        # This will speed up loading.
+        OsV4HaloHandler.reflexive_cache = NO_LOC_REFS
+        OsV4HaloHandler.raw_data_cache = NO_LOC_REFS
+        OsV4HaloHandler.fps_dependent_cache = NO_LOC_REFS
+        if print_startup:
+            print("    Loading all tag definitions")
         self.handler = handler = OsV4HaloHandler()
         self.handler.add_def(gelc_def)
         #self.handler.add_def(imef_def)
         #self.handler.add_def(terr_def)
         #self.handler.add_def(vege_def)
-        
+
         # create a bunch of tag headers for each type of tag
         defs = handler.defs
         for def_id in sorted(handler.defs):
@@ -896,8 +904,8 @@ class Refinery(tk.Tk):
                     "\nTag index:\n" +
                     "    tag count           == %s\n" +
                     "    scenario tag id     == %s\n" +
-                    "    index array offset  == %s   non-magic == %s\n" +
-                    "    model data offset   == %s\n"+
+                    "    index array pointer == %s   non-magic == %s\n" +
+                    "    model data pointer  == %s\n" +
                     "    meta data length    == %s\n" +
                     "    vertex parts count  == %s\n" +
                     "    index  parts count  == %s\n") %
@@ -908,7 +916,7 @@ class Refinery(tk.Tk):
 
                 if index.SIZE == 36:
                     string += ((
-                        "    index  parts offset == %s   non-magic == %s\n") %
+                        "    index parts pointer == %s   non-magic == %s\n") %
                     (index.index_parts_offset,
                      index.index_parts_offset - self.map_magic))
                 else:
@@ -985,21 +993,22 @@ class Refinery(tk.Tk):
                         "        bsp base pointer               == %s\n" +
                         "        bsp magic                      == %s\n" +
                         "        bsp size                       == %s\n" +
-                        "        bsp metadata pointer           == %s   non-magic == %s\n" +
-                        "        uncompressed lightmaps count   == %s\n" +
-                        "        uncompressed lightmaps pointer == %s   non-magic == %s\n" +
-                        "        compressed   lightmaps count   == %s\n" +
-                        "        compressed   lightmaps pointer == %s   non-magic == %s\n") %
+                        "        bsp metadata pointer           == %s   non-magic == %s\n"
+                        #"        uncompressed lightmaps count   == %s\n" +
+                        #"        uncompressed lightmaps pointer == %s   non-magic == %s\n" +
+                        #"        compressed   lightmaps count   == %s\n" +
+                        #"        compressed   lightmaps pointer == %s   non-magic == %s\n"
+                        ) %
                     (index.tag_index[tag_id].tag.tag_path,
                      self.bsp_header_offsets[tag_id],
                      magic, self.bsp_sizes[tag_id],
                      header.meta_pointer, header.meta_pointer - magic,
-                     header.uncompressed_lightmap_materials_count,
-                     header.uncompressed_lightmap_materials_pointer,
-                     header.uncompressed_lightmap_materials_pointer - magic,
-                     header.compressed_lightmap_materials_count,
-                     header.compressed_lightmap_materials_pointer,
-                     header.compressed_lightmap_materials_pointer - magic,
+                     #header.uncompressed_lightmap_materials_count,
+                     #header.uncompressed_lightmap_materials_pointer,
+                     #header.uncompressed_lightmap_materials_pointer - magic,
+                     #header.compressed_lightmap_materials_count,
+                     #header.compressed_lightmap_materials_pointer,
+                     #header.compressed_lightmap_materials_pointer - magic,
                      ))
             except Exception:
                 string = ""
@@ -1056,52 +1065,51 @@ class Refinery(tk.Tk):
         tag_index_array = tag_index.tag_index
         map_data = self.map_data
 
-        if self.fix_tag_classes.get() and (not self.classes_repaired and
-                                           "stubbs" not in self.engine):
-            print("Repairing tag classes")
+        #if self.fix_tag_classes.get() and (not self.classes_repaired and
+        #                                   "stubbs" not in self.engine):
+        if False:
+            print("Repairing tag classes...")
             repaired = set()
             magic = self.map_magic
             bsp_magics = self.bsp_magics
 
             # call a recursive deprotect on the globals, scenario, all
             # tag_collections, and all ui_widget_definitions
-            class_repair_functions["scnr"](map_data, tag_index_array, repaired,
-                                           magic, bsp_magic,
-                                           tag_index.scenario_tag_id[0],
-                                           self.engine)
+            class_repair_functions["scnr"](
+                map_data, tag_index_array, repaired, magic, bsp_magic,
+                tag_index.scenario_tag_id[0], self.engine)
             if self.stop_processing:
                 print("    Deprotection stopped by user.")
                 self._running = False
                 return
-
-            self.scnr_meta = self.get_meta(tag_index.scenario_tag_id[0])
 
             for b in tag_index_array:
                 if self.stop_processing:
                     print("    Deprotection stopped by user.")
                     self._running = False
                     return
+    
+                tag_cls = tag_cls_int_to_fcc.get(b.class_1.data)
 
-                if tag_cls_int_to_fcc.get(b.class_1.data) == "tagc":
-                    class_repair_functions["tagc"](map_data, tag_index_array,
-                                                   repaired, magic, bsp_magic,
-                                                   b.id[0], self.engine)
-                elif tag_cls_int_to_fcc.get(b.class_1.data) == "Soul":
-                    class_repair_functions["Soul"](map_data, tag_index_array,
-                                                   repaired, magic, bsp_magic,
-                                                   b.id[0], self.engine)
-                elif tag_cls_int_to_fcc.get(b.class_1.data) == "matg":
-                    class_repair_functions["matg"](map_data, tag_index_array,
-                                                   repaired, magic, bsp_magic,
-                                                   b.id[0], self.engine)
+                if tag_cls in ("matg", "Soul", "tagc"):
+                    class_repair_functions[tag_cls](
+                        map_data, tag_index_array, repaired,
+                        magic, bsp_magic,  b.id[0], self.engine)
+
+                if tag_cls == "matg":
                     # replace self.matg_meta with the deprotected one
                     self.matg_meta = self.get_meta(b.id[0])
 
             self.classes_repaired = True
             # make sure the changes are committed
             map_data.flush()
+            print("    Finished")
 
-        print("    Finished")
+
+        if self.use_heuristics.get():
+            print("Renaming tags using heuristics...")
+            print("    Finished")
+
 
         self._running = False
         print("Completed. Took %s seconds." % round(time()-start, 1))
@@ -1230,10 +1238,7 @@ class Refinery(tk.Tk):
         self.stop_processing = False
 
         if self.extract_cheape and self.engine == "yelo":
-            scnr_tag_index_ref = tag_index_array[tag_index.scenario_tag_id[0]]
-            tag_path = join(
-                dirname(scnr_tag_index_ref.tag.tag_path), "cheape.map")
-            abs_tag_path = join(self.out_dir.get(), tag_path)
+            abs_tag_path = join(self.out_dir.get(), "cheape.map")
 
             print(tag_path)
 
@@ -1949,8 +1954,6 @@ class Refinery(tk.Tk):
 
 if __name__ == "__main__":
     try:
-        if print_startup:
-            print("    Starting Refinery\n\n")
         extractor = run()
         extractor.mainloop()
     except Exception:

@@ -85,8 +85,8 @@ class ExplorerHierarchyTree(HierarchyFrame):
             tags_tree.heading("class1", text='class 1')
             tags_tree.heading("class2", text='class 2')
             tags_tree.heading("class3", text='class 3')
-            tags_tree.heading("magic",  text='magic')
-            tags_tree.heading("pointer", text='pointer')
+            tags_tree.heading("magic",  text='pointer(memory)')
+            tags_tree.heading("pointer", text='pointer(file)')
             tags_tree.heading("index_id",  text='index id')
 
             tags_tree.column("#0", minwidth=100, width=100)
@@ -619,8 +619,10 @@ class RefineryActionsWindow(tk.Toplevel):
     tk_vars = None
     accept_rename = None
     accept_settings = None
-    rename_string = None
     tag_index_ref = None
+
+    rename_string = None
+    recursive_rename = None
 
     def __init__(self, *args, **kwargs):
         title = kwargs.pop('title', None)
@@ -643,6 +645,7 @@ class RefineryActionsWindow(tk.Toplevel):
         self.rename_string   = tk_vars.get('rename_string', tk.StringVar(self))
         self.extract_to_dir  = tk_vars.get('tags_dir', tk.StringVar(self))
         self.tagslist_path   = tk_vars.get('tagslist_path', tk.StringVar(self))
+        self.recursive_rename = tk.IntVar(self)
         self.resizable(1, 0)
 
         if not self.tagslist_path.get():
@@ -674,6 +677,8 @@ class RefineryActionsWindow(tk.Toplevel):
             self.rename_frame, textvariable=self.rename_string)
         self.rename_button = tk.Button(
             self.rename_frame, text="Rename", command=self.rename, width=6)
+        self.recursive_rename_checkbutton = tk.Checkbutton(
+            self.rename_frame, text="Recursive", variable=self.recursive_rename)
 
         # tags list
         self.tags_list_entry = tk.Entry(
@@ -723,6 +728,7 @@ class RefineryActionsWindow(tk.Toplevel):
         # rename
         self.rename_entry.pack(padx=4, side='left', fill='x', expand=True)
         self.rename_button.pack(padx=4, side='left', fill='x')
+        #self.recursive_rename_checkbutton.pack(padx=4, side='left', fill='x')
 
         # extract to
         self.extract_to_entry.pack(padx=4, side='left', fill='x', expand=True)
@@ -763,12 +769,11 @@ class RefineryActionsWindow(tk.Toplevel):
     def rename(self, e=None):
         new_name = self.rename_string.get()
         new_name = new_name.replace('/', '\\').lower().strip("\\").strip('.')
-        if self.tag_index_ref is None:
-            # directory of tags
-            if not new_name.endswith('\\'):
-                new_name += "\\"
-        else:
+        if self.tag_index_ref is not None:
             new_name.rstrip('\\')
+        elif new_name and not new_name.endswith('\\'):
+            # directory of tags
+            new_name += "\\"
 
         self.rename_string.set(new_name)
         new_name = splitext(new_name)[0]
@@ -785,7 +790,7 @@ class RefineryActionsWindow(tk.Toplevel):
                 "Invalid name",
                 "The entered string is not a valid filename.", parent=self)
             return
-        elif not str_len:
+        elif not str_len and self.tag_index_ref is not None:
             messagebox.showerror(
                 "Invalid name",
                 "The entered string cannot be empty.", parent=self)
