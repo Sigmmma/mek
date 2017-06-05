@@ -1155,6 +1155,7 @@ class Refinery(tk.Tk):
             index_array = tag_index.tag_index
             index_offset = tag_index.tag_index_offset
 
+            # copy the map to the new save location
             while chunk or chunk is None:
                 chunk = map_file.read(1024*1024*32)  # copy in 32Mb chunks
                 map_size += len(chunk)
@@ -1272,7 +1273,7 @@ class Refinery(tk.Tk):
         total = 0
 
         if not queue_items:
-            print("Queue is empty. Extracting entire map.")
+            print("Queue is empty. Extracting entire map to default extraction folder.")
             queue_info = dict(
                 all_tags=dict(
                     tag_index_refs=tag_index_array, recursive=self.recursive,
