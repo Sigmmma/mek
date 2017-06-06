@@ -562,7 +562,7 @@ class RefinerySettingsWindow(tk.Toplevel):
     def __init__(self, *args, **kwargs):
         self.tk_vars = tk_vars = kwargs.pop('tk_vars', {})
         tk.Toplevel.__init__(self, *args, **kwargs)
-        self.geometry("250x210")
+        self.geometry("260x250")
         self.resizable(0, 0)
         self.title("Refinery settings")
 
@@ -573,6 +573,14 @@ class RefinerySettingsWindow(tk.Toplevel):
         self.extract_from_ce_resources_checkbutton = tk.Checkbutton(
             self.extract_frame, text="Extract from CE resource maps",
             variable=tk_vars.get("extract_from_ce_resources", tk.IntVar(self)))
+        self.rename_duplicates_in_scnr_checkbutton = tk.Checkbutton(
+            self.extract_frame, text=(
+                "Rename duplicate camera points, cutscene\n"+
+                "flags, and recorded animations in scenario"),
+            variable=tk_vars.get("rename_duplicates_in_scnr", tk.IntVar(self)))
+        self.overwrite_checkbutton = tk.Checkbutton(
+            self.extract_frame, text="Overwrite tags(not recommended)",
+            variable=tk_vars.get("overwrite", tk.IntVar(self)))
 
         self.fix_tag_classes_checkbutton = tk.Checkbutton(
             self.deprotect_frame, text="Fix tag classes",
@@ -596,7 +604,9 @@ class RefinerySettingsWindow(tk.Toplevel):
         self.deprotect_frame.pack(padx=4, pady=2, expand=True, fill="x")
         self.yelo_frame.pack(padx=4, pady=2, expand=True, fill="x")
 
-        self.extract_from_ce_resources_checkbutton.pack(padx=4, side='left')
+        self.extract_from_ce_resources_checkbutton.pack(padx=4, anchor='w')
+        self.rename_duplicates_in_scnr_checkbutton.pack(padx=4, anchor='w')
+        self.overwrite_checkbutton.pack(padx=4, anchor='w')
 
         self.fix_tag_classes_checkbutton.pack(padx=4, anchor='w')
         self.use_hashcaches_checkbutton.pack(padx=4, anchor='w')

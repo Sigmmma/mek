@@ -167,23 +167,27 @@ class Refinery(tk.Tk):
         self.use_old_gelo = tk.IntVar(self)
         self.extract_cheape = tk.IntVar(self)
         self.extract_from_ce_resources = tk.IntVar(self)
+        self.rename_duplicates_in_scnr = tk.IntVar(self)
+        self.overwrite = tk.IntVar(self)
 
         self.recursive = tk.IntVar(self)
-        self.overwrite = tk.IntVar(self)
         self.show_output = tk.IntVar(self)
 
         self.tk_vars = dict(
             fix_tag_classes=self.fix_tag_classes,
             use_hashcaches=self.use_hashcaches,
             use_heuristics=self.use_heuristics,
+            rename_duplicates_in_scnr=self.rename_duplicates_in_scnr,
             extract_from_ce_resources=self.extract_from_ce_resources,
+            overwrite=self.overwrite,
             use_old_gelo=self.use_old_gelo,
             extract_cheape=self.extract_cheape,
-            resursive=self.recursive, overwrite=self.overwrite,
+            recursive=self.recursive,
             show_output=self.show_output,
             )
 
         self.show_output.set(1)
+        self.rename_duplicates_in_scnr.set(1)
 
         #fonts
         self.fixed_font = Font(family="Courier", size=8)
@@ -1736,11 +1740,18 @@ class Refinery(tk.Tk):
             meta.effect_parameters.duration /= 30
 
         elif tag_cls == "matg":
-            # make sure there is multiplayer info. tool will fail to compile
-            # maps(even singleplayer and ui) if the multiplayer_info is blank
+            # tool will fail to compile any maps if the
+            # multiplayer_info or falling_damage is blank
+
+            # make sure there is multiplayer info.
             multiplayer_info = meta.multiplayer_informations.STEPTREE
             if not len(multiplayer_info):
                 multiplayer_info.append()
+
+            # make sure there is falling damage info.
+            falling_damages = meta.falling_damages.STEPTREE
+            if not len(falling_damages):
+                falling_damages.append()
 
         elif tag_cls == "metr":
             # The meter bitmaps can literally point to not
@@ -1885,6 +1896,19 @@ class Refinery(tk.Tk):
 
             # byteswap the script syntax data
             byteswap_scnr_script_syntax_data(meta)
+
+            # rename duplicate stuff that causes errors when compiling scripts
+            if self.rename_duplicates_in_scnr.get():
+                for refl in (meta.cutscene_flags, meta.cutscene_camera_points,
+                             meta.recorded_animations):
+                    names = set()
+                    for b in refl.STEPTREE:
+                        i = 0
+                        name = orig_name = b.name
+                        while name in names:
+                            name = ("DUP_%s_%s" % (i, orig_name))[:31]
+                        b.name = name
+                        names.add(name)
 
         elif tag_cls == "shpp":
             predicted_resources.append(meta.predicted_resources)
