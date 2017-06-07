@@ -86,11 +86,10 @@ def mode_to_mod2(mode_path):
 
             mod2_uncomp_verts = mod2_part.uncompressed_vertices
             mode_comp_verts   = mode_part.compressed_vertices
-            #mod2_comp_verts  = mode_comp_verts
 
             # if the uncompressed vertices are valid and the uncompressed are
             # not then we don't have any conversion to do(already uncompressed)
-            if mod2_uncomp_verts.size and not mod2_comp_verts.size:
+            if mod2_uncomp_verts.size and not mode_comp_verts.size:
                 continue
 
             uncomp_buffer = bytearray(b'\x00'*68*mode_comp_verts.size)
