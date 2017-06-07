@@ -37,16 +37,19 @@ def mode_to_mod2(mode_path):
     # move the first 14 header fields from mode into mod2
     for i in range(14):
         mod2_data[i] = mode_data[i]
-    # fix the fact the mode and mod2 store stuff related to lods in reverse
-    mod2_data.superhigh_lod_cutoff = mode_data.superhigh_lod_cutoff
-    mod2_data.high_lod_cutoff = mode_data.high_lod_cutoff
-    mod2_data.low_lod_cutoff = mode_data.low_lod_cutoff
-    mod2_data.superlow_lod_cutoff = mode_data.superlow_lod_cutoff
 
-    mod2_data.superhigh_lod_nodes = mode_data.superhigh_lod_nodes
-    mod2_data.high_lod_nodes = mode_data.high_lod_nodes
-    mod2_data.low_lod_nodes = mode_data.low_lod_nodes
-    mod2_data.superlow_lod_nodes = mode_data.superlow_lod_nodes
+    # fix the fact the mode and mod2 store stuff related to lods
+    # in reverse on most platforms(pc stubbs is an exception)
+    if mod2_data.superhigh_lod_cutoff < mod2_data.superlow_lod_cutoff:
+        mod2_data.superhigh_lod_cutoff = mode_data.superhigh_lod_cutoff
+        mod2_data.high_lod_cutoff = mode_data.high_lod_cutoff
+        mod2_data.low_lod_cutoff = mode_data.low_lod_cutoff
+        mod2_data.superlow_lod_cutoff = mode_data.superlow_lod_cutoff
+
+        mod2_data.superhigh_lod_nodes = mode_data.superhigh_lod_nodes
+        mod2_data.high_lod_nodes = mode_data.high_lod_nodes
+        mod2_data.low_lod_nodes = mode_data.low_lod_nodes
+        mod2_data.superlow_lod_nodes = mode_data.superlow_lod_nodes
 
     # move the markers, nodes, regions, and shaders, from mode into mod2
     mod2_data.markers = mode_data.markers
@@ -82,8 +85,8 @@ def mode_to_mod2(mode_path):
             mod2_part.uncompressed_vertices = mode_part.uncompressed_vertices
 
             mod2_uncomp_verts = mod2_part.uncompressed_vertices
-            mod2_comp_verts   = mod2_part.compressed_vertices
             mode_comp_verts   = mode_part.compressed_vertices
+            #mod2_comp_verts  = mode_comp_verts
 
             # if the uncompressed vertices are valid and the uncompressed are
             # not then we don't have any conversion to do(already uncompressed)
