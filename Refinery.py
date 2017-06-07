@@ -5,10 +5,10 @@ if print_startup:
 import tkinter as tk
 import os
 import zlib
-from math import pi
+from math import pi, sqrt
 
 from os.path import dirname, exists, join, isfile, splitext
-from struct import unpack
+from struct import unpack, pack_into
 from time import time
 from tkinter.font import Font
 from tkinter import messagebox
@@ -605,6 +605,7 @@ class Refinery(tk.Tk):
                 initialdir=dirname(map_path), parent=self,
                 title="Choose where to save the decompressed map",
                 filetypes=(("mapfile", "*.map"), ("All", "*")))
+            decomp_path = splitext(decomp_path)[0] + ".map"
 
         self.map_data = decompress_map(comp_data, self.map_header, decomp_path)
         self.index_magic = get_index_magic(self.map_header)
@@ -1743,6 +1744,15 @@ class Refinery(tk.Tk):
             # set the size of the compressed plate data to nothing
             meta.compressed_color_plate_data.STEPTREE = BytearrayBuffer()
 
+            # to enable compatibility with my bitmap converter we'll set the
+            # base address to a certain constant based on the console platform
+            if engine in ("xbox", "stubbs"):
+                for bitmap in meta.bitmaps.STEPTREE:
+                    bitmap.base_address = 1073751810
+            else:
+                for bitmap in meta.bitmaps.STEPTREE:
+                    bitmap.base_address = 0
+
         elif tag_cls == "cdmg":
             # divide camera shaking wobble period by 30
             meta.camera_shaking.wobble_function_period /= 30
@@ -1904,33 +1914,90 @@ class Refinery(tk.Tk):
             for cluster in meta.clusters.STEPTREE:
                 predicted_resources.append(cluster.predicted_resources)
 
-            use_compressed = engine in ("xbox", "stubbs")
+            compressed = engine in ("xbox", "stubbs")
+
+            # local variables for faster access
+            s_unpack = unpack
+            s_pack_into = pack_into
 
             # make sure the compressed and uncompressed lightmap vertices
             # are padded with 0x00 up to the size they need to be
             for lightmap in meta.lightmaps.STEPTREE:
-                if lightmap.bitmap_index == -1:
-                    uncomp_size = 56
-                    comp_size   = 32
-                else:
-                    uncomp_size = 76
-                    comp_size   = 40
-
                 for b in lightmap.materials.STEPTREE:
-                    if use_compressed:
-                        vert_count = b.compressed_vertices_count
-                        b.uncompressed_vertices_count = vert_count
+                    vert_count = b.vertices_count
+                    lightmap_vert_count = b.lightmap_vertices_count
+
+                    u_verts = b.uncompressed_vertices
+                    c_verts = b.compressed_vertices
+
+                    if compressed:
+                        # generate uncompressed vertices from the compressed
+                        comp_buffer   = c_verts.STEPTREE
+                        uncomp_buffer = bytearray(56*vert_count +
+                                                  20*lightmap_vert_count)
+                        in_off  = 0
+                        out_off = 0
+                        for i in range(vert_count):
+                            n, b, t = s_unpack("<3I",
+                                comp_buffer[in_off + 12: in_off + 24])
+                            ni = n&2047; nj = (n>>11)&2047; nk = (n>>22)&1023
+                            bi = b&2047; bj = (b>>11)&2047; bk = (b>>22)&1023
+                            ti = t&2047; tj = (t>>11)&2047; tk = (t>>22)&1023
+                            if ni&1024: ni = -1*((~ni) & 2047)
+                            if nj&1024: nj = -1*((~nj) & 2047)
+                            if nk&512:  nk = -1*((~nk) & 1023)
+                            if bi&1024: bi = -1*((~bi) & 2047)
+                            if bj&1024: bj = -1*((~bj) & 2047)
+                            if bk&512:  bk = -1*((~bk) & 1023)
+                            if ti&1024: ti = -1*((~ti) & 2047)
+                            if tj&1024: tj = -1*((~tj) & 2047)
+                            if tk&512:  tk = -1*((~tk) & 1023)
+                            ni /= 1023; nj /= 1023; nk /= 511
+                            bi /= 1023; bj /= 1023; bk /= 511
+                            ti /= 1023; tj /= 1023; tk /= 511
+
+                            nmag = max(sqrt(ni**2 + nj**2 + nk**2), 0.00000001)
+                            bmag = max(sqrt(bi**2 + bj**2 + bk**2), 0.00000001)
+                            tmag = max(sqrt(ti**2 + tj**2 + tk**2), 0.00000001)
+                            
+                            # write the uncompressed data
+                            s_pack_into('<12s9f8s', uncomp_buffer, out_off,
+                                        comp_buffer[in_off: in_off + 12],
+                                        ni/nmag, nj/nmag, nk/nmag,
+                                        bi/bmag, bj/bmag, bk/bmag,
+                                        ti/tmag, tj/tmag, tk/tmag,
+                                        comp_buffer[in_off + 24: in_off + 32])
+
+                            in_off  += 32
+                            out_off += 56
+
+                        for i in range(lightmap_vert_count):
+                            n, u, v = s_unpack(
+                                "<I2h", comp_buffer[in_off: in_off + 8])
+                            ni = n&2047; nj = (n>>11)&2047; nk = (n>>22)&1023
+                            if ni&1024: ni = -1*((~ni) & 2047)
+                            if nj&1024: nj = -1*((~nj) & 2047)
+                            if nk&512:  nk = -1*((~nk) & 1023)
+                            ni /= 1023; nj /= 1023; nk /= 511
+
+                            mag = max(sqrt(ni**2 + nj**2 + nk**2), 0.00000001)
+
+                            # write the uncompressed data
+                            s_pack_into('<5f', uncomp_buffer, out_off,
+                                        ni/mag, nj/mag, nk/mag,
+                                        u/32767, v/32767)
+
+                            in_off  += 8
+                            out_off += 20
                     else:
-                        vert_count = b.uncompressed_vertices_count
-                        b.compressed_vertices_count = vert_count
+                        # generate compressed vertices from uncompressed
+                        uncomp_buffer = u_verts.STEPTREE
+                        comp_buffer   = bytearray(32*vert_count +
+                                                  8*lightmap_vert_count)
 
-                    comp   = b.compressed_vertices
-                    uncomp = b.uncompressed_vertices
-
-                    uncomp.STEPTREE += b'\x00'*((vert_count*uncomp_size) -
-                                                len(uncomp.STEPTREE))
-                    comp.STEPTREE   += b'\x00'*((vert_count*comp_size) -
-                                                len(comp.STEPTREE))
+                    # replace the buffers
+                    u_verts.STEPTREE = uncomp_buffer
+                    c_verts.STEPTREE = comp_buffer
 
         elif tag_cls == "scnr":
             # need to remove the references to the child scenarios
