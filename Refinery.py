@@ -1262,7 +1262,7 @@ class Refinery(tk.Tk):
         if self.extract_cheape and self.engine == "yelo":
             abs_tag_path = join(self.out_dir.get(), "cheape.map")
 
-            print(tag_path)
+            print(abs_tag_path)
 
             try:
                 if not exists(dirname(abs_tag_path)):

@@ -76,11 +76,19 @@ def mode_to_mod2(mode_path):
             for k in range(9):
                 mod2_part[k] = mode_part[k]
 
-            # move the triangles from the mode into the mod2
+            # move the vertices and triangles from the mode into the mod2
             mod2_part.triangles = mode_part.triangles
+            mod2_part.compressed_vertices = mode_part.compressed_vertices
+            mod2_part.uncompressed_vertices = mode_part.uncompressed_vertices
 
-            mode_comp_verts = mode_part.compressed_vertices
             mod2_uncomp_verts = mod2_part.uncompressed_vertices
+            mod2_comp_verts   = mod2_part.compressed_vertices
+            mode_comp_verts   = mode_part.compressed_vertices
+
+            # if the uncompressed vertices are valid and the uncompressed are
+            # not then we don't have any conversion to do(already uncompressed)
+            if mod2_uncomp_verts.size and not mod2_comp_verts.size:
+                continue
 
             uncomp_buffer = bytearray(b'\x00'*68*mode_comp_verts.size)
             mod2_uncomp_verts.STEPTREE = raw_block_def.build()
@@ -205,7 +213,7 @@ class ModeToMod2Convertor(Tk):
                 print('Converting %s' % filepath.split(tags_dir)[-1])
 
                 mod2_tag = mode_to_mod2(filepath)
-                mod2_tag.serialize(temp=False, backup=False)
+                mod2_tag.serialize(temp=False, backup=False, int_test=False)
         print('\nFinished. Took %s seconds' % (time() - start))
 
 try:
