@@ -153,7 +153,7 @@ class Refinery(tk.Tk):
     def __init__(self, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
 
-        self.title("Refinery v0.8")
+        self.title("Refinery v0.8.1")
         self.minsize(width=640, height=450)
         self.geometry("640x480")
 
@@ -187,7 +187,6 @@ class Refinery(tk.Tk):
             )
 
         self.show_output.set(1)
-        self.rename_duplicates_in_scnr.set(1)
 
         #fonts
         self.fixed_font = Font(family="Courier", size=8)
@@ -370,6 +369,20 @@ class Refinery(tk.Tk):
         self.tag_headers["mode_stubbs"] = bytes(
             h_block[0].serialize(buffer=BytearrayBuffer(), calc_pointers=0))
 
+        h_block = [None]
+        h_desc = stubbs_soso_def.descriptor[0]
+        h_desc['TYPE'].parser(h_desc, parent=h_block, attr_index=0)
+        self.tag_headers["soso_halo"]   = self.tag_headers["soso"]
+        self.tag_headers["soso_stubbs"] = bytes(
+            h_block[0].serialize(buffer=BytearrayBuffer(), calc_pointers=0))
+
+        h_block = [None]
+        h_desc = stubbs_antr_def.descriptor[0]
+        h_desc['TYPE'].parser(h_desc, parent=h_block, attr_index=0)
+        self.tag_headers["antr_halo"]   = self.tag_headers["antr"]
+        self.tag_headers["antr_stubbs"] = bytes(
+            h_block[0].serialize(buffer=BytearrayBuffer(), calc_pointers=0))
+
     @property
     def running(self):
         return self._running
@@ -539,6 +552,8 @@ class Refinery(tk.Tk):
         headers = self.tag_headers
         if "stubbs" in self.engine:
             headers["mode"] = headers["mode_stubbs"]
+            headers["soso"] = headers["soso_stubbs"]
+            headers["antr"] = headers["antr_stubbs"]
             if self.engine == "pcstubbs":
                 defs["mode"] = stubbs_pc_mode_def
             else:
@@ -557,6 +572,8 @@ class Refinery(tk.Tk):
             #defs["terr"] = terr_def
         else:
             headers["mode"] = headers["mode_halo"]
+            headers["soso"] = headers["soso_halo"]
+            headers["antr"] = headers["antr_halo"]
             defs["mode"] = mode_def
             defs["antr"] = antr_def
             defs["bipd"] = bipd_def
@@ -1712,7 +1729,12 @@ class Refinery(tk.Tk):
         if hasattr(meta, "obje_attrs"):
             predicted_resources.append(meta.obje_attrs.predicted_resources)
 
-        if tag_cls in ("antr", "magy"):
+
+        if tag_cls == "actv":
+            # multiply grenade velocity by 30
+            meta.grenades.grenade_velocity *= 30
+            
+        elif tag_cls in ("antr", "magy"):
             # byteswap animation data
             for anim in meta.animations.STEPTREE:
                 byteswap_animation(anim)
@@ -1720,6 +1742,10 @@ class Refinery(tk.Tk):
         elif tag_cls == "bitm":
             # set the size of the compressed plate data to nothing
             meta.compressed_color_plate_data.STEPTREE = BytearrayBuffer()
+
+        elif tag_cls == "cdmg":
+            # divide camera shaking wobble period by 30
+            meta.camera_shaking.wobble_function_period /= 30
 
         elif tag_cls == "coll":
             # byteswap the raw bsp collision data
@@ -1731,9 +1757,13 @@ class Refinery(tk.Tk):
             # mask away the meta-only flags
             meta.flags.data &= 3
 
+        elif tag_cls == "jpt!":
+            # camera shaking wobble period by 30
+            meta.camera_shaking.wobble_function_period /= 30
+
         elif tag_cls == "lens":
             # multiply corona rotation by pi/180
-            meta.corona_rotation.function_scale /= 30
+            meta.corona_rotation.function_scale *= pi/180
 
         elif tag_cls == "ligh":
             # divide light time by 30
@@ -1868,21 +1898,39 @@ class Refinery(tk.Tk):
         elif tag_cls == "sbsp":
             byteswap_sbsp_meta(meta)
 
-            # null the first 8 bytes of each leaf
-            leaves = meta.leaves.STEPTREE
-            for i in range(0, len(leaves), 16):
-                leaves[i: i+8] = b'\x00' * 8
-
-            # null the last 28 bytes of each breakable_surface
-            breakable_surfaces = meta.breakable_surfaces.STEPTREE
-            for i in range(0, len(breakable_surfaces), 48):
-                breakable_surfaces[i+20: i+48] = b'\x00' * 28
-
             # null out the runtime decals
             del meta.runtime_decals.STEPTREE[:]
 
             for cluster in meta.clusters.STEPTREE:
                 predicted_resources.append(cluster.predicted_resources)
+
+            use_compressed = engine in ("xbox", "stubbs")
+
+            # make sure the compressed and uncompressed lightmap vertices
+            # are padded with 0x00 up to the size they need to be
+            for lightmap in meta.lightmaps.STEPTREE:
+                if lightmap.bitmap_index == -1:
+                    uncomp_size = 56
+                    comp_size   = 32
+                else:
+                    uncomp_size = 76
+                    comp_size   = 40
+
+                for b in lightmap.materials.STEPTREE:
+                    if use_compressed:
+                        vert_count = b.compressed_vertices_count
+                        b.uncompressed_vertices_count = vert_count
+                    else:
+                        vert_count = b.uncompressed_vertices_count
+                        b.compressed_vertices_count = vert_count
+
+                    comp   = b.compressed_vertices
+                    uncomp = b.uncompressed_vertices
+
+                    uncomp.STEPTREE += b'\x00'*((vert_count*uncomp_size) -
+                                                len(uncomp.STEPTREE))
+                    comp.STEPTREE   += b'\x00'*((vert_count*comp_size) -
+                                                len(comp.STEPTREE))
 
         elif tag_cls == "scnr":
             # need to remove the references to the child scenarios
@@ -1902,13 +1950,24 @@ class Refinery(tk.Tk):
                 for refl in (meta.cutscene_flags, meta.cutscene_camera_points,
                              meta.recorded_animations):
                     names = set()
-                    for b in refl.STEPTREE:
-                        i = 0
+                    blocks = refl.STEPTREE
+                    # go through the array in reverse so the last name is
+                    # considered the actual name and all others are renamed
+                    for i in range(len(blocks) -1, -1, -1):
+                        j = 0
+                        b = blocks[i]
                         name = orig_name = b.name
                         while name in names:
-                            name = ("DUP_%s_%s" % (i, orig_name))[:31]
+                            name = ("DUP_%s_%s" % (j, orig_name))[:31]
+                            j += 1
                         b.name = name
                         names.add(name)
+
+            # divide the cutscene times by 30(they're in ticks)
+            for b in meta.cutscene_titles.STEPTREE:
+                b.fade_in_time /= 30
+                b.up_time /= 30
+                b.fade_out_time /= 30
 
         elif tag_cls == "shpp":
             predicted_resources.append(meta.predicted_resources)
