@@ -1,26 +1,16 @@
 import os, supyr_struct
 
 from math import sqrt
-from struct import pack_into
+from struct import unpack, pack_into
 from time import time
 from tkinter import *
 from tkinter.filedialog import askdirectory
 from traceback import format_exc
 
-from supyr_struct.field_types import FieldType, BytearrayRaw
 from supyr_struct.defs.constants import fcc, PATHDIV
-from supyr_struct.defs.block_def import BlockDef
-from reclaimer.hek.defs.mod2 import mod2_def
-from reclaimer.stubbs.defs.mode import mode_def
+from reclaimer.hek.defs.mod2    import fast_mod2_def as mod2_def
+from reclaimer.stubbs.defs.mode import fast_mode_def as mode_def
 
-def undef_size(node, *a, **kwa):
-    if node is None:
-        return 0
-    return len(node)
-
-raw_block_def = BlockDef("raw_block",
-    BytearrayRaw('data', SIZE=undef_size)
-    )
 
 PATHDIV = PATHDIV
 curr_dir = os.path.abspath(os.curdir) + PATHDIV
@@ -41,15 +31,15 @@ def mode_to_mod2(mode_path):
     # fix the fact the mode and mod2 store stuff related to lods
     # in reverse on most platforms(pc stubbs is an exception)
     if mod2_data.superhigh_lod_cutoff < mod2_data.superlow_lod_cutoff:
-        mod2_data.superhigh_lod_cutoff = mode_data.superhigh_lod_cutoff
-        mod2_data.high_lod_cutoff = mode_data.high_lod_cutoff
-        mod2_data.low_lod_cutoff = mode_data.low_lod_cutoff
-        mod2_data.superlow_lod_cutoff = mode_data.superlow_lod_cutoff
+        mod2_data.superhigh_lod_cutoff = mod2_data.superlow_lod_cutoff
+        mod2_data.high_lod_cutoff      = mod2_data.low_lod_cutoff
+        mod2_data.low_lod_cutoff       = mod2_data.high_lod_cutoff
+        mod2_data.superlow_lod_cutoff  = mod2_data.superhigh_lod_cutoff
 
-        mod2_data.superhigh_lod_nodes = mode_data.superhigh_lod_nodes
-        mod2_data.high_lod_nodes = mode_data.high_lod_nodes
-        mod2_data.low_lod_nodes = mode_data.low_lod_nodes
-        mod2_data.superlow_lod_nodes = mode_data.superlow_lod_nodes
+        mod2_data.superhigh_lod_nodes = mod2_data.superlow_lod_nodes
+        mod2_data.high_lod_nodes      = mod2_data.low_lod_nodes
+        mod2_data.low_lod_nodes       = mod2_data.high_lod_nodes
+        mod2_data.superlow_lod_nodes  = mod2_data.superhigh_lod_nodes
 
     # move the markers, nodes, regions, and shaders, from mode into mod2
     mod2_data.markers = mode_data.markers
@@ -81,8 +71,8 @@ def mode_to_mod2(mode_path):
 
             # move the vertices and triangles from the mode into the mod2
             mod2_part.triangles = mode_part.triangles
-            mod2_part.compressed_vertices = mode_part.compressed_vertices
             mod2_part.uncompressed_vertices = mode_part.uncompressed_vertices
+            mod2_part.compressed_vertices   = mode_part.compressed_vertices
 
             mod2_uncomp_verts = mod2_part.uncompressed_vertices
             mode_comp_verts   = mode_part.compressed_vertices
@@ -92,25 +82,17 @@ def mode_to_mod2(mode_path):
             if mod2_uncomp_verts.size and not mode_comp_verts.size:
                 continue
 
-            uncomp_buffer = bytearray(b'\x00'*68*mode_comp_verts.size)
-            mod2_uncomp_verts.STEPTREE = raw_block_def.build()
-            mod2_uncomp_verts.STEPTREE.data = uncomp_buffer
+            uncomp_verts = bytearray(b'\x00'*68*mode_comp_verts.size)
+            comp_verts = mode_comp_verts.STEPTREE
 
-            offset = 0
+            in_off = out_off = 0
             # uncompress each of the verts and write them to the buffer
-            for vert in mode_comp_verts.STEPTREE:
-                norm = vert[3]
-                binorm = vert[4]
-                tangent = vert[5]
-                ni = norm&2047
-                nj = (norm>>11)&2047
-                nk = (norm>>22)&1023
-                bi = binorm&2047
-                bj = (binorm>>11)&2047
-                bk = (binorm>>22)&1023
-                ti = tangent&2047
-                tj = (tangent>>11)&2047
-                tk = (tangent>>22)&1023
+            for i in range(mode_comp_verts.size):
+                n, b, t, u, v, ni_0, ni_1, nw = unpack(
+                    ">3I2h2bh", comp_verts[in_off + 12: in_off + 32])
+                ni = n&2047; nj = (n>>11)&2047; nk = (n>>22)&1023
+                bi = b&2047; bj = (b>>11)&2047; bk = (b>>22)&1023
+                ti = t&2047; tj = (t>>11)&2047; tk = (t>>22)&1023
                 if ni&1024: ni = -1*((~ni) & 2047)
                 if nj&1024: nj = -1*((~nj) & 2047)
                 if nk&512:  nk = -1*((~nk) & 1023)
@@ -120,30 +102,25 @@ def mode_to_mod2(mode_path):
                 if ti&1024: ti = -1*((~ti) & 2047)
                 if tj&1024: tj = -1*((~tj) & 2047)
                 if tk&512:  tk = -1*((~tk) & 1023)
-                ni /= 1023
-                nj /= 1023
-                nk /= 511
-                bi /= 1023
-                bj /= 1023
-                bk /= 511
-                ti /= 1023
-                tj /= 1023
-                tk /= 511
+                ni /= 1023; nj /= 1023; nk /= 511
+                bi /= 1023; bj /= 1023; bk /= 511
+                ti /= 1023; tj /= 1023; tk /= 511
 
                 nmag = max(sqrt(ni**2 + nj**2 + nk**2), 0.00000001)
                 bmag = max(sqrt(bi**2 + bj**2 + bk**2), 0.00000001)
                 tmag = max(sqrt(ti**2 + tj**2 + tk**2), 0.00000001)
 
                 # write the uncompressed data
-                pack_into('>14f2h2f', uncomp_buffer, offset,
-                          vert[0], vert[1], vert[2],
+                pack_into('>12s11f2h2f', uncomp_verts, out_off,
+                          comp_verts[in_off: in_off + 12],
                           ni/nmag, nj/nmag, nk/nmag,
                           bi/bmag, bj/bmag, bk/bmag,
                           ti/tmag, tj/tmag, tk/tmag,
-                          vert[6]/32767, vert[7]/32767,
-                          vert[8]//3, vert[9]//3,
-                          vert[10]/32767, 1.0 - vert[10]/32767)
-                offset += 68
+                          u/32767, v/32767,
+                          ni_0//3, ni_1//3,
+                          nw/32767, 1.0 - nw/32767)
+                in_off  += 32
+                out_off += 68
 
             # give the mod2_part as many uncompressed_vertices
             # as the mode_part has compressed_vertices
