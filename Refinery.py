@@ -153,7 +153,7 @@ class Refinery(tk.Tk):
     def __init__(self, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
 
-        self.title("Refinery v0.8.3")
+        self.title("Refinery v0.8.4")
         self.minsize(width=640, height=450)
         self.geometry("640x480")
 
@@ -363,6 +363,20 @@ class Refinery(tk.Tk):
             del b_buffer[:]
 
         h_block = [None]
+        h_desc = stubbs_antr_def.descriptor[0]
+        h_desc['TYPE'].parser(h_desc, parent=h_block, attr_index=0)
+        self.tag_headers["antr_halo"]   = self.tag_headers["antr"]
+        self.tag_headers["antr_stubbs"] = bytes(
+            h_block[0].serialize(buffer=BytearrayBuffer(), calc_pointers=0))
+
+        h_block = [None]
+        h_desc = stubbs_coll_def.descriptor[0]
+        h_desc['TYPE'].parser(h_desc, parent=h_block, attr_index=0)
+        self.tag_headers["coll_halo"]   = self.tag_headers["coll"]
+        self.tag_headers["coll_stubbs"] = bytes(
+            h_block[0].serialize(buffer=BytearrayBuffer(), calc_pointers=0))
+
+        h_block = [None]
         h_desc = stubbs_mode_def.descriptor[0]
         h_desc['TYPE'].parser(h_desc, parent=h_block, attr_index=0)
         self.tag_headers["mode_halo"]   = self.tag_headers["mode"]
@@ -374,13 +388,6 @@ class Refinery(tk.Tk):
         h_desc['TYPE'].parser(h_desc, parent=h_block, attr_index=0)
         self.tag_headers["soso_halo"]   = self.tag_headers["soso"]
         self.tag_headers["soso_stubbs"] = bytes(
-            h_block[0].serialize(buffer=BytearrayBuffer(), calc_pointers=0))
-
-        h_block = [None]
-        h_desc = stubbs_antr_def.descriptor[0]
-        h_desc['TYPE'].parser(h_desc, parent=h_block, attr_index=0)
-        self.tag_headers["antr_halo"]   = self.tag_headers["antr"]
-        self.tag_headers["antr_stubbs"] = bytes(
             h_block[0].serialize(buffer=BytearrayBuffer(), calc_pointers=0))
 
     @property
@@ -551,9 +558,10 @@ class Refinery(tk.Tk):
         defs = self.handler.defs
         headers = self.tag_headers
         if "stubbs" in self.engine:
+            headers["antr"] = headers["antr_stubbs"]
+            headers["coll"] = headers["coll_stubbs"]
             headers["mode"] = headers["mode_stubbs"]
             headers["soso"] = headers["soso_stubbs"]
-            headers["antr"] = headers["antr_stubbs"]
             if self.engine == "pcstubbs":
                 defs["mode"] = stubbs_pc_mode_def
             else:
@@ -571,9 +579,10 @@ class Refinery(tk.Tk):
             #defs["vege"] = vege_def
             #defs["terr"] = terr_def
         else:
+            headers["antr"] = headers["antr_halo"]
+            headers["coll"] = headers["coll_halo"]
             headers["mode"] = headers["mode_halo"]
             headers["soso"] = headers["soso_halo"]
-            headers["antr"] = headers["antr_halo"]
             defs["mode"] = mode_def
             defs["antr"] = antr_def
             defs["bipd"] = bipd_def
