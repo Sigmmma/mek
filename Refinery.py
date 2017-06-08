@@ -153,7 +153,7 @@ class Refinery(tk.Tk):
     def __init__(self, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
 
-        self.title("Refinery v0.8.4")
+        self.title("Refinery v0.9.0")
         self.minsize(width=640, height=450)
         self.geometry("640x480")
 
