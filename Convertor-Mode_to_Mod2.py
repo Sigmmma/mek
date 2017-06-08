@@ -75,19 +75,20 @@ def mode_to_mod2(mode_path):
             mod2_part.compressed_vertices   = mode_part.compressed_vertices
 
             mod2_uncomp_verts = mod2_part.uncompressed_vertices
-            mode_comp_verts   = mode_part.compressed_vertices
+            mod2_comp_verts   = mod2_part.compressed_vertices
 
             # if the uncompressed vertices are valid and the uncompressed are
             # not then we don't have any conversion to do(already uncompressed)
-            if mod2_uncomp_verts.size and not mode_comp_verts.size:
+            if mod2_uncomp_verts.size and not mod2_comp_verts.size:
                 continue
 
-            uncomp_verts = bytearray(b'\x00'*68*mode_comp_verts.size)
-            comp_verts = mode_comp_verts.STEPTREE
+            uncomp_verts = bytearray(b'\x00'*68*mod2_comp_verts.size)
+            mod2_uncomp_verts.STEPTREE = uncomp_verts
+            comp_verts = mod2_comp_verts.STEPTREE
 
             in_off = out_off = 0
             # uncompress each of the verts and write them to the buffer
-            for i in range(mode_comp_verts.size):
+            for i in range(mod2_comp_verts.size):
                 n, b, t, u, v, ni_0, ni_1, nw = unpack(
                     ">3I2h2bh", comp_verts[in_off + 12: in_off + 32])
                 ni = n&2047; nj = (n>>11)&2047; nk = (n>>22)&1023
@@ -124,7 +125,7 @@ def mode_to_mod2(mode_path):
 
             # give the mod2_part as many uncompressed_vertices
             # as the mode_part has compressed_vertices
-            mod2_uncomp_verts.size = mode_comp_verts.size
+            mod2_uncomp_verts.size = mod2_comp_verts.size
 
     return mod2_tag
 
@@ -134,7 +135,7 @@ class ModeToMod2Convertor(Tk):
         Tk.__init__(self, *args, **kwargs)
 
         self.title("Model to Gbxmodel Convertor v1.0")
-        self.geometry("400x100+0+0")
+        self.geometry("400x80+0+0")
         self.resizable(0, 0)
 
         self.tags_dir = StringVar(self)
