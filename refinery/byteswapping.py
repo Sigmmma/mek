@@ -47,7 +47,8 @@ def byteswap_sbsp_meta(meta):
         for b in meta.collision_bsp.STEPTREE[0]:
             byteswap_raw_reflexive(b)
 
-    for b in (meta.nodes, meta.leaves, meta.leaf_surfaces, meta.surface,
+    # do NOT need to swap meta.nodes since they are always little endian
+    for b in (meta.leaves, meta.leaf_surfaces, meta.surface,
               meta.lens_flare_markers, meta.breakable_surfaces, meta.markers):
         byteswap_raw_reflexive(b)
 
