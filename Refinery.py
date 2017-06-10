@@ -153,7 +153,7 @@ class Refinery(tk.Tk):
     def __init__(self, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
 
-        self.title("Refinery v0.9.0")
+        self.title("Refinery v0.9.1")
         self.minsize(width=640, height=450)
         self.geometry("640x480")
 
@@ -1779,6 +1779,16 @@ class Refinery(tk.Tk):
         elif tag_cls == "jpt!":
             # camera shaking wobble period by 30
             meta.camera_shaking.wobble_function_period /= 30
+
+        elif tag_cls == "glw!":
+            # increment enumerators properly
+            for b in (meta.particle_rotational_velocity,
+                      meta.effect_rotational_velocity,
+                      meta.effect_translational_velocity,
+                      meta.particle_distance_to_object,
+                      meta.particle_size,
+                      meta.particle_color):
+                b.attachment.data += 1
 
         elif tag_cls == "lens":
             # multiply corona rotation by pi/180

@@ -90,9 +90,9 @@ class ExplorerHierarchyTree(HierarchyFrame):
             tags_tree.heading("index_id",  text='index id')
 
             tags_tree.column("#0", minwidth=100, width=100)
-            tags_tree.column("class1", minwidth=5, width=40, stretch=False)
-            tags_tree.column("class2", minwidth=5, width=40, stretch=False)
-            tags_tree.column("class3", minwidth=5, width=40, stretch=False)
+            tags_tree.column("class1", minwidth=5, width=45, stretch=False)
+            tags_tree.column("class2", minwidth=5, width=45, stretch=False)
+            tags_tree.column("class3", minwidth=5, width=45, stretch=False)
             tags_tree.column("magic",  minwidth=5, width=70, stretch=False)
             tags_tree.column("pointer", minwidth=5, width=70, stretch=False)
             tags_tree.column("index_id", minwidth=5, width=50, stretch=False)
@@ -562,7 +562,7 @@ class RefinerySettingsWindow(tk.Toplevel):
     def __init__(self, *args, **kwargs):
         self.tk_vars = tk_vars = kwargs.pop('tk_vars', {})
         tk.Toplevel.__init__(self, *args, **kwargs)
-        self.geometry("260x250")
+        self.geometry("280x250")
         self.resizable(0, 0)
         self.title("Refinery settings")
 
