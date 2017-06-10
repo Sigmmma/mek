@@ -31,15 +31,19 @@ def mode_to_mod2(mode_path):
     # fix the fact the mode and mod2 store stuff related to lods
     # in reverse on most platforms(pc stubbs is an exception)
     if mod2_data.superhigh_lod_cutoff < mod2_data.superlow_lod_cutoff:
+        tmp0 = mod2_data.superhigh_lod_cutoff
+        tmp1 = mod2_data.high_lod_cutoff
         mod2_data.superhigh_lod_cutoff = mod2_data.superlow_lod_cutoff
         mod2_data.high_lod_cutoff      = mod2_data.low_lod_cutoff
-        mod2_data.low_lod_cutoff       = mod2_data.high_lod_cutoff
-        mod2_data.superlow_lod_cutoff  = mod2_data.superhigh_lod_cutoff
+        mod2_data.low_lod_cutoff       = tmp1
+        mod2_data.superlow_lod_cutoff  = tmp0
 
+        tmp0 = mod2_data.superhigh_lod_nodes
+        tmp1 = mod2_data.high_lod_nodes
         mod2_data.superhigh_lod_nodes = mod2_data.superlow_lod_nodes
         mod2_data.high_lod_nodes      = mod2_data.low_lod_nodes
-        mod2_data.low_lod_nodes       = mod2_data.high_lod_nodes
-        mod2_data.superlow_lod_nodes  = mod2_data.superhigh_lod_nodes
+        mod2_data.low_lod_nodes       = tmp1
+        mod2_data.superlow_lod_nodes  = tmp0
 
     # move the markers, nodes, regions, and shaders, from mode into mod2
     mod2_data.markers = mode_data.markers
@@ -134,7 +138,7 @@ class ModeToMod2Convertor(Tk):
     def __init__(self, *args, **kwargs):
         Tk.__init__(self, *args, **kwargs)
 
-        self.title("Model to Gbxmodel Convertor v1.0")
+        self.title("Model to Gbxmodel Convertor v1.5")
         self.geometry("400x80+0+0")
         self.resizable(0, 0)
 
