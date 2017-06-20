@@ -1,4 +1,4 @@
-Refinery is NOT finished(hence the version 0.7), but it can do most of what
+Refinery is NOT finished(hence the version 0.9.1), but it can do most of what
 you guys need it to do.
 
 Here's a list of what Refinery can currently do:
@@ -50,11 +50,6 @@ Here's what is currently NOT implemented that I plan to add at some point in the
 Here are all the known bugs that I can think of right now(I plan to fix them):
     * Tag explorers might not be sorted if you edit them(if you rename an entire folder
         and it disappears from the tree, it will be added to the bottom instead of alphabetically)
-    * Something is wrong with extracting sounds and/or scripts because the first permutation
-        in a chain plays, then the rest just speed by in a garbled mess.
-    * Some cutscenes stall after they've played and you have to hit escape to end them manually.
-    * Bipeds(objects in general?) dont cast shadows(and they completely take on the shade
-        of the lightmap of whatever area they are standing)
 
 
 So now that you've read all that, here's a few tips on using Refinery:
@@ -67,7 +62,8 @@ So now that you've read all that, here's a few tips on using Refinery:
     * Renaming is case insensitive, and everything gets converted to lowercase. It's just
         easier this way.
     * Before you start adding things to the queue you should set the "Default extraction folder"
-        in the main window. This way when you add items to the queue, their extraction folder defaults to it and you dont have to keep re-selecting it.
+        in the main window. This way when you add items to the queue, their extraction folder
+        defaults to it and you dont have to keep re-selecting it.
     * If the project_yellow_globals tag doesnt extract, go into the settings and check
         "Use old project_yellow_globals definition".
     * If you just want stuff from the bitmaps.map, sounds.map, or loc.map just load that map
