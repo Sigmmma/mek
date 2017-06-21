@@ -14,6 +14,7 @@ curr_dir = os.path.abspath(os.curdir)
 # expected to be required to complete the install
 mek_required_folders = (
     "hboc",
+    "refinery",
     )
 
 
