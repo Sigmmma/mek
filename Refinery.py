@@ -153,7 +153,7 @@ class Refinery(tk.Tk):
     def __init__(self, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
 
-        self.title("Refinery v0.9.1")
+        self.title("Refinery v0.9.2")
         self.minsize(width=640, height=450)
         self.geometry("640x480")
 
@@ -677,45 +677,54 @@ class Refinery(tk.Tk):
         maps_dir = dirname(map_path)
 
         bitmap_data = sound_data = loc_data = None
-        bitmap_path = sound_path = loc_path = None
         bitmap_rsrc = sound_rsrc = loc_rsrc = None
+        map_paths = {}
 
         if self.engine in ("pc", "pcdemo"):
-            bitmap_path = join(maps_dir, "bitmaps.map")
-            sound_path  = "sounds.map"
+            map_paths['bitmaps'] = "bitmaps"
+            map_paths['sounds']  = "sounds"
         elif self.engine in ("ce", "yelo"):
-            bitmap_path = join(maps_dir, "bitmaps.map")
-            sound_path  = "sounds.map"
-            loc_path    = "loc.map"
+            map_paths['bitmaps'] = "bitmaps"
+            map_paths['sounds']  = "sounds"
+            map_paths['loc']     = "loc"
 
-        while bitmap_data is None and bitmap_path:
+        # detect/ask for the map paths for the resource maps
+        for map_name in sorted(map_paths.keys()):
+            map_path = map_paths[map_name]
+            if map_path == map_name:
+                map_path = join(maps_dir, "%s.map" % map_path)
+
+            while map_path and not exists(map_path):
+                map_path = askopenfilename(
+                    initialdir=maps_dir,
+                    title="Select the %s.map" % map_name, parent=self,
+                    filetypes=(("%s.map" % map_name, "*.map"), ("All", "*")))
+
+                if not map_path:
+                    print("    You will be unable to extract tags in %s.map" %
+                          map_name)
+                else:
+                    maps_dir = dirname(map_path)
+
+            map_paths[map_name] = map_path
+
+
+        if map_paths.get('bitmaps'):
             print("Loading bitmaps.map...")
             try:
-                with open(bitmap_path, 'rb+') as f:
+                with open(map_paths['bitmaps'], 'rb+') as f:
                     bitmap_data = PeekableMmap(f.fileno(), 0)
-                    maps_dir = dirname(bitmap_path)
                     bitmap_rsrc = resource_def.build(rawdata=bitmap_data)
                     bitmap_data.seek(0)
                     print("    Finished")
             except Exception:
-                print("    Could not locate.")
-                bitmap_path = askopenfilename(
-                    initialdir=maps_dir, parent=self,
-                    title="Select the %s bitmaps.map" % self.engine,
-                    filetypes=(("bitmaps.map", "*.map"), ("All", "*")))
-            if not bitmap_path:
-                print("    You will be unable to extract " +
-                      "bitmaps stored in bitmaps.map")
+                print(format_exc())
 
-        while sound_data is None and sound_path:
+        if map_paths.get('sounds'):
             print("Loading sounds.map...")
-            if sound_path == "sounds.map":
-                sound_path = join(maps_dir, sound_path)
-
             try:
-                with open(sound_path, 'rb+') as f:
+                with open(map_paths['sounds'], 'rb+') as f:
                     sound_data = PeekableMmap(f.fileno(), 0)
-                    maps_dir = dirname(sound_path)
                     sound_rsrc = resource_def.build(rawdata=sound_data)
                     sound_data.seek(0)
                     print("    Finished")
@@ -728,38 +737,19 @@ class Refinery(tk.Tk):
                             tag_path   = sound_rsrc.tag_paths[i].tag_path
                             tag_offset = sound_rsrc.tag_headers[i].offset
                             sound_map[tag_path] = tag_offset
-
             except Exception:
-                print("    Could not locate.")
-                sound_path = askopenfilename(
-                    initialdir=maps_dir, parent=self,
-                    title="Select the %s sounds.map" % self.engine,
-                    filetypes=(("sounds.map", "*.map"), ("All", "*")))
-            if not sound_path:
-                print("    You will be unable to extract " +
-                      "sounds stored in sounds.map")
+                print(format_exc())
 
-        while loc_data is None and loc_path:
+        if map_paths.get('loc'):
             print("Loading loc.map...")
-            if loc_path == "loc.map":
-                loc_path = join(maps_dir, loc_path)
-
             try:
-                with open(loc_path, 'rb+') as f:
+                with open(map_paths['loc'], 'rb+') as f:
                     loc_data = PeekableMmap(f.fileno(), 0)
-                    maps_dir = dirname(loc_path)
                     loc_rsrc = resource_def.build(rawdata=loc_data)
                     loc_data.seek(0)
                     print("    Finished")
             except Exception:
-                print("    Could not locate.")
-                loc_path = askopenfilename(
-                    initialdir=maps_dir,
-                    title="Select the loc.map", parent=self,
-                    filetypes=(("loc.map", "*.map"), ("All", "*")))
-            if not loc_path:
-                print("    You will be unable to extract " +
-                      "tags stored in loc.map")
+                print(format_exc())
 
         self.bitmap_data = bitmap_data
         self.sound_data  = sound_data
