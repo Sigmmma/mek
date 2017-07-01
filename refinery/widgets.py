@@ -313,7 +313,7 @@ class ExplorerHierarchyTree(HierarchyFrame):
 
             if b.indexed and map_magic:
                 pointer = "not in map"
-            elif map_magic:
+            elif map_magic is not None:
                 pointer = b.meta_offset - map_magic
             else:
                 pointer = 0
@@ -325,7 +325,7 @@ class ExplorerHierarchyTree(HierarchyFrame):
             try:
                 tags_tree.insert(
                     # NEED TO DO str OR ELSE THE SCENARIO TAG'S ID WILL
-                    # BE INTERPRETED AS NOTHING BE BE CHANGED TO 'I001'
+                    # BE INTERPRETED AS NOTHING AND BE CHANGED TO 'I001'
                     dir_path, 'end', iid=str(tag_id), text=tag_name,
                     values=(tag_cls_int_to_fcc.get(b.class_1.data, ''),
                             tag_cls_int_to_fcc.get(b.class_2.data, ''),
@@ -398,7 +398,7 @@ class ExplorerClassTree(ExplorerHierarchyTree):
 
             if b.indexed and map_magic:
                 pointer = "not in map"
-            elif map_magic:
+            elif map_magic is not None:
                 pointer = b.meta_offset - map_magic
             else:
                 pointer = 0

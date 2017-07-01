@@ -824,9 +824,6 @@ class Refinery(tk.Tk):
 
             tag_ref = tags.tag_index[i]
             tag_ref.class_1.set_to(tag_classes[i])
-
-            # to make extraction easier, modify the id
-            tag_ref.id = rsrc_head.tag_headers[j].id.__copy__()
             tag_ref.id[:] = (i, 0)
 
             tag_ref.meta_offset  = rsrc_head.tag_headers[j].offset
