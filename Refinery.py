@@ -1422,7 +1422,7 @@ class Refinery(tk.Tk):
         print("Extracted %s tags. Took %s seconds\n" %
               (total, round(time()-start, 1)))
 
-    def get_ce_resource_tag(self, tag_cls, tag_index_ref):
+    def get_ce_resource_meta(self, tag_cls, tag_index_ref):
         '''Returns just the meta of the tag without any raw data.'''
         # read the meta data from the map
         if self.handler.defs.get(tag_cls) is None:
@@ -1482,7 +1482,6 @@ class Refinery(tk.Tk):
         except Exception:
             print(format_exc())
             return
-
         self.inject_rawdata(h_block[0], tag_cls, tag_index_ref)
 
         return h_block[0]
@@ -1517,7 +1516,7 @@ class Refinery(tk.Tk):
             return
         elif self.is_indexed(tag_index_ref) and engine in ("ce", "yelo"):
             # tag exists in a resource cache
-            return self.get_ce_resource_tag(tag_cls, tag_index_ref)
+            return self.get_ce_resource_meta(tag_cls, tag_index_ref)
         elif not reextract:
             if tag_id == tag_index.scenario_tag_id[0] and self.scnr_meta:
                 return self.scnr_meta
@@ -1562,31 +1561,13 @@ class Refinery(tk.Tk):
         # get some rawdata that would be pretty annoying to do in the parser
         if tag_cls == "bitm":
             # grab bitmap data correctly from map
-
             new_pixels = BytearrayBuffer()
-
             pixel_data = map_data
-            can_be_indexed = True
-            if engine in ("ce", "yelo"):
-                if is_not_indexed:
-                    # non-indexed custom edition bitmaps use the map_data
-                    pixel_data = map_data
-            elif engine in ("stubbs", "pcstubbs", "xbox"):
-                # xbox and stubbs maps use the map_data
-                pixel_data = map_data
-                can_be_indexed = False
-            elif bitmap_data is None:
-                # everything else uses the bitmaps.map, but if it is
-                # currently None(it wasn't loaded) we cant extract it
-                pass
-
-            is_xbox = engine == "stubbs" or "xbox" in engine
+            can_be_indexed = engine not in ("stubbs", "pcstubbs", "xbox")
 
             # uncheck the prefer_low_detail flag, get the pixel data
             # from the map, and set up the pixels_offset correctly.
             for bitmap in meta.bitmaps.STEPTREE:
-                bitmap.flags.prefer_low_detail = is_xbox
-                new_pixels_offset = len(new_pixels)
                 pixel_data = map_data
                 if can_be_indexed and bitmap.flags.data_in_resource_map:
                     pixel_data = bitmap_data
@@ -1594,12 +1575,6 @@ class Refinery(tk.Tk):
                 # grab the bitmap data from this map(no magic used)
                 pixel_data.seek(bitmap.pixels_offset)
                 new_pixels += pixel_data.read(bitmap.pixels_meta_size)
-
-                bitmap.pixels_offset = new_pixels_offset
-                # clear some meta-only fields
-                bitmap.pixels_meta_size = 0
-                bitmap.bitmap_id_unknown1 = bitmap.bitmap_id_unknown2 = 0
-                bitmap.bitmap_data_pointer = bitmap.base_address = 0
 
             meta.processed_pixel_data.STEPTREE = new_pixels
 
@@ -1751,6 +1726,21 @@ class Refinery(tk.Tk):
             else:
                 for bitmap in meta.bitmaps.STEPTREE:
                     bitmap.base_address = 0
+
+            is_xbox = "xbox" in engine or engine == "stubbs"
+            new_pixels_offset = 0
+
+            # uncheck the prefer_low_detail flag and
+            # set up the pixels_offset correctly.
+            for bitmap in meta.bitmaps.STEPTREE:
+                bitmap.flags.prefer_low_detail = is_xbox
+                bitmap.pixels_offset = new_pixels_offset
+                new_pixels_offset += bitmap.pixels_meta_size
+
+                # clear some meta-only fields
+                bitmap.pixels_meta_size = 0
+                bitmap.bitmap_id_unknown1 = bitmap.bitmap_id_unknown2 = 0
+                bitmap.bitmap_data_pointer = bitmap.base_address = 0
 
         elif tag_cls == "cdmg":
             # divide camera shaking wobble period by 30
