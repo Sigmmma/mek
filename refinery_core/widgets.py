@@ -564,7 +564,7 @@ class RefinerySettingsWindow(tk.Toplevel):
         tk.Toplevel.__init__(self, *args, **kwargs)
         self.geometry("280x250")
         self.resizable(0, 0)
-        self.title("Refinery settings")
+        self.title("Settings")
 
         self.extract_frame   = tk.LabelFrame(self, text="Extraction settings")
         self.deprotect_frame = tk.LabelFrame(self, text="Deprotection settings")

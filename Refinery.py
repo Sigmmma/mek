@@ -29,14 +29,14 @@ if print_startup:
     print("    Importing refinery modules")
 
 #from refinery.resource_tagpaths import ce_resource_names, pc_resource_names
-from refinery.byteswapping import raw_block_def, byteswap_animation,\
+from refinery_core.byteswapping import raw_block_def, byteswap_animation,\
      byteswap_uncomp_verts, byteswap_comp_verts, byteswap_tris,\
      byteswap_coll_bsp, byteswap_sbsp_meta, byteswap_scnr_script_syntax_data
-from refinery.class_repair import class_repair_functions,\
+from refinery_core.class_repair import class_repair_functions,\
      tag_cls_int_to_fcc, tag_cls_int_to_ext
-from refinery.resource_cache_extensions import bitmap_tag_extensions,\
+from refinery_core.resource_cache_extensions import bitmap_tag_extensions,\
      sound_tag_extensions, loc_tag_extensions
-from refinery.widgets import QueueTree, RefinerySettingsWindow, is_protected,\
+from refinery_core.widgets import QueueTree, RefinerySettingsWindow, is_protected,\
      ExplorerHierarchyTree, ExplorerClassTree, ExplorerHybridTree
 
 
