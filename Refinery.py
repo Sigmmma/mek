@@ -1266,6 +1266,8 @@ class Refinery(tk.Tk):
         start = time()
         self.stop_processing = False
 
+        print("Starting extraction...")
+
         if self.extract_cheape and self.engine == "yelo":
             abs_tag_path = join(self.out_dir.get(), "cheape.map")
 
@@ -1306,7 +1308,7 @@ class Refinery(tk.Tk):
                 all_tags=dict(
                     tag_index_refs=tag_index_array, recursive=self.recursive,
                     overwrite=self.overwrite, show_output=self.show_output,
-                    tags_dir=self.out_dir, tags_list_path=self.tags_list_path)
+                    out_dir=self.out_dir, tags_list_path=self.tags_list_path)
                 )
             queue_items = ['all_tags']
 
@@ -1316,7 +1318,7 @@ class Refinery(tk.Tk):
                 break
             try:
                 info = queue_info[iid]
-                out_dir        = info['tags_dir'].get()
+                out_dir        = info['out_dir'].get()
                 recursive      = info['recursive'].get()
                 overwrite      = info['overwrite'].get()
                 show_output    = info['show_output'].get()
