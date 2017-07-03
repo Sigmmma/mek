@@ -560,8 +560,8 @@ class RefinerySettingsWindow(tk.Toplevel):
     def __init__(self, *args, **kwargs):
         self.tk_vars = tk_vars = kwargs.pop('tk_vars', {})
         tk.Toplevel.__init__(self, *args, **kwargs)
-        self.geometry("340x420")
-        self.minsize(width=340, height=420)
+        self.geometry("340x430")
+        self.minsize(width=340, height=430)
         self.resizable(1, 0)
         self.title("Settings")
 
@@ -593,7 +593,7 @@ class RefinerySettingsWindow(tk.Toplevel):
         self.overwrite_checkbutton = tk.Checkbutton(
             self.extract_frame, text="Overwrite tags(not recommended)",
             variable=self.overwrite)
-        self.overwrite_checkbutton = tk.Checkbutton(
+        self.show_output_checkbutton = tk.Checkbutton(
             self.extract_frame, text="Print extracted tag names",
             variable=self.show_output)
 
@@ -639,6 +639,7 @@ class RefinerySettingsWindow(tk.Toplevel):
         self.extract_from_ce_resources_checkbutton.pack(padx=4, anchor='w')
         self.rename_duplicates_in_scnr_checkbutton.pack(padx=4, anchor='w')
         self.overwrite_checkbutton.pack(padx=4, anchor='w')
+        self.show_output_checkbutton.pack(padx=4, anchor='w')
 
         self.fix_tag_classes_checkbutton.pack(padx=4, anchor='w')
         self.use_hashcaches_checkbutton.pack(padx=4, anchor='w')
