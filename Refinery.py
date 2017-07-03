@@ -36,8 +36,9 @@ from refinery_core.class_repair import class_repair_functions,\
      tag_cls_int_to_fcc, tag_cls_int_to_ext
 from refinery_core.resource_cache_extensions import bitmap_tag_extensions,\
      sound_tag_extensions, loc_tag_extensions
-from refinery_core.widgets import QueueTree, RefinerySettingsWindow, is_protected,\
-     ExplorerHierarchyTree, ExplorerClassTree, ExplorerHybridTree
+from refinery_core.widgets import QueueTree, RefinerySettingsWindow,\
+     RefineryRenameWindow, ExplorerHierarchyTree, ExplorerClassTree,\
+     ExplorerHybridTree, is_protected
 
 
 if print_startup:
@@ -101,7 +102,8 @@ class Refinery(tk.Tk):
     out_dir  = None
     handler  = None
 
-    settings_window =None
+    settings_window = None
+    rename_window = None
     tk_vars = None
 
     _map_loaded = False
@@ -111,6 +113,7 @@ class Refinery(tk.Tk):
     last_load_dir = this_dir
 
     map_is_resource = False
+    map_is_compressed = False
     engine = None
     index_magic = None
     map_magic   = None
@@ -132,7 +135,6 @@ class Refinery(tk.Tk):
     bsp_header_offsets = None
 
     classes_repaired = False
-    map_is_compressed = False
     stop_processing = False
 
     # these are the different pieces of the map as parsed blocks
@@ -153,13 +155,14 @@ class Refinery(tk.Tk):
     def __init__(self, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
 
-        self.title("Refinery v0.9.2")
+        self.title("Refinery v1.0.0")
         self.minsize(width=640, height=450)
         self.geometry("640x480")
 
         # make the tkinter variables
         self.map_path = tk.StringVar(self)
         self.out_dir = tk.StringVar(self)
+        self.tags_list_path = tk.StringVar(self)
 
         self.fix_tag_classes = tk.IntVar(self)
         self.use_hashcaches = tk.IntVar(self)
@@ -173,6 +176,9 @@ class Refinery(tk.Tk):
         self.recursive = tk.IntVar(self)
         self.show_output = tk.IntVar(self)
 
+        self.out_dir.set(join(this_dir, "tags", ""))
+        self.tags_list_path.set(join(self.out_dir.get(), "tagslist.txt"))
+
         self.tk_vars = dict(
             fix_tag_classes=self.fix_tag_classes,
             use_hashcaches=self.use_hashcaches,
@@ -184,11 +190,37 @@ class Refinery(tk.Tk):
             extract_cheape=self.extract_cheape,
             recursive=self.recursive,
             show_output=self.show_output,
+            out_dir=self.out_dir,
+            tags_list_path=self.tags_list_path
             )
 
         self.show_output.set(1)
 
-        #fonts
+        # menubar
+        self.menubar = tk.Menu(self)
+        self.file_menu = tk.Menu(self.menubar, tearoff=False)
+        self.edit_menu = tk.Menu(self.menubar, tearoff=False)
+        self.file_menu.add_command(
+            label="Load map", command=self.map_path_browse)
+        self.file_menu.add_separator()
+        self.file_menu.add_command(
+            label="Unload Map", command=self.unload_maps)
+        self.file_menu.add_command(
+            label="Save map as", command=self.save_map_as)
+        self.file_menu.add_separator()
+        self.file_menu.add_command(label="Exit", command=self.destroy)
+
+        self.edit_menu.add_command(
+            label="Rename map", command=self.show_rename)
+
+        self.menubar.add_cascade(label="File", menu=self.file_menu)
+        self.menubar.add_cascade(label="Edit", menu=self.edit_menu)
+        self.menubar.add_command(label="Settings", command=self.show_settings)
+        self.menubar.add_command(
+            label="Switch explorer mode", command=self.toggle_display_mode)
+        self.config(menu=self.menubar)
+
+        # fonts
         self.fixed_font = Font(family="Courier", size=8)
         self.container_title_font = Font(
             family="Courier", size=10, weight='bold')
@@ -197,18 +229,12 @@ class Refinery(tk.Tk):
         self.fix_tag_classes.set(1)
         self.extract_from_ce_resources.set(1)
 
-        self.out_dir.set(join(this_dir, "tags", ""))
-
-        self.map_path.set("Click browse to load a map for extraction")
-
         # make the window pane
-        self.panes = tk.PanedWindow(self, sashwidth=4)
+        self.panes = tk.PanedWindow(self, sashwidth=6,
+                                    sashpad=2, sashrelief="raised")
 
         # make the frames
-        self.dir_frame = tk.LabelFrame(self, text="Default extraction folder")
-        self.map_frame = tk.LabelFrame(self, text="Map to extract from")
-        self.map_select_frame = tk.Frame(self.map_frame)
-        self.map_info_frame   = tk.Frame(self.map_frame)
+        self.map_info_frame   = tk.LabelFrame(self, text="Map info")
         self.map_action_frame = tk.LabelFrame(self, text="Actions")
 
         self.explorer_frame = tk.LabelFrame(self.panes, text="Map contents")
@@ -237,18 +263,6 @@ class Refinery(tk.Tk):
         self.panes.add(self.queue_frame)
 
         # make the entries
-        self.map_path_entry = tk.Entry(
-            self.map_select_frame, textvariable=self.map_path, state='disabled')
-        self.map_path_browse_button = tk.Button(
-            self.map_select_frame, text="Browse",
-            command=self.map_path_browse, width=6)
-
-        self.out_dir_entry = tk.Entry(
-            self.dir_frame, textvariable=self.out_dir, state='disabled')
-        self.out_dir_browse_button = tk.Button(
-            self.dir_frame, text="Browse",
-            command=self.out_dir_browse, width=6)
-
         self.fixed_font = Font(family="Courier", size=8)
         self.map_info_text = tk.Text(self.map_info_frame, font=self.fixed_font,
                                      state='disabled', height=8)
@@ -257,15 +271,6 @@ class Refinery(tk.Tk):
         self.map_info_scrollbar.config(command=self.map_info_text.yview)
 
         # make the buttons
-        self.settings_button = tk.Button(
-            self.map_action_frame, text="Settings",
-            command=self.show_settings)
-        self.toggle_display_button = tk.Button(
-            self.map_action_frame, text="Toggle explorer display",
-            command=self.toggle_display_mode)
-        self.save_map_button = tk.Button(
-            self.map_action_frame, text="Save map",
-            command=self.save_map)
         self.deprotect_button = tk.Button(
             self.map_action_frame, text="Run deprotection",
             command=self.deprotect)
@@ -292,25 +297,12 @@ class Refinery(tk.Tk):
 
 
         # pack everything
-        self.map_path_entry.pack(
-            padx=(4, 0), pady=2, side='left', expand=True, fill='x')
-        self.map_path_browse_button.pack(padx=(0, 4), pady=2, side='left')
-
-        self.settings_button.pack(side='left', padx=4, pady=4)
-        self.toggle_display_button.pack(side='left', padx=4, pady=4)
         self.cancel_button.pack(side='right', padx=4, pady=4)
         self.begin_button.pack(side='right', padx=4, pady=4)
         self.deprotect_button.pack(side='right', padx=4, pady=4)
-        self.save_map_button.pack(side='right', padx=4, pady=4)
 
-        self.map_select_frame.pack(fill='x', expand=True, padx=1)
-        self.map_info_frame.pack(fill='x', expand=True, padx=1)
         self.map_info_scrollbar.pack(fill='y', side='right', padx=1)
         self.map_info_text.pack(fill='x', side='right', expand=True, padx=1)
-
-        self.out_dir_entry.pack(
-            padx=(4, 0), pady=2, side='left', expand=True, fill='x')
-        self.out_dir_browse_button.pack(padx=(0, 4), pady=2, side='left')
 
         self.add_button.pack(side='top', padx=2, pady=4)
         self.del_button.pack(side='top', padx=2, pady=(0, 20))
@@ -322,11 +314,9 @@ class Refinery(tk.Tk):
         self.queue_tree.pack(fill='both', side='right', expand=True)
         self.queue_frame.pack(fill='both', padx=1, expand=True)
 
-        self.map_frame.pack(fill='x', padx=1)
-        self.dir_frame.pack(fill='x')
-        self.map_action_frame.pack(fill='x', padx=1)
-
-        self.panes.pack(fill='both', expand=True)
+        self.panes.pack(fill='both', expand=True, padx=1)
+        self.map_action_frame.pack(fill='x', padx=2)
+        self.map_info_frame.pack(fill='x', padx=2)
 
         self.panes.paneconfig(self.explorer_frame, sticky='nsew')
         self.panes.paneconfig(self.queue_frame, sticky='nsew')
@@ -434,28 +424,28 @@ class Refinery(tk.Tk):
             if self.hierarchy_tree.tag_index is None:
                 self.hierarchy_tree.reload(self.tag_index)
             self.hierarchy_tree.pack(side='right', fill='both', expand=True)
-            self.toggle_display_button.config(text="Switch to class view")
+            self.menubar.entryconfig(4, label="Switch to class view")
         elif new_mode == "class":
             self.hierarchy_tree.pack_forget()
             self.hybrid_tree.pack_forget()
             if self.class_tree.tag_index is None:
                 self.class_tree.reload(self.tag_index)
             self.class_tree.pack(side='right', fill='both', expand=True)
-            self.toggle_display_button.config(text="Switch to hybrid view")
+            self.menubar.entryconfig(4, label="Switch to hybrid view")
         elif new_mode == "hybrid":
             self.class_tree.pack_forget()
             self.hierarchy_tree.pack_forget()
             if self.hybrid_tree.tag_index is None:
                 self.hybrid_tree.reload(self.tag_index)
             self.hybrid_tree.pack(side='right', fill='both', expand=True)
-            self.toggle_display_button.config(text="Switch to hierarchy view")
+            self.menubar.entryconfig(4, label="Switch to hierarchy view")
         else:
             return
 
         self._display_mode = new_mode
 
-    def show_settings(self):
-        if self.settings_window is not None:
+    def show_settings(self, e=None):
+        if self.settings_window is not None or self.running:
             return
 
         self.settings_window = RefinerySettingsWindow(
@@ -464,7 +454,20 @@ class Refinery(tk.Tk):
         self.settings_window.update()
         self.place_window_relative(self.settings_window)
 
-    def destroy(self):
+    def show_rename(self, e=None):
+        if not(self.rename_window is None and
+               self._map_loaded) or self.running:
+            return
+        elif self.map_is_resource:
+            print("Cannot rename resource maps.")
+            return
+
+        self.rename_window = RefineryRenameWindow(self)
+        # make sure the window gets a chance to set its size
+        self.rename_window.update()
+        self.place_window_relative(self.rename_window)
+
+    def destroy(self, e=None):
         self.unload_maps()
         FieldType.force_normal()
         tk.Tk.destroy(self)
@@ -548,6 +551,7 @@ class Refinery(tk.Tk):
         self.stop_processing = True
         self.classes_repaired = False
         self.map_is_resource  = False
+        self.display_map_info()
         self.hierarchy_tree.reload()
         self.class_tree.reload()
         self.hybrid_tree.reload()
@@ -598,7 +602,6 @@ class Refinery(tk.Tk):
             defs.pop("terr", None)
 
         self.handler.reset_tags()
-
 
     def _load_regular_map(self, comp_data):
         map_path = self.map_path.get()
@@ -884,10 +887,18 @@ class Refinery(tk.Tk):
         self._running = False
 
     def display_map_info(self, string=None):
+        try:
+            self.map_info_text.config(state='normal')
+            self.map_info_text.delete('1.0', 'end')
+        finally:
+            self.map_info_text.config(state='disabled')
+
         if string is None:
             if not self._map_loaded:
                 return
             try:
+                string = "%s\n" % self.map_path.get()
+
                 header = self.map_header
                 index = self.tag_index
                 decomp_size = "uncompressed"
@@ -900,7 +911,7 @@ class Refinery(tk.Tk):
                 elif map_type == "mp":   map_type = "multiplayer"
                 elif map_type == "ui":   map_type = "user interface"
                 else: map_type = "unknown"
-                string = ((
+                string += ((
                     "Header:\n" +
                     "    map name            == '%s'\n" +
                     "    build date          == '%s'\n" +
@@ -952,7 +963,7 @@ class Refinery(tk.Tk):
                     rsrc    = yelo.resources
                     min_os  = info.minimum_os_build
                     string += ((
-                        "\n\nYelo information:\n" +
+                        "\nYelo information:\n" +
                         "    Mod name              == '%s'\n" +
                         "    Memory upgrade amount == %sx\n" +
                         "\n    Flags:\n" +
@@ -1033,7 +1044,6 @@ class Refinery(tk.Tk):
                 print(format_exc())
         try:
             self.map_info_text.config(state='normal')
-            self.map_info_text.delete('1.0', 'end')
             self.map_info_text.insert('end', string)
         finally:
             self.map_info_text.config(state='disabled')
@@ -1134,7 +1144,7 @@ class Refinery(tk.Tk):
         self.display_map_info()
         self.reload_explorers()
 
-    def save_map(self, e=None):
+    def save_map_as(self, e=None):
         if self.running:
             return
         elif self.map_is_resource:
@@ -1296,7 +1306,7 @@ class Refinery(tk.Tk):
                 all_tags=dict(
                     tag_index_refs=tag_index_array, recursive=self.recursive,
                     overwrite=self.overwrite, show_output=self.show_output,
-                    tags_dir=self.out_dir, tagslist_path=tk.StringVar(self))
+                    tags_dir=self.out_dir, tags_list_path=self.tags_list_path)
                 )
             queue_items = ['all_tags']
 
@@ -1310,7 +1320,7 @@ class Refinery(tk.Tk):
                 recursive      = info['recursive'].get()
                 overwrite      = info['overwrite'].get()
                 show_output    = info['show_output'].get()
-                tagslist_path  = info['tagslist_path'].get()
+                tags_list_path = info['tags_list_path'].get()
                 tag_index_refs = info['tag_index_refs']
             except Exception:
                 print(format_exc())
@@ -1390,7 +1400,7 @@ class Refinery(tk.Tk):
                             print(meta)
                             continue
 
-                    if tagslist_path:
+                    if tags_list_path:
                         tagslist += tag_path + '\n'
 
                     local_total += 1
@@ -1404,7 +1414,7 @@ class Refinery(tk.Tk):
 
             try:
                 if tagslist:
-                    with open(tagslist_path, 'a') as f:
+                    with open(tags_list_path, 'a') as f:
                         f.write("%s tags in: %s\n" % (local_total, out_dir))
                         f.write(tagslist)
                         f.write('\n\n')
@@ -2082,21 +2092,6 @@ class Refinery(tk.Tk):
         self.map_path.set(fp)
         self.unload_maps()
         self.load_map()
-
-    def out_dir_browse(self):
-        if self.running:
-            return
-        dirpath = askdirectory(initialdir=self.out_dir.get(), parent=self,
-                               title="Select the extraction directory")
-
-        if not dirpath:
-            return
-
-        dirpath = sanitize_path(dirpath)
-        if not dirpath.endswith(PATHDIV):
-            dirpath += PATHDIV
-
-        self.out_dir.set(dirpath)
 
 
 if __name__ == "__main__":
