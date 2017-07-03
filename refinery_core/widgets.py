@@ -683,14 +683,19 @@ class RefinerySettingsWindow(tk.Toplevel):
         self.out_dir.set(dirpath)
 
     def tags_list_browse(self):
+        try:
+            init_dir = dirname(self.tags_list_path.get())
+        except Exception:
+            init_dir = None
         dirpath = asksaveasfilename(
-            initialdir=self.tags_list_path.get(), parent=self,
-            title="Select where to save the tag list log")
+            initialdir=init_dir, parent=self,
+            title="Select where to save the tag list log",
+            filetypes=(("text log", "*.txt"), ("All", "*")))
 
         if not dirpath:
             return
 
-        self.tags_list_path.set(dirpath)
+        self.tags_list_path.set(sanitize_path(dirpath))
 
 
 class RefineryActionsWindow(tk.Toplevel):
@@ -876,14 +881,19 @@ class RefineryActionsWindow(tk.Toplevel):
         self.destroy()
 
     def tags_list_browse(self):
+        try:
+            init_dir = dirname(self.tags_list_path.get())
+        except Exception:
+            init_dir = None
         dirpath = asksaveasfilename(
-            initialdir=self.tags_list_path.get(), parent=self,
-            title="Select where to save the tag list log")
+            initialdir=init_dir, parent=self,
+            title="Select where to save the tag list log",
+            filetypes=(("text log", "*.txt"), ("All", "*")))
 
         if not dirpath:
             return
 
-        self.tags_list_path.set(dirpath)
+        self.tags_list_path.set(sanitize_path(dirpath))
 
     def extract_to_browse(self):
         dirpath = askdirectory(
@@ -893,7 +903,7 @@ class RefineryActionsWindow(tk.Toplevel):
         if not dirpath:
             return
 
-        self.extract_to_dir.set(dirpath)
+        self.extract_to_dir.set(sanitize_path(dirpath))
 
     def show_meta(self):
         index_ref = self.tag_index_ref
