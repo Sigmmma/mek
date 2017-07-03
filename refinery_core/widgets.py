@@ -142,6 +142,9 @@ class ExplorerHierarchyTree(HierarchyFrame):
         else:
             def_settings_vars = {}
 
+        if app_root.running:
+            return
+
         # add selection to queue
         for iid in tags_tree.selection():
             if len(tags_tree.item(iid, 'values')):
@@ -435,6 +438,9 @@ class ExplorerClassTree(ExplorerHierarchyTree):
         else:
             def_settings_vars = {}
 
+        if app_root.running:
+            return
+
         # add selection to queue
         for iid in tags_tree.selection():
             if len(tags_tree.item(iid, 'values')):
@@ -678,7 +684,7 @@ class RefinerySettingsWindow(tk.Toplevel):
 
     def tags_list_browse(self):
         dirpath = asksaveasfilename(
-            initialdir=self.rename_string.get(), parent=self,
+            initialdir=self.tags_list_path.get(), parent=self,
             title="Select where to save the tag list log")
 
         if not dirpath:
@@ -871,7 +877,7 @@ class RefineryActionsWindow(tk.Toplevel):
 
     def tags_list_browse(self):
         dirpath = asksaveasfilename(
-            initialdir=self.rename_string.get(), parent=self,
+            initialdir=self.tags_list_path.get(), parent=self,
             title="Select where to save the tag list log")
 
         if not dirpath:
