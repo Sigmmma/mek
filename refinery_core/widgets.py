@@ -1,6 +1,7 @@
 import tkinter as tk
 
 from os.path import dirname, basename, splitext
+from supyr_struct.defs.constants import *
 from tkinter import messagebox
 from tkinter.filedialog import asksaveasfilename, askdirectory
 from traceback import format_exc
@@ -38,14 +39,15 @@ def ask_extract_settings(parent, def_vars=None, tag_index_ref=None, title=None):
     settings_vars = dict(
         recursive=tk.IntVar(parent), overwrite=tk.IntVar(parent),
         show_output=tk.IntVar(parent), accept_rename=tk.IntVar(parent),
-        accept_settings=tk.IntVar(parent), tags_dir=tk.StringVar(parent),
-        rename_string=tk.StringVar(parent), tagslist_path=tk.StringVar(parent)
+        accept_settings=tk.IntVar(parent), out_dir=tk.StringVar(parent),
+        rename_string=tk.StringVar(parent), tags_list_path=tk.StringVar(parent)
         )
 
     settings_vars['rename_string'].set(def_vars.pop('rename_string', ''))
 
     for k in def_vars:
-        settings_vars[k].set(def_vars[k].get())
+        if k in settings_vars:
+            settings_vars[k].set(def_vars[k].get())
 
     w = RefineryActionsWindow(parent, tk_vars=settings_vars,
                               tag_index_ref=tag_index_ref, title=title)
@@ -89,11 +91,11 @@ class ExplorerHierarchyTree(HierarchyFrame):
             tags_tree.heading("pointer", text='pointer(file)')
             tags_tree.heading("index_id",  text='index id')
 
-            tags_tree.column("#0", minwidth=100, width=100)
+            tags_tree.column("#0", minwidth=100, width=200)
             tags_tree.column("class1", minwidth=5, width=45, stretch=False)
-            tags_tree.column("class2", minwidth=5, width=45, stretch=False)
-            tags_tree.column("class3", minwidth=5, width=45, stretch=False)
-            tags_tree.column("magic",  minwidth=5, width=70, stretch=False)
+            tags_tree.column("class2", minwidth=5, width=15, stretch=False)
+            tags_tree.column("class3", minwidth=5, width=15, stretch=False)
+            tags_tree.column("magic",  minwidth=5, width=15, stretch=False)
             tags_tree.column("pointer", minwidth=5, width=70, stretch=False)
             tags_tree.column("index_id", minwidth=5, width=50, stretch=False)
 
@@ -102,12 +104,13 @@ class ExplorerHierarchyTree(HierarchyFrame):
         tags_tree = self.tags_tree
         tree_id_to_index_ref = self.tree_id_to_index_ref
         self.setup_columns()
-        if tag_index:
-            # remove any currently existing children
-            for child in tags_tree.get_children():
-                tags_tree.delete(child)
-                tree_id_to_index_ref.pop(child, None)
 
+        # remove any currently existing children
+        for child in tags_tree.get_children():
+            tags_tree.delete(child)
+            tree_id_to_index_ref.pop(child, None)
+
+        if tag_index:
             # generate the hierarchy
             self.add_tag_index_refs(tag_index.tag_index)
 
@@ -135,9 +138,7 @@ class ExplorerHierarchyTree(HierarchyFrame):
 
         app_root = self.app_root
         if app_root:
-            def_settings_vars = dict(
-                recursive=app_root.recursive, overwrite=app_root.overwrite,
-                show_output=app_root.show_output, tags_dir=app_root.out_dir)
+            def_settings_vars = dict(app_root.tk_vars)
         else:
             def_settings_vars = {}
 
@@ -430,10 +431,7 @@ class ExplorerClassTree(ExplorerHierarchyTree):
 
         app_root = self.app_root
         if app_root:
-            def_settings_vars = dict(
-                recursive=app_root.recursive, overwrite=app_root.overwrite,
-                show_output=app_root.show_output, tags_dir=app_root.out_dir,
-                )
+            def_settings_vars = dict(app_root.tk_vars)
         else:
             def_settings_vars = {}
 
@@ -562,44 +560,78 @@ class RefinerySettingsWindow(tk.Toplevel):
     def __init__(self, *args, **kwargs):
         self.tk_vars = tk_vars = kwargs.pop('tk_vars', {})
         tk.Toplevel.__init__(self, *args, **kwargs)
-        self.geometry("280x250")
-        self.resizable(0, 0)
+        self.geometry("340x420")
+        self.minsize(width=340, height=420)
+        self.resizable(1, 0)
         self.title("Settings")
 
         self.extract_frame   = tk.LabelFrame(self, text="Extraction settings")
         self.deprotect_frame = tk.LabelFrame(self, text="Deprotection settings")
         self.yelo_frame      = tk.LabelFrame(self, text="Open Sauce settings")
+        self.out_dir_frame = tk.LabelFrame(
+            self, text="Default extraction folder")
+        self.tags_list_frame = tk.LabelFrame(
+            self, text="Tags list log(erase to disable logging)")
+
+        for attr in ("extract_from_ce_resources", "overwrite",
+                     "rename_duplicates_in_scnr", "fix_tag_classes",
+                     "use_hashcaches", "use_heuristics", "use_old_gelo",
+                     "extract_cheape", "show_output"):
+            object.__setattr__(self, attr, tk_vars.get(attr, tk.IntVar(self)))
+
+        for attr in ("out_dir", "tags_list_path"):
+            object.__setattr__(self, attr, tk_vars.get(attr, tk.StringVar(self)))
 
         self.extract_from_ce_resources_checkbutton = tk.Checkbutton(
             self.extract_frame, text="Extract from CE resource maps",
-            variable=tk_vars.get("extract_from_ce_resources", tk.IntVar(self)))
+            variable=self.extract_from_ce_resources)
         self.rename_duplicates_in_scnr_checkbutton = tk.Checkbutton(
             self.extract_frame, text=(
                 "Rename duplicate camera points, cutscene\n"+
                 "flags, and recorded animations in scenario"),
-            variable=tk_vars.get("rename_duplicates_in_scnr", tk.IntVar(self)))
+            variable=self.rename_duplicates_in_scnr)
         self.overwrite_checkbutton = tk.Checkbutton(
             self.extract_frame, text="Overwrite tags(not recommended)",
-            variable=tk_vars.get("overwrite", tk.IntVar(self)))
+            variable=self.overwrite)
+        self.overwrite_checkbutton = tk.Checkbutton(
+            self.extract_frame, text="Print extracted tag names",
+            variable=self.show_output)
 
         self.fix_tag_classes_checkbutton = tk.Checkbutton(
             self.deprotect_frame, text="Fix tag classes",
-            variable=tk_vars.get("fix_tag_classes", tk.IntVar(self)))
+            variable=self.fix_tag_classes)
         self.use_hashcaches_checkbutton = tk.Checkbutton(
             self.deprotect_frame, text="Use hashcaches",
-            variable=tk_vars.get("use_hashcaches", tk.IntVar(self)))
+            variable=self.use_hashcaches)
         self.use_heuristics_checkbutton = tk.Checkbutton(
             self.deprotect_frame, text="Use heuristics",
-            variable=tk_vars.get("use_heuristics", tk.IntVar(self)))
+            variable=self.use_heuristics)
 
         self.use_old_gelo_checkbutton = tk.Checkbutton(
             self.yelo_frame, text="Use old project_yellow_globals definition",
-            variable=tk_vars.get("use_old_gelo", tk.IntVar(self)))
+            variable=self.use_old_gelo)
         self.extract_cheape_checkbutton = tk.Checkbutton(
             self.yelo_frame, text="Extract cheape.map from yelo maps",
-            variable=tk_vars.get("extract_cheape", tk.IntVar(self)))
+            variable=self.extract_cheape)
+
+        # tags directory
+        self.out_dir_entry = tk.Entry(
+            self.out_dir_frame, state='disabled',
+            textvariable=self.out_dir)
+        self.out_dir_browse_button = tk.Button(
+            self.out_dir_frame, text="Browse",
+            command=self.out_dir_browse, width=6)
+
+        # tags list
+        self.tags_list_entry = tk.Entry(
+            self.tags_list_frame, textvariable=self.tags_list_path)
+        self.browse_tags_list_button = tk.Button(
+            self.tags_list_frame, text="Browse",
+            command=self.tags_list_browse, width=6)
 
         # pack everything
+        self.out_dir_frame.pack(padx=4, pady=2, expand=True, fill="x")
+        self.tags_list_frame.pack(padx=4, pady=2, expand=True, fill="x")
         self.extract_frame.pack(padx=4, pady=2, expand=True, fill="x")
         self.deprotect_frame.pack(padx=4, pady=2, expand=True, fill="x")
         self.yelo_frame.pack(padx=4, pady=2, expand=True, fill="x")
@@ -615,6 +647,13 @@ class RefinerySettingsWindow(tk.Toplevel):
         self.extract_cheape_checkbutton.pack(padx=4, anchor='w')
         self.use_old_gelo_checkbutton.pack(padx=4, anchor='w')
 
+        self.out_dir_entry.pack(
+            padx=(4, 0), pady=2, side='left', expand=True, fill='x')
+        self.out_dir_browse_button.pack(padx=(0, 4), pady=2, side='left')
+        self.tags_list_entry.pack(
+            padx=(4, 0), pady=2, side='left', expand=True, fill='x')
+        self.browse_tags_list_button.pack(padx=(0, 4), pady=2, side='left')
+
         # make the window not show up on the start bar
         self.transient(self.master)
 
@@ -622,6 +661,29 @@ class RefinerySettingsWindow(tk.Toplevel):
         try: self.master.settings_window = None
         except AttributeError: pass
         tk.Toplevel.destroy(self)
+
+    def out_dir_browse(self):
+        dirpath = askdirectory(initialdir=self.out_dir.get(), parent=self,
+                               title="Select the extraction directory")
+
+        if not dirpath:
+            return
+
+        dirpath = sanitize_path(dirpath)
+        if not dirpath.endswith(PATHDIV):
+            dirpath += PATHDIV
+
+        self.out_dir.set(dirpath)
+
+    def tags_list_browse(self):
+        dirpath = asksaveasfilename(
+            initialdir=self.rename_string.get(), parent=self,
+            title="Select where to save the tag list log")
+
+        if not dirpath:
+            return
+
+        self.tags_list_path.set(dirpath)
 
 
 class RefineryActionsWindow(tk.Toplevel):
@@ -653,13 +715,10 @@ class RefineryActionsWindow(tk.Toplevel):
         self.accept_rename   = tk_vars.get('accept_rename', tk.IntVar(self))
         self.accept_settings = tk_vars.get('accept_settings', tk.IntVar(self))
         self.rename_string   = tk_vars.get('rename_string', tk.StringVar(self))
-        self.extract_to_dir  = tk_vars.get('tags_dir', tk.StringVar(self))
-        self.tagslist_path   = tk_vars.get('tagslist_path', tk.StringVar(self))
+        self.extract_to_dir  = tk_vars.get('out_dir', tk.StringVar(self))
+        self.tags_list_path  = tk_vars.get('tags_list_path', tk.StringVar(self))
         self.recursive_rename = tk.IntVar(self)
         self.resizable(1, 0)
-
-        if not self.tagslist_path.get():
-            self.tagslist_path.set(self.extract_to_dir.get() + "tagslist.txt")
 
         if title is None:
             title = self.rename_string.get()
@@ -674,7 +733,8 @@ class RefineryActionsWindow(tk.Toplevel):
 
         # frames
         self.rename_frame     = tk.LabelFrame(self, text="Rename to")
-        self.tags_list_frame  = tk.LabelFrame(self, text="Tags list")
+        self.tags_list_frame  = tk.LabelFrame(
+            self, text="Tags list log(erase to disable logging)")
         self.extract_to_frame = tk.LabelFrame(self, text="Tags directory to extract to")
         self.settings_frame   = tk.LabelFrame(self, text="Extract settings")
 
@@ -692,7 +752,7 @@ class RefineryActionsWindow(tk.Toplevel):
 
         # tags list
         self.tags_list_entry = tk.Entry(
-            self.tags_list_frame, textvariable=self.tagslist_path)
+            self.tags_list_frame, textvariable=self.tags_list_path)
         self.browse_tags_list_button = tk.Button(
             self.tags_list_frame, text="Browse", command=self.tags_list_browse)
 
@@ -816,7 +876,7 @@ class RefineryActionsWindow(tk.Toplevel):
         if not dirpath:
             return
 
-        self.tagslist_path.set(dirpath)
+        self.tags_list_path.set(dirpath)
 
     def extract_to_browse(self):
         dirpath = askdirectory(
@@ -854,6 +914,77 @@ class RefineryActionsWindow(tk.Toplevel):
         except Exception:
             print(format_exc())
             return
+
+
+class RefineryRenameWindow(tk.Toplevel):
+
+    def __init__(self, *args, **kwargs):
+        tk.Toplevel.__init__(self, *args, **kwargs)
+
+        self.geometry("300x80")
+        self.title("Rename map")
+        self.resizable(0, 0)
+
+        self.rename_string = tk.StringVar(self)
+        self.rename_string.set(self.master.map_header.map_name)
+
+        # frames
+        self.rename_frame = tk.LabelFrame(self, text="Rename to")
+
+        self.button_frame = tk.Frame(self)
+        self.button_frame_l = tk.Frame(self.button_frame)
+        self.button_frame_r = tk.Frame(self.button_frame)
+
+        # rename
+        self.rename_entry = tk.Entry(
+            self.rename_frame, textvariable=self.rename_string)
+
+        # accept/cancel
+        self.rename_button = tk.Button(
+            self.button_frame_l, text="Rename", command=self.rename, width=10)
+        self.cancel_button = tk.Button(
+            self.button_frame_r, text="Cancel", command=self.destroy, width=10)
+
+        # pack everything
+        self.rename_frame.pack(padx=4, expand=True, fill="x", pady=2)
+        self.button_frame.pack(pady=2, expand=True, fill="x")
+
+        self.button_frame_l.pack(padx=4, side='left',  fill='x', expand=True)
+        self.button_frame_r.pack(padx=4, side='right', fill='x', expand=True)
+
+        self.rename_entry.pack(padx=4, side='left', fill='x', expand=True)
+        self.rename_button.pack(side='right')
+        self.cancel_button.pack(side='left')
+
+        # make the window not show up on the start bar
+        self.transient(self.master)
+
+    def destroy(self):
+        try: self.master.rename_window = None
+        except AttributeError: pass
+        tk.Toplevel.destroy(self)
+
+    def rename(self, e=None):
+        MAX_LEN = 31
+        new_name = self.rename_string.get()
+        self.rename_string.set(new_name)
+        if len(new_name) > MAX_LEN:
+            messagebox.showerror(
+                "Max name length exceeded",
+                "The max length for a map is limited to %s characters.\n" %
+                MAX_LEN, parent=self)
+        elif is_protected(new_name) or "/" in new_name or "\\" in new_name:
+            messagebox.showerror(
+                "Invalid name",
+                "The entered string is not a valid map name.", parent=self)
+        elif not new_name:
+            messagebox.showerror(
+                "Invalid name",
+                "The entered string cannot be empty.", parent=self)
+        else:
+            self.master.map_header.map_name = new_name
+            self.master.display_map_info()
+            self.destroy()
 
 
 class RefineryEditActionsWindow(RefineryActionsWindow):
