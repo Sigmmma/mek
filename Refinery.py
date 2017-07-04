@@ -165,6 +165,7 @@ class Refinery(tk.Tk):
         self.tags_list_path = tk.StringVar(self)
 
         self.fix_tag_classes = tk.IntVar(self)
+        self.fix_tag_index_offset = tk.IntVar(self)
         self.use_hashcaches = tk.IntVar(self)
         self.use_heuristics = tk.IntVar(self)
         self.use_old_gelo = tk.IntVar(self)
@@ -181,6 +182,7 @@ class Refinery(tk.Tk):
 
         self.tk_vars = dict(
             fix_tag_classes=self.fix_tag_classes,
+            fix_tag_index_offset=self.fix_tag_index_offset,
             use_hashcaches=self.use_hashcaches,
             use_heuristics=self.use_heuristics,
             rename_duplicates_in_scnr=self.rename_duplicates_in_scnr,
@@ -1150,9 +1152,6 @@ class Refinery(tk.Tk):
         elif self.map_is_resource:
             print("Cannot save resource maps.")
             return
-        elif self.engine == "yelo":
-            print("Cannot save yelo maps.")
-            return
 
         save_path = asksaveasfilename(
             initialdir=dirname(self.map_path.get()), parent=self,
@@ -1172,39 +1171,27 @@ class Refinery(tk.Tk):
             out_file = open(save_path, 'wb')
             map_file = self.map_data
             map_file.seek(0)
-            chunk = None
+            chunk = True
             map_size = 0
 
             orig_tag_paths = self.orig_tag_paths
-            new_map_magic = old_map_magic = self.map_magic
-            index_magic   = self.index_magic
+            map_magic = self.map_magic
+            index_magic = self.index_magic
             map_header = self.map_header
             tag_index  = self.tag_index
             index_array = tag_index.tag_index
             index_offset = tag_index.tag_index_offset
 
             # copy the map to the new save location
-            while chunk or chunk is None:
+            while chunk:
                 chunk = map_file.read(1024*1024*32)  # copy in 32Mb chunks
                 map_size += len(chunk)
                 out_file.write(chunk)
 
-            # relocate the tag_index_header and tag_index to the
-            # end of the map if they are not next to each other.
+            # move the tag_index array back to where it SHOULD be
             index_header_size = tag_index.get_size()
-            if index_offset - index_magic != index_header_size:
-                map_header.tag_index_header_offset = map_size
-                tag_index.tag_index_offset = index_offset = \
-                                             index_header_size + index_magic
-
-                new_map_magic = get_map_magic(map_header)
-                # 32 byte per tag_index_ref
-                map_size += index_header_size + len(tag_index.tag_index) * 32
-
-            # get the non-magic tag_path pointers for each tag
-            path_pointers = [None]*len(index_array)
-            for i in range(len(index_array)):
-                path_pointers[i] = index_array[i].path_offset - old_map_magic
+            if self.fix_tag_index_offset.get():
+                tag_index.tag_index_offset = index_magic + index_header_size
 
             # recalculate pointers for the strings if they were changed
             for i in range(len(index_array)):
@@ -1213,18 +1200,14 @@ class Refinery(tk.Tk):
                     # path wasnt changed
                     continue
                 # change the pointer to the end of the map
-                path_pointers[i] = map_size
+                index_array[i].path_offset = map_size + map_magic
                 # increment map size by the size of the string
                 map_size += len(tag_path) + 1
-
-            # set the path pointers to their new(or unchanged) values
-            for i in range(len(index_array)):
-                index_array[i].path_offset = path_pointers[i] + new_map_magic
 
             # write the tag_index_header, tag_index and
             # all the tag_paths to their locations
             tag_index.serialize(
-                buffer=out_file, calc_pointers=False, magic=new_map_magic,
+                buffer=out_file, calc_pointers=False, magic=map_magic,
                 offset=map_header.tag_index_header_offset)
 
             # change the decompressed size
@@ -1239,7 +1222,10 @@ class Refinery(tk.Tk):
             print("Could not save map")
             save_path = None
 
-        out_file.close()
+        try:
+            out_file.close()
+        except Exception:
+            pass
         self._running = False
 
         if save_path:
@@ -1290,7 +1276,7 @@ class Refinery(tk.Tk):
                     
             except Exception:
                 print(format_exc())
-                print("Error ocurred while extracting '%s'" % tag_path)
+                print("Error ocurred while extracting cheape.map")
 
         extract_resources = self.engine in ("ce", "yelo") and \
                             self.extract_from_ce_resources.get()

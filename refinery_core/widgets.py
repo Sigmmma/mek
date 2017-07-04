@@ -566,8 +566,8 @@ class RefinerySettingsWindow(tk.Toplevel):
     def __init__(self, *args, **kwargs):
         self.tk_vars = tk_vars = kwargs.pop('tk_vars', {})
         tk.Toplevel.__init__(self, *args, **kwargs)
-        self.geometry("340x430")
-        self.minsize(width=340, height=430)
+        self.geometry("340x450")
+        self.minsize(width=340, height=450)
         self.resizable(1, 0)
         self.title("Settings")
 
@@ -582,7 +582,7 @@ class RefinerySettingsWindow(tk.Toplevel):
         for attr in ("extract_from_ce_resources", "overwrite",
                      "rename_duplicates_in_scnr", "fix_tag_classes",
                      "use_hashcaches", "use_heuristics", "use_old_gelo",
-                     "extract_cheape", "show_output"):
+                     "extract_cheape", "show_output", "fix_tag_index_offset"):
             object.__setattr__(self, attr, tk_vars.get(attr, tk.IntVar(self)))
 
         for attr in ("out_dir", "tags_list_path"):
@@ -612,6 +612,10 @@ class RefinerySettingsWindow(tk.Toplevel):
         self.use_heuristics_checkbutton = tk.Checkbutton(
             self.deprotect_frame, text="Use heuristics",
             variable=self.use_heuristics)
+        self.fix_tag_index_offset_checkbutton = tk.Checkbutton(
+            self.deprotect_frame, text=("Fix tag index offset when saving\n" +
+                                        "WARNING: Can corrupt certain maps"),
+            variable=self.fix_tag_index_offset, justify='left')
 
         self.use_old_gelo_checkbutton = tk.Checkbutton(
             self.yelo_frame, text="Use old project_yellow_globals definition",
@@ -650,6 +654,7 @@ class RefinerySettingsWindow(tk.Toplevel):
         self.fix_tag_classes_checkbutton.pack(padx=4, anchor='w')
         self.use_hashcaches_checkbutton.pack(padx=4, anchor='w')
         self.use_heuristics_checkbutton.pack(padx=4, anchor='w')
+        self.fix_tag_index_offset_checkbutton.pack(padx=4, anchor='w')
 
         self.extract_cheape_checkbutton.pack(padx=4, anchor='w')
         self.use_old_gelo_checkbutton.pack(padx=4, anchor='w')
