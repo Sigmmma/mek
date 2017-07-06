@@ -6,10 +6,9 @@ from tkinter import messagebox
 from tkinter.filedialog import asksaveasfilename, askdirectory
 from traceback import format_exc
 
-from .class_repair import tag_cls_int_to_fcc, tag_cls_int_to_ext
-from .hashcacher_window import RESERVED_WINDOWS_FILENAME_MAP,\
-     INVALID_PATH_CHARS, sanitize_filename, HashcacherWindow
+from .hashcacher_window import sanitize_filename, HashcacherWindow
 from .meta_window import MetaWindow
+from .util import *
 
 from mozzarilla.tools.shared_widgets import HierarchyFrame
 from reclaimer.common_descs import blam_header, QStruct
@@ -25,11 +24,6 @@ meta_tag_def = TagDef("meta tag",
     blam_header('\xFF\xFF\xFF\xFF'),
     QStruct('tagdata'),
     )
-
-
-def is_protected(tagpath):
-    return tagpath in RESERVED_WINDOWS_FILENAME_MAP or (
-        not INVALID_PATH_CHARS.isdisjoint(set(tagpath)))
 
 
 def ask_extract_settings(parent, def_vars=None, tag_index_ref=None, title=None):
@@ -285,9 +279,9 @@ class ExplorerHierarchyTree(HierarchyFrame):
                 index_refs = index_refs.keys()
 
             for b in index_refs:
-                try:
-                    ext = "." + tag_cls_int_to_ext[b.class_1.data]
-                except Exception:
+                if b.class_1.enum_name != "<INVALID>":
+                    ext = ".%s" % b.class_1.enum_name
+                else:
                     ext = ".INVALID"
 
                 index_refs_by_path[b.tag.tag_path.replace\
@@ -327,14 +321,18 @@ class ExplorerHierarchyTree(HierarchyFrame):
                 tag_id += (b.id[1] << 16)
 
             try:
+                cls1 = cls2 = cls3 = ""
+                if b.class_1.enum_name not in ("<INVALID>", "NONE"):
+                    cls1 = fourcc(b.class_1.data)
+                if b.class_2.enum_name not in ("<INVALID>", "NONE"):
+                    cls2 = fourcc(b.class_2.data)
+                if b.class_3.enum_name not in ("<INVALID>", "NONE"):
+                    cls3 = fourcc(b.class_3.data)
                 tags_tree.insert(
                     # NEED TO DO str OR ELSE THE SCENARIO TAG'S ID WILL
                     # BE INTERPRETED AS NOTHING AND BE CHANGED TO 'I001'
                     dir_path, 'end', iid=str(tag_id), text=tag_name,
-                    values=(tag_cls_int_to_fcc.get(b.class_1.data, ''),
-                            tag_cls_int_to_fcc.get(b.class_2.data, ''),
-                            tag_cls_int_to_fcc.get(b.class_3.data, ''),
-                            b.meta_offset, pointer, tag_id))
+                    values=(cls1, cls2, cls3, b.meta_offset, pointer, tag_id))
                 tree_id_to_index_ref[tag_id] = b
             except Exception:
                 print(format_exc())
@@ -385,20 +383,23 @@ class ExplorerClassTree(ExplorerHierarchyTree):
                 index_refs = index_refs.keys()
 
             for b in index_refs:
-                try:
-                    ext = "." + tag_cls_int_to_ext[b.class_1.data]
-                except Exception:
+                if b.class_1.enum_name not in ("<INVALID>", "NONE"):
+                    tag_cls = fourcc(b.class_1.data)
+                    ext = ".%s" % b.class_1.enum_name
+                else:
+                    tag_cls = "INVALID"
                     ext = ".INVALID"
-                tag_cls = tag_cls_int_to_fcc.get(b.class_1.data, 'INVALID')
                 sortable_index_refs[tag_cls + '\\' + b.tag.tag_path.replace\
                                    ("/", "\\").lower() + ext] = b
 
         for tag_path in sorted(sortable_index_refs):
             b = sortable_index_refs[tag_path]
             tag_path = tag_path.split('\\', 1)[1]
-            tag_cls = tag_cls_int_to_fcc.get(b.class_1.data, 'INVALID')
             tag_id = b.id[0]
             map_magic = self.map_magic
+            tag_cls = "INVALID"
+            if b.class_1.enum_name not in ("<INVALID>", "NONE"):
+                tag_cls = fourcc(b.class_1.data)
 
             if b.indexed and map_magic:
                 pointer = "not in map"
@@ -415,12 +416,17 @@ class ExplorerClassTree(ExplorerHierarchyTree):
                 if not tags_tree.exists(tag_cls + '\\'):
                     self.add_folder_path([tag_cls])
 
+                cls1 = cls2 = cls3 = ""
+                if b.class_1.enum_name not in ("<INVALID>", "NONE"):
+                    cls1 = fourcc(b.class_1.data)
+                if b.class_2.enum_name not in ("<INVALID>", "NONE"):
+                    cls2 = fourcc(b.class_2.data)
+                if b.class_3.enum_name not in ("<INVALID>", "NONE"):
+                    cls3 = fourcc(b.class_3.data)
+
                 tags_tree.insert(
                     tag_cls + '\\', 'end', iid=str(tag_id), text=tag_path,
-                    values=(tag_cls_int_to_fcc.get(b.class_1.data, ''),
-                            tag_cls_int_to_fcc.get(b.class_2.data, ''),
-                            tag_cls_int_to_fcc.get(b.class_3.data, ''),
-                            b.meta_offset, pointer, tag_id))
+                    values=(cls1, cls2, cls3, b.meta_offset, pointer, tag_id))
 
                 tree_id_to_index_ref[tag_id] = b
             except Exception:
@@ -487,12 +493,14 @@ class ExplorerHybridTree(ExplorerHierarchyTree):
             index_refs = index_refs.keys()
 
         for b in index_refs:
-            try:
-                ext = "." + tag_cls_int_to_ext[b.class_1.data]
-            except Exception:
+            if b.class_1.enum_name != "<INVALID>":
+                ext = ".%s" % b.class_1.enum_name
+            else:
                 ext = ".INVALID"
 
-            tag_cls = tag_cls_int_to_fcc.get(b.class_1.data, 'INVALID')
+            tag_cls = "INVALID"
+            if b.class_1.enum_name not in ("<INVALID>", "NONE"):
+                tag_cls = fourcc(b.class_1.data)
 
             index_refs_by_tag_cls[tag_cls + "\\" + b.tag.tag_path.replace\
                                   ("/", "\\").lower() + ext] = b
@@ -925,9 +933,9 @@ class RefineryActionsWindow(tk.Toplevel):
             meta_tag = meta_tag_def.build()
             meta_tag.data.tagdata = meta
             tag_path = index_ref.tag.tag_path
-            try:
-                ext = "." + tag_cls_int_to_ext[index_ref.class_1.data]
-            except Exception:
+            if index_ref.class_1.enum_name != "<INVALID>":
+                ext = ".%s" % index_ref.class_1.enum_name
+            else:
                 ext = ".INVALID"
 
             w = MetaWindow(self.app_root, meta_tag, tag_path=tag_path + ext)

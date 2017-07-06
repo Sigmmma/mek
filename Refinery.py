@@ -5,10 +5,9 @@ if print_startup:
 import tkinter as tk
 import os
 import zlib
-from math import pi, sqrt
 
 from os.path import dirname, exists, join, isfile, splitext
-from struct import unpack, pack_into
+from struct import unpack
 from time import time
 from tkinter.font import Font
 from tkinter import messagebox
@@ -28,23 +27,20 @@ from supyr_struct.field_types import FieldType
 if print_startup:
     print("    Importing refinery modules")
 
-#from refinery.resource_tagpaths import ce_resource_names, pc_resource_names
-from refinery_core.byteswapping import raw_block_def, byteswap_animation,\
-     byteswap_uncomp_verts, byteswap_comp_verts, byteswap_tris,\
-     byteswap_coll_bsp, byteswap_sbsp_meta, byteswap_scnr_script_syntax_data
-from refinery_core.class_repair import class_repair_functions,\
-     tag_cls_int_to_fcc, tag_cls_int_to_ext
+from refinery_core.class_repair import class_repair_functions
 from refinery_core.resource_cache_extensions import bitmap_tag_extensions,\
      sound_tag_extensions, loc_tag_extensions
 from refinery_core.widgets import QueueTree, RefinerySettingsWindow,\
      RefineryRenameWindow, ExplorerHierarchyTree, ExplorerClassTree,\
      ExplorerHybridTree, is_protected
+from refinery_core.util import *
+from refinery_core import halo1_functions, halo2_functions
 
 
 if print_startup:
     print("    Loading halo 1 map definitions")
 
-from reclaimer.meta.halo1_map import get_map_version, get_map_header,\
+from reclaimer.meta.halo_map import get_map_version, get_map_header,\
      get_tag_index, get_index_magic, get_map_magic,\
      decompress_map, is_compressed, map_header_demo_def, tag_index_pc_def
 from reclaimer.meta.resource import resource_def
@@ -69,6 +65,12 @@ from reclaimer.os_v4_hek.defs.vehi import vehi_def
 from reclaimer.os_v4_hek.defs.sbsp import fast_sbsp_def
 from reclaimer.os_v4_hek.defs.coll import fast_coll_def
 from reclaimer.os_v4_hek.handler import OsV4HaloHandler, NO_LOC_REFS
+
+
+if print_startup:
+    print("    Loading halo 2 tag definitions")
+    
+from reclaimer.h2.handler import Halo2Handler
 
 
 if print_startup:
@@ -97,10 +99,45 @@ def run():
     return Refinery()
 
 
+def halo2_tag_index_to_halo1_tag_index(map_header, tag_index):
+    new_index_array = tag_index_pc_def.build().tag_index
+    old_index_array = tag_index.tag_index
+
+    tag_types = {}
+    for typ in tag_index.tag_types:
+        tag_types[typ.class_1.data] = [typ.class_1, typ.class_2, typ.class_3]
+
+    for i in range(len(old_index_array)):
+        old_index_entry = old_index_array[i]
+        new_index_array.append()
+        new_index_entry = new_index_array[-1]
+        if old_index_entry.tag_class.data not in tag_types:
+            new_index_entry.tag.tag_path = "reserved for main map"
+            new_index_entry.id[0] = i
+            continue
+
+        types = tag_types[old_index_entry.tag_class.data]
+        new_index_entry.class_1 = types[0]
+        new_index_entry.class_2 = types[1]
+        new_index_entry.class_3 = types[2]
+
+        new_index_entry.id = old_index_entry.id
+        new_index_entry.meta_offset = old_index_entry.offset
+
+        #new_index_entry.path_offset = ????
+        new_index_entry.tag.tag_path = map_header.strings.\
+                                       tag_name_table[i].tag_name
+
+    return new_index_array
+
+
 class Refinery(tk.Tk):
     map_path = None
     out_dir  = None
     handler  = None
+
+    halo1_handler = None
+    halo2_handler = None
 
     settings_window = None
     rename_window = None
@@ -140,6 +177,7 @@ class Refinery(tk.Tk):
     # these are the different pieces of the map as parsed blocks
     map_header = None
     tag_index = None
+    halo2_tag_index_array = None
 
     # the original tag_path of each tag in the map before any deprotection
     orig_tag_paths = ()
@@ -150,7 +188,9 @@ class Refinery(tk.Tk):
 
     # a cache of all the different headers for
     # each type of tag to speed up writing tags
-    tag_headers = {}
+    tag_headers = None
+    halo1_tag_headers = None
+    halo2_tag_headers = None
 
     def __init__(self, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
@@ -333,15 +373,21 @@ class Refinery(tk.Tk):
         OsV4HaloHandler.fps_dependent_cache = NO_LOC_REFS
         if print_startup:
             print("    Loading all tag definitions")
-        self.handler = handler = OsV4HaloHandler()
-        self.handler.add_def(gelc_def)
-        #self.handler.add_def(imef_def)
-        #self.handler.add_def(terr_def)
-        #self.handler.add_def(vege_def)
 
-        # create a bunch of tag headers for each type of tag
-        defs = handler.defs
-        for def_id in sorted(handler.defs):
+        self.halo1_handler = OsV4HaloHandler()
+        self.halo2_handler = Halo2Handler()
+
+        self.halo1_handler.add_def(gelc_def)
+        #self.halo1_handler.add_def(imef_def)
+        #self.halo1_handler.add_def(terr_def)
+        #self.halo1_handler.add_def(vege_def)
+
+        self.halo1_tag_headers = h1_tag_headers = {}
+        self.halo2_tag_headers = h2_tag_headers = {}
+
+        # create a bunch of tag headers for each type of halo 1 tag
+        defs = self.halo1_handler.defs
+        for def_id in sorted(defs):
             if len(def_id) != 4:
                 continue
             h_desc = defs[def_id].descriptor[0]
@@ -351,36 +397,53 @@ class Refinery(tk.Tk):
             b_buffer = h_block[0].serialize(buffer=BytearrayBuffer(),
                                             calc_pointers=False)
 
-            self.tag_headers[def_id] = bytes(b_buffer)
+            h1_tag_headers[def_id] = bytes(b_buffer)
             del b_buffer[:]
+
 
         h_block = [None]
         h_desc = stubbs_antr_def.descriptor[0]
         h_desc['TYPE'].parser(h_desc, parent=h_block, attr_index=0)
-        self.tag_headers["antr_halo"]   = self.tag_headers["antr"]
-        self.tag_headers["antr_stubbs"] = bytes(
+        h1_tag_headers["antr_halo"]   = h1_tag_headers["antr"]
+        h1_tag_headers["antr_stubbs"] = bytes(
             h_block[0].serialize(buffer=BytearrayBuffer(), calc_pointers=0))
 
         h_block = [None]
         h_desc = stubbs_coll_def.descriptor[0]
         h_desc['TYPE'].parser(h_desc, parent=h_block, attr_index=0)
-        self.tag_headers["coll_halo"]   = self.tag_headers["coll"]
-        self.tag_headers["coll_stubbs"] = bytes(
+        h1_tag_headers["coll_halo"]   = h1_tag_headers["coll"]
+        h1_tag_headers["coll_stubbs"] = bytes(
             h_block[0].serialize(buffer=BytearrayBuffer(), calc_pointers=0))
 
         h_block = [None]
         h_desc = stubbs_mode_def.descriptor[0]
         h_desc['TYPE'].parser(h_desc, parent=h_block, attr_index=0)
-        self.tag_headers["mode_halo"]   = self.tag_headers["mode"]
-        self.tag_headers["mode_stubbs"] = bytes(
+        h1_tag_headers["mode_halo"]   = h1_tag_headers["mode"]
+        h1_tag_headers["mode_stubbs"] = bytes(
             h_block[0].serialize(buffer=BytearrayBuffer(), calc_pointers=0))
 
         h_block = [None]
         h_desc = stubbs_soso_def.descriptor[0]
         h_desc['TYPE'].parser(h_desc, parent=h_block, attr_index=0)
-        self.tag_headers["soso_halo"]   = self.tag_headers["soso"]
-        self.tag_headers["soso_stubbs"] = bytes(
+        h1_tag_headers["soso_halo"]   = h1_tag_headers["soso"]
+        h1_tag_headers["soso_stubbs"] = bytes(
             h_block[0].serialize(buffer=BytearrayBuffer(), calc_pointers=0))
+
+
+        # create a bunch of tag headers for each type of halo 2 tag
+        defs = self.halo2_handler.defs
+        for def_id in sorted(defs):
+            if len(def_id) != 4:
+                continue
+            h_desc = defs[def_id].descriptor[0]
+            
+            h_block = [None]
+            h_desc['TYPE'].parser(h_desc, parent=h_block, attr_index=0)
+            b_buffer = h_block[0].serialize(buffer=BytearrayBuffer(),
+                                            calc_pointers=False)
+
+            h2_tag_headers[def_id] = bytes(b_buffer)
+            del b_buffer[:]
 
     @property
     def running(self):
@@ -561,47 +624,54 @@ class Refinery(tk.Tk):
 
     def set_defs(self):
         '''Switch definitions based on which game the map is for'''
-        defs = self.handler.defs
-        headers = self.tag_headers
-        if "stubbs" in self.engine:
-            headers["antr"] = headers["antr_stubbs"]
-            headers["coll"] = headers["coll_stubbs"]
-            headers["mode"] = headers["mode_stubbs"]
-            headers["soso"] = headers["soso_stubbs"]
-            if self.engine == "pcstubbs":
-                defs["mode"] = stubbs_pc_mode_def
-            else:
-                defs["mode"] = stubbs_mode_def
-            defs["antr"] = stubbs_antr_def
-            defs["bipd"] = None
-            defs["cdmg"] = stubbs_cdmg_def
-            defs["jpt!"] = stubbs_jpt__def
-            defs["soso"] = stubbs_soso_def
-            defs["unit"] = None
-            defs["vehi"] = None
-            defs["sbsp"] = stubbs_fast_sbsp_def
-            defs["coll"] = stubbs_fast_coll_def
-            #defs["imef"] = imef_def
-            #defs["vege"] = vege_def
-            #defs["terr"] = terr_def
+        if self.engine == "halo2":
+            self.handler = self.halo2_handler
+            self.tag_headers = self.halo2_tag_headers
         else:
-            headers["antr"] = headers["antr_halo"]
-            headers["coll"] = headers["coll_halo"]
-            headers["mode"] = headers["mode_halo"]
-            headers["soso"] = headers["soso_halo"]
-            defs["mode"] = mode_def
-            defs["antr"] = antr_def
-            defs["bipd"] = bipd_def
-            defs["cdmg"] = cdmg_def
-            defs["jpt!"] = jpt__def
-            defs["soso"] = soso_def
-            defs["unit"] = unit_def
-            defs["vehi"] = vehi_def
-            defs["sbsp"] = fast_sbsp_def
-            defs["coll"] = fast_coll_def
-            defs.pop("imef", None)
-            defs.pop("vege", None)
-            defs.pop("terr", None)
+            self.handler = self.halo1_handler
+            self.tag_headers = self.halo1_tag_headers
+
+            defs = self.handler.defs
+            headers = self.tag_headers
+            if "stubbs" in self.engine:
+                headers["antr"] = headers["antr_stubbs"]
+                headers["coll"] = headers["coll_stubbs"]
+                headers["mode"] = headers["mode_stubbs"]
+                headers["soso"] = headers["soso_stubbs"]
+                if self.engine == "stubbspc":
+                    defs["mode"] = stubbs_pc_mode_def
+                else:
+                    defs["mode"] = stubbs_mode_def
+                defs["antr"] = stubbs_antr_def
+                defs["bipd"] = None
+                defs["cdmg"] = stubbs_cdmg_def
+                defs["jpt!"] = stubbs_jpt__def
+                defs["soso"] = stubbs_soso_def
+                defs["unit"] = None
+                defs["vehi"] = None
+                defs["sbsp"] = stubbs_fast_sbsp_def
+                defs["coll"] = stubbs_fast_coll_def
+                #defs["imef"] = imef_def
+                #defs["vege"] = vege_def
+                #defs["terr"] = terr_def
+            else:
+                headers["antr"] = headers["antr_halo"]
+                headers["coll"] = headers["coll_halo"]
+                headers["mode"] = headers["mode_halo"]
+                headers["soso"] = headers["soso_halo"]
+                defs["mode"] = mode_def
+                defs["antr"] = antr_def
+                defs["bipd"] = bipd_def
+                defs["cdmg"] = cdmg_def
+                defs["jpt!"] = jpt__def
+                defs["soso"] = soso_def
+                defs["unit"] = unit_def
+                defs["vehi"] = vehi_def
+                defs["sbsp"] = fast_sbsp_def
+                defs["coll"] = fast_coll_def
+                defs.pop("imef", None)
+                defs.pop("vege", None)
+                defs.pop("terr", None)
 
         self.handler.reset_tags()
 
@@ -610,7 +680,7 @@ class Refinery(tk.Tk):
         self.map_is_resource = False
         self.map_header = get_map_header(comp_data)
 
-        self.engine     = get_map_version(self.map_header)
+        self.engine = get_map_version(self.map_header)
         self.map_is_compressed = is_compressed(comp_data, self.map_header)
 
         decomp_path = None
@@ -627,6 +697,19 @@ class Refinery(tk.Tk):
         self.tag_index   = get_tag_index(self.map_data, self.map_header)
         tag_index_array  = self.tag_index.tag_index
 
+        if self.engine == "halo2":
+            # build a fake tag_index_array so we dont have to rewrite
+            # lots of other parts of refinery to read halo 2 tag indices
+            self.halo2_tag_index_array = tag_index_array
+            self.tag_index.tag_index = halo2_tag_index_to_halo1_tag_index(
+                self.map_header, self.tag_index)
+            tag_index_array = self.tag_index.tag_index
+
+        self.set_defs()
+
+        if self.engine == "halo2":
+            return
+
         # record the original tag_paths so we know if any were changed
         orig_tag_paths = [None]*len(tag_index_array)
         for i in range(len(tag_index_array)):
@@ -634,18 +717,16 @@ class Refinery(tk.Tk):
 
         self.orig_tag_paths = tuple(orig_tag_paths)
 
-        self.set_defs()
-
         # make all contents of the map parasble
         self.basic_deprotection()
 
         # get the scenario meta
         try:
+            self.scnr_meta = self.get_meta(self.tag_index.scenario_tag_id[0])
+
             bsp_magics = self.bsp_magics
             bsp_sizes = self.bsp_sizes
             bsp_offsets = self.bsp_header_offsets
-
-            self.scnr_meta = self.get_meta(self.tag_index.scenario_tag_id[0])
             for b in self.scnr_meta.structure_bsps.STEPTREE:
                 bsp = b.structure_bsp
                 bsp_offsets[bsp.id[0]] = b.bsp_pointer
@@ -669,26 +750,36 @@ class Refinery(tk.Tk):
 
         # get the globals meta
         try:
-            for b in tag_index_array:
-                if tag_cls_int_to_fcc.get(b.class_1.data) == "matg":
-                    self.matg_meta = self.get_meta(b.id[0])
-                    break
+            matg_id = None
+            if self.engine == "halo2":
+                matg_id = self.tag_index.globals_tag_id[0]
+            else:
+                for b in tag_index_array:
+                    if fourcc(b.class_1.data) == "matg":
+                        matg_id = b.id[0]
+                        break
+
+            if matg_id is not None:
+                self.matg_meta = self.get_meta(matg_id)
+
             if self.matg_meta is None:
                 print("Could not read globals tag")
         except Exception:
             print(format_exc())
             print("Could not read globals tag")
 
-        maps_dir = dirname(map_path)
+        if self.engine in ("halo1pc", "halo1pcdemo", "halo1ce", "halo1yelo"):
+            self._load_all_resource_maps(dirname(map_path))
 
+    def _load_all_resource_maps(self, maps_dir=""):
         bitmap_data = sound_data = loc_data = None
         bitmap_rsrc = sound_rsrc = loc_rsrc = None
         map_paths = {}
 
-        if self.engine in ("pc", "pcdemo"):
+        if self.engine in ("halo1pc", "halo1pcdemo"):
             map_paths['bitmaps'] = "bitmaps"
             map_paths['sounds']  = "sounds"
-        elif self.engine in ("ce", "yelo"):
+        elif self.engine in ("halo1ce", "halo1yelo"):
             map_paths['bitmaps'] = "bitmaps"
             map_paths['sounds']  = "sounds"
             map_paths['loc']     = "loc"
@@ -734,7 +825,7 @@ class Refinery(tk.Tk):
                     sound_data.seek(0)
                     print("    Finished")
 
-                    if self.engine in ("ce", "yelo"):
+                    if self.engine in ("halo1ce", "halo1yelo"):
                         # ce resource sounds are recognized by tag_path
                         # so we must cache their offsets by their paths
                         self.ce_sound_offsets_by_path = sound_map = {}
@@ -769,10 +860,10 @@ class Refinery(tk.Tk):
 
         # check if this is a pc or ce cache. cant rip pc ones
         pth = rsrc_head.tag_paths[0].tag_path
-        self.engine = "ce"
+        self.engine = "halo1ce"
         if resource_type < 3 and not (pth.endswith('__pixels') or
                                       pth.endswith('__permutations')):
-            self.engine = "pc"
+            self.engine = "halo1pc"
 
         # so we don't have to redo a lot of code, we'll make a
         # fake tag_index and map_header and just fill in info
@@ -784,7 +875,7 @@ class Refinery(tk.Tk):
         self.index_magic = 0
         self.map_is_resource = True
 
-        if self.engine == "pc":
+        if self.engine == "halo1pc":
             index_mul = 1
         else:
             index_mul = 2
@@ -912,51 +1003,63 @@ class Refinery(tk.Tk):
                 elif map_type == "sp":   map_type = "singleplayer"
                 elif map_type == "mp":   map_type = "multiplayer"
                 elif map_type == "ui":   map_type = "user interface"
+                elif map_type == "shared":   map_type = "shared"
+                elif map_type == "sharedsp": map_type = "shared singleplayer"
                 else: map_type = "unknown"
                 string += ((
                     "Header:\n" +
+                    "    engine version      == %s\n" +
                     "    map name            == '%s'\n" +
                     "    build date          == '%s'\n" +
                     "    map type            == %s\n" +
                     "    decompressed size   == %s\n" +
                     "    index header offset == %s\n") %
-                (header.map_name, header.build_date, map_type,
+                (self.engine, header.map_name, header.build_date, map_type,
                  decomp_size, header.tag_index_header_offset))
 
-                string += ((
-                    "\nCalculated information:\n" +
-                    "    engine version == %s\n" +
-                    "    index magic    == %s\n" +
-                    "    map magic      == %s\n") %
-                (self.engine, self.index_magic, self.map_magic))
-
                 tag_index_offset = index.tag_index_offset
-                string += ((
-                    "\nTag index:\n" +
-                    "    tag count           == %s\n" +
-                    "    scenario tag id     == %s\n" +
-                    "    index array pointer == %s   non-magic == %s\n" +
-                    "    model data pointer  == %s\n" +
-                    "    meta data length    == %s\n" +
-                    "    vertex parts count  == %s\n" +
-                    "    index  parts count  == %s\n") %
-                (index.tag_count, index.scenario_tag_id[0],
-                 tag_index_offset, tag_index_offset - self.map_magic,
-                 index.model_data_offset, header.tag_index_meta_len,
-                 index.vertex_parts_count, index.index_parts_count))
-
-                if index.SIZE == 36:
+                if self.engine == "halo2":
                     string += ((
-                        "    index parts pointer == %s   non-magic == %s\n") %
-                    (index.index_parts_offset,
-                     index.index_parts_offset - self.map_magic))
+                        "\nTag index:\n" +
+                        "    tag count           == %s\n" +
+                        "    scenario tag id     == %s\n" +
+                        "    globals  tag id     == %s\n" +
+                        "    index array pointer == %s\n") %
+                    (index.tag_count, index.scenario_tag_id[0],
+                     index.globals_tag_id[0], tag_index_offset))
                 else:
                     string += ((
-                        "    vertex data size    == %s\n" +
-                        "    index  data size    == %s\n") %
-                    (index.vertex_data_size, index.index_data_size))
+                        "\nCalculated information:\n" +
+                        "    index magic    == %s\n" +
+                        "    map magic      == %s\n") %
+                    (self.index_magic, self.map_magic))
 
-                if self.engine == "yelo":
+                    string += ((
+                        "\nTag index:\n" +
+                        "    tag count           == %s\n" +
+                        "    scenario tag id     == %s\n" +
+                        "    index array pointer == %s   non-magic == %s\n" +
+                        "    model data pointer  == %s\n" +
+                        "    meta data length    == %s\n" +
+                        "    vertex parts count  == %s\n" +
+                        "    index  parts count  == %s\n") %
+                    (index.tag_count, index.scenario_tag_id[0],
+                     tag_index_offset, tag_index_offset - self.map_magic,
+                     index.model_data_offset, header.tag_index_meta_len,
+                     index.vertex_parts_count, index.index_parts_count))
+
+                    if index.SIZE == 36:
+                        string += (
+                            "    index parts pointer == %s   non-magic == %s\n"
+                            % (index.index_parts_offset,
+                               index.index_parts_offset - self.map_magic))
+                    else:
+                        string += ((
+                            "    vertex data size    == %s\n" +
+                            "    index  data size    == %s\n") %
+                        (index.vertex_data_size, index.index_data_size))
+
+                if self.engine == "halo1yelo":
                     yelo    = header.yelo_header
                     flags   = yelo.flags
                     info    = yelo.build_info
@@ -1051,7 +1154,7 @@ class Refinery(tk.Tk):
             self.map_info_text.config(state='disabled')
 
     def is_indexed(self, tag_index_ref):
-        if self.engine in ("ce", "yelo"):
+        if self.engine in ("halo1ce", "halo1yelo"):
             return bool(tag_index_ref.indexed)
         return False
 
@@ -1060,14 +1163,16 @@ class Refinery(tk.Tk):
             return
         elif self.map_is_resource:
             return
+        elif self.engine == "halo2":
+            return
         print("Running basic deprotection...")
         # rename all invalid names to usable ones
         i = 0
         found_counts = {}
         for b in self.tag_index.tag_index:
             tag_path = b.tag.tag_path
-            tag_cls  = tag_cls_int_to_ext.get(b.class_1.data, "INVALID")
-            name_id = (tag_path, tag_cls)
+            tag_cls  = b.class_1.data
+            name_id  = (tag_path, tag_cls)
             if is_protected(tag_path):
                 b.tag.tag_path = "protected_%s" % i
                 i += 1
@@ -1082,6 +1187,8 @@ class Refinery(tk.Tk):
         if not self._map_loaded:
             return
         elif self.running or self.map_is_resource:
+            return
+        elif self.engine == "halo2":
             return
 
         print("Deprotection is not implemented yet.")
@@ -1118,8 +1225,10 @@ class Refinery(tk.Tk):
                     print("    Deprotection stopped by user.")
                     self._running = False
                     return
-    
-                tag_cls = tag_cls_int_to_fcc.get(b.class_1.data)
+
+                tag_cls = None
+                if b.class_1.enum_name not in ("<INVALID>", "NONE"):
+                    tag_cls = fourcc(b.class_1.data)
 
                 if tag_cls in ("matg", "Soul", "tagc"):
                     class_repair_functions[tag_cls](
@@ -1151,6 +1260,9 @@ class Refinery(tk.Tk):
             return
         elif self.map_is_resource:
             print("Cannot save resource maps.")
+            return
+        elif self.engine == "halo2":
+            print("Cannot save Halo 2 maps.")
             return
 
         save_path = asksaveasfilename(
@@ -1239,7 +1351,7 @@ class Refinery(tk.Tk):
         elif self.running:
             return
 
-        if self.engine in ("pc", "pcdemo") and self.map_is_resource:
+        if self.engine in ("halo1pc", "halo1pcdemo") and self.map_is_resource:
             print("\nCannot extract HaloPC resource caches, as they contain\n" +
                   "only rawdata(pixels/sound samples) and no meta data.\n")
             return
@@ -1254,7 +1366,7 @@ class Refinery(tk.Tk):
 
         print("Starting extraction...")
 
-        if self.extract_cheape and self.engine == "yelo":
+        if self.extract_cheape and self.engine == "halo1yelo":
             abs_tag_path = join(self.out_dir.get(), "cheape.map")
 
             print(abs_tag_path)
@@ -1278,7 +1390,7 @@ class Refinery(tk.Tk):
                 print(format_exc())
                 print("Error ocurred while extracting cheape.map")
 
-        extract_resources = self.engine in ("ce", "yelo") and \
+        extract_resources = self.engine in ("halo1ce", "halo1yelo") and \
                             self.extract_from_ce_resources.get()
 
         extracted = set()
@@ -1337,12 +1449,11 @@ class Refinery(tk.Tk):
                         continue
                     extracted.add(tag_id)
 
-                    tag_cls = tag_cls_int_to_fcc.get(
-                        tag_index_ref.class_1.data)
-                    tag_ext = tag_cls_int_to_ext.get(
-                        tag_index_ref.class_1.data, "INVALID")
-                    tag_path = "%s.%s" % (
-                        tag_index_ref.tag.tag_path, tag_ext)
+                    tag_cls = None
+                    if tag_index_ref.class_1.enum_name not in ("<INVALID>", "NONE"):
+                        tag_cls = fourcc(tag_index_ref.class_1.data)
+                    tag_ext  = ".%s" % tag_index_ref.class_1.enum_name
+                    tag_path = tag_index_ref.tag.tag_path + tag_ext
                     abs_tag_path = join(out_dir, tag_path)
                     if tag_cls is None:
                         print(("    Unknown tag class for '%s'\n" +
@@ -1422,7 +1533,7 @@ class Refinery(tk.Tk):
         # read the meta data from the map
         if self.handler.defs.get(tag_cls) is None:
             return
-        elif self.engine not in ("ce", "yelo"):
+        elif self.engine not in ("halo1ce", "halo1yelo"):
             return
 
         kwargs = dict(parsing_resource=True)
@@ -1488,9 +1599,9 @@ class Refinery(tk.Tk):
         '''
         tag_index = self.tag_index
         tag_index_array = tag_index.tag_index
-        magic     = self.map_magic
-        engine    = self.engine
-        map_data  = self.map_data
+        magic    = self.map_magic
+        engine   = self.engine
+        map_data = self.map_data
 
         # if we are given a 32bit tag id, mask it off
         tag_id &= 0xFFFF
@@ -1498,7 +1609,9 @@ class Refinery(tk.Tk):
         tag_index_ref = tag_index_array[tag_id]
 
         if tag_id != tag_index.scenario_tag_id[0] or self.map_is_resource:
-            tag_cls = tag_cls_int_to_fcc.get(tag_index_ref.class_1.data)
+            tag_cls = None
+            if tag_index_ref.class_1.enum_name not in ("<INVALID>", "NONE"):
+                tag_cls = fourcc(tag_index_ref.class_1.data)
         else:
             tag_cls = "scnr"
 
@@ -1509,7 +1622,8 @@ class Refinery(tk.Tk):
         if tag_cls is None:
             # couldn't determine the tag class
             return
-        elif self.is_indexed(tag_index_ref) and engine in ("ce", "yelo"):
+        elif self.is_indexed(tag_index_ref) and engine in (
+                "halo1ce", "halo1yelo"):
             # tag exists in a resource cache
             return self.get_ce_resource_meta(tag_cls, tag_index_ref)
         elif not reextract:
@@ -1544,143 +1658,12 @@ class Refinery(tk.Tk):
         return h_block[0]
 
     def inject_rawdata(self, meta, tag_cls, tag_index_ref):
-        magic  = self.map_magic
-        engine = self.engine
+        if self.engine == "halo2":
+            return halo2_functions.inject_rawdata(
+                self, meta, tag_cls, tag_index_ref)
 
-        map_data    = self.map_data
-        bitmap_data = self.bitmap_data
-        sound_data  = self.sound_data
-        loc_data    = self.loc_data
-        is_not_indexed = not self.is_indexed(tag_index_ref)
-
-        # get some rawdata that would be pretty annoying to do in the parser
-        if tag_cls == "bitm":
-            # grab bitmap data correctly from map
-            new_pixels = BytearrayBuffer()
-            pixel_data = map_data
-            can_be_indexed = engine not in ("stubbs", "pcstubbs", "xbox")
-
-            # uncheck the prefer_low_detail flag, get the pixel data
-            # from the map, and set up the pixels_offset correctly.
-            for bitmap in meta.bitmaps.STEPTREE:
-                pixel_data = map_data
-                if can_be_indexed and bitmap.flags.data_in_resource_map:
-                    pixel_data = bitmap_data
-
-                # grab the bitmap data from this map(no magic used)
-                pixel_data.seek(bitmap.pixels_offset)
-                new_pixels += pixel_data.read(bitmap.pixels_meta_size)
-
-            meta.processed_pixel_data.STEPTREE = new_pixels
-
-        elif tag_cls == "font":
-            # might need to grab pixel data correctly from resource map
-            meta_offset = tag_index_ref.meta_offset
-
-            if is_not_indexed:
-                return meta
-            elif not self.map_is_resource:
-                meta_offset = self.loc_rsrc_header.tag_headers\
-                              [meta_offset].offset
-
-            loc_data.seek(meta.pixels.pointer + meta_offset)
-            meta.pixels.data = loc_data.read(meta.pixels.size)
-
-        elif tag_cls == "hmt ":
-            # might need to grab string data correctly from resource map
-            meta_offset = tag_index_ref.meta_offset
-
-            if is_not_indexed:
-                return meta
-            elif not self.map_is_resource:
-                meta_offset = self.loc_rsrc_header.tag_headers\
-                              [meta_offset].offset
-
-            b = meta.string
-            loc_data.seek(b.pointer + meta_offset)
-            meta.string.data = loc_data.read(b.size).decode('utf-16-le')
-
-        elif tag_cls == "snd!":
-            # might need to get samples and permutations from the resource map
-            is_pc = engine in ("pc", "pcdemo")
-            is_ce = engine in ("ce", "yelo")
-            if not (is_pc or is_ce):
-                return meta
-
-            # ce tagpaths are in the format:  path__permutations
-            #     ex: sound\sfx\impulse\coolant\enter_water__permutations
-            #
-            # pc tagpaths are in the format:  path__pitch_range__permutation
-            #     ex: sound\sfx\impulse\coolant\enter_water__0__0
-
-            # why do ce and pc have to store shit so differently.
-            # it was really annoying to figure out the differences
-            other_data = sound_data
-            if is_pc:
-                sound_magic = 0 - magic
-                other_data = map_data
-            elif not self.map_is_resource:
-                sound_map = self.ce_sound_offsets_by_path
-                tag_path  = tag_index_ref.tag.tag_path
-                if sound_map is None or tag_path not in sound_map:
-                    return
-                sound_magic = sound_map[tag_path] + meta.get_size()
-            else:
-                sound_magic = tag_index_ref.meta_offset + meta.get_size()
-
-            for pitches in meta.pitch_ranges.STEPTREE:
-                for perm in pitches.permutations.STEPTREE:
-                    samples = perm.samples
-                    mouth_data = perm.mouth_data
-                    subtitle_data = perm.subtitle_data
-
-                    if is_ce and not samples.flags.data_in_resource_map:
-                        continue
-
-                    if samples.size:
-                        sound_data.seek(samples.raw_pointer)
-                        samples.data = sound_data.read(samples.size)
-                    else:
-                        samples.data = b''
-
-                    if mouth_data.size:
-                        other_data.seek(mouth_data.pointer + sound_magic)
-                        mouth_data.data = other_data.read(mouth_data.size)
-                    else:
-                        mouth_data.data = b''
-
-                    if subtitle_data.size:
-                        other_data.seek(subtitle_data.pointer + sound_magic)
-                        subtitle_data.data = other_data.read(subtitle_data.size)
-                    else:
-                        subtitle_data.data = b''
-
-        elif tag_cls == "ustr":
-            # might need to grab string data correctly from resource map
-            meta_offset = tag_index_ref.meta_offset
-
-            if is_not_indexed:
-                return meta
-            elif not self.map_is_resource:
-                meta_offset = self.loc_rsrc_header.tag_headers\
-                              [meta_offset].offset
-
-            string_blocks = meta.strings.STEPTREE
-
-            if len(string_blocks):
-                desc = string_blocks[0].get_desc('STEPTREE')
-                parser = desc['TYPE'].parser
-
-            try:
-                FieldType.force_little()
-                for b in string_blocks:
-                    parser(desc, None, b, 'STEPTREE',
-                           loc_data, meta_offset, b.pointer)
-                FieldType.force_normal()
-            except Exception:
-                print(format_exc())
-                FieldType.force_normal()
-                raise
+        return halo1_functions.inject_rawdata(
+            self, meta, tag_cls, tag_index_ref)
 
     def meta_to_tag_data(self, meta, tag_cls, tag_index_ref):
         '''
@@ -1689,358 +1672,12 @@ class Refinery(tk.Tk):
         references, fetching rawdata for the bitmaps, sounds, and models,
         and byteswapping any rawdata that needs it(animations, bsp, etc).
         '''
-        magic     = self.map_magic
-        engine    = self.engine
-        map_data  = self.map_data
-        tag_index = self.tag_index
+        if self.engine == "halo2":
+            return halo2_functions.meta_to_tag_data(
+                self, meta, tag_cls, tag_index_ref)
 
-        predicted_resources = []
-
-        if hasattr(meta, "obje_attrs"):
-            predicted_resources.append(meta.obje_attrs.predicted_resources)
-
-
-        if tag_cls == "actv":
-            # multiply grenade velocity by 30
-            meta.grenades.grenade_velocity *= 30
-            
-        elif tag_cls in ("antr", "magy"):
-            # byteswap animation data
-            for anim in meta.animations.STEPTREE:
-                byteswap_animation(anim)
-
-        elif tag_cls == "bitm":
-            # set the size of the compressed plate data to nothing
-            meta.compressed_color_plate_data.STEPTREE = BytearrayBuffer()
-
-            # to enable compatibility with my bitmap converter we'll set the
-            # base address to a certain constant based on the console platform
-            if engine in ("xbox", "stubbs"):
-                for bitmap in meta.bitmaps.STEPTREE:
-                    bitmap.base_address = 1073751810
-            else:
-                for bitmap in meta.bitmaps.STEPTREE:
-                    bitmap.base_address = 0
-
-            is_xbox = "xbox" in engine or engine == "stubbs"
-            new_pixels_offset = 0
-
-            # uncheck the prefer_low_detail flag and
-            # set up the pixels_offset correctly.
-            for bitmap in meta.bitmaps.STEPTREE:
-                bitmap.flags.prefer_low_detail = is_xbox
-                bitmap.pixels_offset = new_pixels_offset
-                new_pixels_offset += bitmap.pixels_meta_size
-
-                # clear some meta-only fields
-                bitmap.pixels_meta_size = 0
-                bitmap.bitmap_id_unknown1 = bitmap.bitmap_id_unknown2 = 0
-                bitmap.bitmap_data_pointer = bitmap.base_address = 0
-
-        elif tag_cls == "cdmg":
-            # divide camera shaking wobble period by 30
-            meta.camera_shaking.wobble_function_period /= 30
-
-        elif tag_cls == "coll":
-            # byteswap the raw bsp collision data
-            for node in meta.nodes.STEPTREE:
-                for perm_bsp in node.bsps.STEPTREE:
-                    byteswap_coll_bsp(perm_bsp)
-
-        elif tag_cls == "effe":
-            # mask away the meta-only flags
-            meta.flags.data &= 3
-
-        elif tag_cls == "jpt!":
-            # camera shaking wobble period by 30
-            meta.camera_shaking.wobble_function_period /= 30
-
-        elif tag_cls == "glw!":
-            # increment enumerators properly
-            for b in (meta.particle_rotational_velocity,
-                      meta.effect_rotational_velocity,
-                      meta.effect_translational_velocity,
-                      meta.particle_distance_to_object,
-                      meta.particle_size,
-                      meta.particle_color):
-                b.attachment.data += 1
-
-        elif tag_cls == "lens":
-            # multiply corona rotation by pi/180
-            meta.corona_rotation.function_scale *= pi/180
-
-        elif tag_cls == "ligh":
-            # divide light time by 30
-            meta.effect_parameters.duration /= 30
-
-        elif tag_cls == "matg":
-            # tool will fail to compile any maps if the
-            # multiplayer_info or falling_damage is blank
-
-            # make sure there is multiplayer info.
-            multiplayer_info = meta.multiplayer_informations.STEPTREE
-            if not len(multiplayer_info):
-                multiplayer_info.append()
-
-            # make sure there is falling damage info.
-            falling_damages = meta.falling_damages.STEPTREE
-            if not len(falling_damages):
-                falling_damages.append()
-
-        elif tag_cls == "metr":
-            # The meter bitmaps can literally point to not
-            # only the wrong tag, but the wrong TYPE of tag.
-            # Since dependencies in meter tags are useless, we null them out.
-            meta.stencil_bitmap.filepath = meta.source_bitmap.filepath = ''
-
-        elif tag_cls in ("mode", "mod2"):
-            if engine in ("yelo", "ce", "pc", "pcdemo", "pcstubbs"):
-                # model_magic seems to be the same for all pc maps
-                # need to figure out what that magic is though.........
-                verts_start = tag_index.model_data_offset
-                tris_start  = verts_start + tag_index.vertex_data_size
-                model_magic = None
-            else:
-                model_magic = magic
-
-            # grab vertices and indices from the map
-            if model_magic is None:
-                verts_attr_name = "uncompressed_vertices"
-                byteswap_verts = byteswap_uncomp_verts
-                vert_size = 68
-
-                if engine != "pcstubbs":
-                    # need to swap the lod cutoff and nodes values around
-                    cutoffs = (meta.superlow_lod_cutoff, meta.low_lod_cutoff,
-                               meta.high_lod_cutoff, meta.superhigh_lod_cutoff)
-                    nodes = (meta.superlow_lod_nodes, meta.low_lod_nodes,
-                             meta.high_lod_nodes, meta.superhigh_lod_nodes)
-                    meta.superlow_lod_cutoff  = cutoffs[3]
-                    meta.low_lod_cutoff       = cutoffs[2]
-                    meta.high_lod_cutoff      = cutoffs[1]
-                    meta.superhigh_lod_cutoff = cutoffs[0]
-                    meta.superlow_lod_nodes  = nodes[3]
-                    meta.low_lod_nodes       = nodes[2]
-                    meta.high_lod_nodes      = nodes[1]
-                    meta.superhigh_lod_nodes = nodes[0]
-            else:
-                verts_attr_name = "compressed_vertices"
-                byteswap_verts = byteswap_comp_verts
-                vert_size = 32
-
-            for geom in meta.geometries.STEPTREE:
-                for part in geom.parts.STEPTREE:
-                    verts_block = part[verts_attr_name]
-                    tris_block  = part.triangles
-                    info  = part.model_meta_info
-
-                    # null out certain things in the part
-                    part.previous_part_index = part.next_part_index = 0
-                    part.centroid_primary_node = 0
-                    part.centroid_secondary_node = 0
-                    part.centroid_primary_weight = 0.0
-                    part.centroid_secondary_weight = 0.0
-
-                    # make the new blocks to hold the raw data
-                    verts_block.STEPTREE = raw_block_def.build()
-                    tris_block.STEPTREE  = raw_block_def.build()
-
-                    # read the offsets of the vertices and indices from the map
-                    if model_magic is None:
-                        verts_off = verts_start + info.vertices_offset
-                        tris_off  = tris_start  + info.indices_offset
-                    else:
-                        map_data.seek(
-                            info.vertices_reflexive_offset + 4 - model_magic)
-                        verts_off = unpack(
-                            "<I", map_data.read(4))[0] - model_magic
-                        map_data.seek(
-                            info.indices_reflexive_offset  + 4 - model_magic)
-                        tris_off  = unpack(
-                            "<I", map_data.read(4))[0] - model_magic
-
-                    # read the raw data from the map
-                    map_data.seek(verts_off)
-                    raw_verts = map_data.read(vert_size*info.vertex_count)
-                    map_data.seek(tris_off)
-                    raw_tris  = map_data.read(2*(info.index_count + 3))
-
-                    # put the raw data in the verts and tris blocks
-                    verts_block.STEPTREE.data = raw_verts
-                    tris_block.STEPTREE.data  = raw_tris
-
-                    # call the byteswappers
-                    byteswap_verts(verts_block)
-                    byteswap_tris(tris_block)
-
-                    # null out the model_meta_info
-                    info.index_type.data  = info.index_count  = 0
-                    info.vertex_type.data = info.vertex_count = 0
-                    info.indices_offset = info.vertices_offset  = 0
-                    if model_magic is None:
-                        info.indices_magic_offset  = 0
-                        info.vertices_magic_offset = 0
-                    else:
-                        info.indices_reflexive_offset  = 0
-                        info.vertices_reflexive_offset = 0
-
-        elif tag_cls == "pphy":
-            # set the meta-only values to 0
-            meta.wind_coefficient = 0
-            meta.wind_sine_modifier = 0
-            meta.z_translation_rate = 0
-
-            # scale friction values
-            meta.air_friction /= 10000
-            meta.water_friction /= 10000
-
-        elif tag_cls == "proj":
-            # need to scale velocities by 30
-            meta.proj_attrs.physics.initial_velocity *= 30
-            meta.proj_attrs.physics.final_velocity *= 30
-
-        elif tag_cls == "sbsp":
-            byteswap_sbsp_meta(meta)
-
-            # null out the runtime decals
-            del meta.runtime_decals.STEPTREE[:]
-
-            for cluster in meta.clusters.STEPTREE:
-                predicted_resources.append(cluster.predicted_resources)
-
-            compressed = engine in ("xbox", "stubbs")
-
-            # local variables for faster access
-            s_unpack = unpack
-            s_pack_into = pack_into
-
-            # make sure the compressed and uncompressed lightmap vertices
-            # are padded with 0x00 up to the size they need to be
-            for lightmap in meta.lightmaps.STEPTREE:
-                for b in lightmap.materials.STEPTREE:
-                    vert_count = b.vertices_count
-                    lightmap_vert_count = b.lightmap_vertices_count
-
-                    u_verts = b.uncompressed_vertices
-                    c_verts = b.compressed_vertices
-
-                    if compressed:
-                        # generate uncompressed vertices from the compressed
-                        comp_buffer   = c_verts.STEPTREE
-                        uncomp_buffer = bytearray(56*vert_count +
-                                                  20*lightmap_vert_count)
-                        in_off  = 0
-                        out_off = 0
-                        for i in range(vert_count):
-                            n, b, t = s_unpack("<3I",
-                                comp_buffer[in_off + 12: in_off + 24])
-                            ni = n&2047; nj = (n>>11)&2047; nk = (n>>22)&1023
-                            bi = b&2047; bj = (b>>11)&2047; bk = (b>>22)&1023
-                            ti = t&2047; tj = (t>>11)&2047; tk = (t>>22)&1023
-                            if ni&1024: ni = -1*((~ni) & 2047)
-                            if nj&1024: nj = -1*((~nj) & 2047)
-                            if nk&512:  nk = -1*((~nk) & 1023)
-                            if bi&1024: bi = -1*((~bi) & 2047)
-                            if bj&1024: bj = -1*((~bj) & 2047)
-                            if bk&512:  bk = -1*((~bk) & 1023)
-                            if ti&1024: ti = -1*((~ti) & 2047)
-                            if tj&1024: tj = -1*((~tj) & 2047)
-                            if tk&512:  tk = -1*((~tk) & 1023)
-                            ni /= 1023; nj /= 1023; nk /= 511
-                            bi /= 1023; bj /= 1023; bk /= 511
-                            ti /= 1023; tj /= 1023; tk /= 511
-
-                            nmag = max(sqrt(ni**2 + nj**2 + nk**2), 0.00000001)
-                            bmag = max(sqrt(bi**2 + bj**2 + bk**2), 0.00000001)
-                            tmag = max(sqrt(ti**2 + tj**2 + tk**2), 0.00000001)
-                            
-                            # write the uncompressed data
-                            s_pack_into('<12s9f8s', uncomp_buffer, out_off,
-                                        comp_buffer[in_off: in_off + 12],
-                                        ni/nmag, nj/nmag, nk/nmag,
-                                        bi/bmag, bj/bmag, bk/bmag,
-                                        ti/tmag, tj/tmag, tk/tmag,
-                                        comp_buffer[in_off + 24: in_off + 32])
-
-                            in_off  += 32
-                            out_off += 56
-
-                        for i in range(lightmap_vert_count):
-                            n, u, v = s_unpack(
-                                "<I2h", comp_buffer[in_off: in_off + 8])
-                            ni = n&2047; nj = (n>>11)&2047; nk = (n>>22)&1023
-                            if ni&1024: ni = -1*((~ni) & 2047)
-                            if nj&1024: nj = -1*((~nj) & 2047)
-                            if nk&512:  nk = -1*((~nk) & 1023)
-                            ni /= 1023; nj /= 1023; nk /= 511
-
-                            mag = max(sqrt(ni**2 + nj**2 + nk**2), 0.00000001)
-
-                            # write the uncompressed data
-                            s_pack_into('<5f', uncomp_buffer, out_off,
-                                        ni/mag, nj/mag, nk/mag,
-                                        u/32767, v/32767)
-
-                            in_off  += 8
-                            out_off += 20
-                    else:
-                        # generate compressed vertices from uncompressed
-                        uncomp_buffer = u_verts.STEPTREE
-                        comp_buffer   = bytearray(32*vert_count +
-                                                  8*lightmap_vert_count)
-
-                    # replace the buffers
-                    u_verts.STEPTREE = uncomp_buffer
-                    c_verts.STEPTREE = comp_buffer
-
-        elif tag_cls == "scnr":
-            # need to remove the references to the child scenarios
-            del meta.child_scenarios.STEPTREE[:]
-
-            # set the bsp pointers and stuff to 0
-            for b in meta.structure_bsps.STEPTREE:
-                b.bsp_pointer = b.bsp_size = b.bsp_magic = 0
-
-            predicted_resources.append(meta.predicted_resources)
-
-            # byteswap the script syntax data
-            byteswap_scnr_script_syntax_data(meta)
-
-            # rename duplicate stuff that causes errors when compiling scripts
-            if self.rename_duplicates_in_scnr.get():
-                for refl in (meta.cutscene_flags, meta.cutscene_camera_points,
-                             meta.recorded_animations):
-                    names = set()
-                    blocks = refl.STEPTREE
-                    # go through the array in reverse so the last name is
-                    # considered the actual name and all others are renamed
-                    for i in range(len(blocks) -1, -1, -1):
-                        j = 0
-                        b = blocks[i]
-                        name = orig_name = b.name
-                        while name in names:
-                            name = ("DUP_%s_%s" % (j, orig_name))[:31]
-                            j += 1
-                        b.name = name
-                        names.add(name)
-
-            # divide the cutscene times by 30(they're in ticks)
-            for b in meta.cutscene_titles.STEPTREE:
-                b.fade_in_time /= 30
-                b.up_time /= 30
-                b.fade_out_time /= 30
-
-        elif tag_cls == "shpp":
-            predicted_resources.append(meta.predicted_resources)
-
-        elif tag_cls == "weap":
-            predicted_resources.append(meta.weap_attrs.predicted_resources)
-
-        # remove any predicted resources
-        for pr in predicted_resources:
-            del pr.STEPTREE[:]
-
-        return meta
+        return halo1_functions.meta_to_tag_data(
+            self, meta, tag_cls, tag_index_ref)
 
     def cancel_action(self, e=None):
         if not self._map_loaded:
