@@ -1,4 +1,5 @@
 from supyr_struct.defs.constants import *
+from supyr_struct.defs.util import *
 from reclaimer.os_v4_hek.handler import \
      tag_class_be_int_to_fcc_os,     tag_class_fcc_to_ext_os,\
      tag_class_be_int_to_fcc_stubbs, tag_class_fcc_to_ext_stubbs

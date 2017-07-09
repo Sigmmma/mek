@@ -8,9 +8,10 @@ Tags
 *.log
 H2EK/
 compile test/
-*__pycache__
+*__pycache__*
 *.dll
 *.exe
 *.cfg
 shaders/
 maps/
+test\
