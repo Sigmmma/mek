@@ -21,6 +21,7 @@ if print_startup:
 
 from supyr_struct.buffer import BytearrayBuffer, PeekableMmap
 from supyr_struct.defs.constants import *
+from supyr_struct.defs.util import *
 from supyr_struct.field_types import FieldType
 
 
@@ -52,7 +53,7 @@ if print_startup:
 from reclaimer.hek.defs.sbsp import sbsp_meta_header_def
 from reclaimer.os_hek.defs.gelc import gelc_def
 from reclaimer.os_hek.defs.gelo    import gelo_def as old_gelo_def
-from reclaimer.os_v4_hek.defs.gelo import gelo_def as new_gelo_def
+from reclaimer.os_v4_hek.defs.gelo import gelo_def as gelo_def
 from reclaimer.os_v4_hek.defs.antr import antr_def
 from reclaimer.os_v4_hek.defs.bipd import bipd_def
 from reclaimer.os_v4_hek.defs.cdmg import cdmg_def
@@ -67,8 +68,8 @@ from reclaimer.os_v4_hek.defs.coll import fast_coll_def
 from reclaimer.os_v4_hek.handler import OsV4HaloHandler, NO_LOC_REFS
 
 
-if print_startup:
-    print("    Loading halo 2 tag definitions")
+#if print_startup:
+#    print("    Loading halo 2 tag definitions")
     
 from reclaimer.h2.handler import Halo2Handler
 
@@ -100,8 +101,14 @@ def run():
 
 
 def halo2_tag_index_to_halo1_tag_index(map_header, tag_index):
-    new_index_array = tag_index_pc_def.build().tag_index
+    new_index = tag_index_pc_def.build()
     old_index_array = tag_index.tag_index
+    new_index_array = new_index.tag_index
+
+    # copy information from the h2 index into the h1 index
+    new_index.scenario_tag_id[:] = tag_index.scenario_tag_id[:]
+    new_index.tag_index_offset = tag_index.tag_index_offset
+    new_index.tag_count = tag_index.tag_count
 
     tag_types = {}
     for typ in tag_index.tag_types:
@@ -113,7 +120,7 @@ def halo2_tag_index_to_halo1_tag_index(map_header, tag_index):
         new_index_entry = new_index_array[-1]
         if old_index_entry.tag_class.data not in tag_types:
             new_index_entry.tag.tag_path = "reserved for main map"
-            new_index_entry.id[0] = i
+            new_index_entry.id.tag_table_index = i
             continue
 
         types = tag_types[old_index_entry.tag_class.data]
@@ -128,7 +135,43 @@ def halo2_tag_index_to_halo1_tag_index(map_header, tag_index):
         new_index_entry.tag.tag_path = map_header.strings.\
                                        tag_name_table[i].tag_name
 
-    return new_index_array
+    return new_index
+
+
+def halo3_tag_index_to_halo1_tag_index(map_header, tag_index):
+    new_index = tag_index_pc_def.build()
+    old_index_array = tag_index.tag_index
+    new_index_array = new_index.tag_index
+
+    # copy information from the h2 index into the h1 index
+    new_index.tag_index_offset = tag_index.tag_index_offset
+    new_index.tag_count = tag_index.tag_count
+
+    tag_types = [(typ.class_1, typ.class_2, typ.class_3)
+                 for typ in tag_index.tag_types]
+
+    for i in range(len(old_index_array)):
+        old_index_entry = old_index_array[i]
+        new_index_array.append()
+        new_index_entry = new_index_array[-1]
+        if old_index_entry.tag_type_index >= len(tag_types):
+            new_index_entry.tag.tag_path = "reserved for main map"
+            new_index_entry.id.tag_table_index = i
+            continue
+
+        types = tag_types[old_index_entry.tag_type_index]
+        new_index_entry.class_1 = types[0]
+        new_index_entry.class_2 = types[1]
+        new_index_entry.class_3 = types[2]
+
+        new_index_entry.id[:] = (i, old_index_entry.table_index)
+        new_index_entry.meta_offset = old_index_entry.offset
+
+        #new_index_entry.path_offset = ????
+        new_index_entry.tag.tag_path = map_header.strings.\
+                                       tag_name_table[i].tag_name
+
+    return new_index
 
 
 class Refinery(tk.Tk):
@@ -177,7 +220,8 @@ class Refinery(tk.Tk):
     # these are the different pieces of the map as parsed blocks
     map_header = None
     tag_index = None
-    halo2_tag_index_array = None
+    halo2_tag_index = None
+    halo3_tag_index = None
 
     # the original tag_path of each tag in the map before any deprotection
     orig_tag_paths = ()
@@ -377,6 +421,9 @@ class Refinery(tk.Tk):
         self.halo1_handler = OsV4HaloHandler()
         self.halo2_handler = Halo2Handler()
 
+        self.handler = self.halo1_handler
+
+        self.halo1_handler.add_def(gelc_def)
         self.halo1_handler.add_def(gelc_def)
         #self.halo1_handler.add_def(imef_def)
         #self.halo1_handler.add_def(terr_def)
@@ -454,11 +501,27 @@ class Refinery(tk.Tk):
         return self.out_dir.get()
 
     def get_meta_descriptor(self, tag_cls):
-        if tag_cls == "gelo":
-            if self.use_old_gelo.get():
-                return old_gelo_def.descriptor[1]
-            return new_gelo_def.descriptor[1]
-        return self.handler.defs[tag_cls].descriptor[1]
+        # as if these will ever be valid engines lmfao
+        desc = None
+        if self.engine == "halo_reach":
+            pass
+        elif self.engine == "halo5":
+            pass
+        elif self.engine == "halo4":
+            pass
+        elif self.engine == "halo3":
+            pass
+        elif self.engine == "halo2":
+            pass
+        else:
+            tagdef = self.halo1_handler.defs.get(tag_cls)
+            if tag_cls == "gelo" and self.use_old_gelo.get():
+                tagdef = old_gelo_def
+
+            if tagdef is not None:
+                desc = tagdef.descriptor[1]
+
+        return desc
 
     def place_window_relative(self, window, x=None, y=None):
         # calculate x and y coordinates for this window
@@ -624,7 +687,9 @@ class Refinery(tk.Tk):
 
     def set_defs(self):
         '''Switch definitions based on which game the map is for'''
-        if self.engine == "halo2":
+        if self.engine == "halo3":
+            pass
+        elif self.engine == "halo2":
             self.handler = self.halo2_handler
             self.tag_headers = self.halo2_tag_headers
         else:
@@ -679,9 +744,20 @@ class Refinery(tk.Tk):
         map_path = self.map_path.get()
         self.map_is_resource = False
         self.map_header = get_map_header(comp_data)
+        if self.map_header is None:
+            print("Could not read map header.")
+            return
 
         self.engine = get_map_version(self.map_header)
         self.map_is_compressed = is_compressed(comp_data, self.map_header)
+
+        if self.engine == "halo3":
+            print("Cant let you do that.")
+            self.map_header.pprint(printout=True)
+            self.unload_maps()
+            return
+
+        self.set_defs()
 
         decomp_path = None
         if self.map_is_compressed:
@@ -695,19 +771,23 @@ class Refinery(tk.Tk):
         self.index_magic = get_index_magic(self.map_header)
         self.map_magic   = get_map_magic(self.map_header)
         self.tag_index   = get_tag_index(self.map_data, self.map_header)
+        if self.tag_index is None:
+            print("Could not read tag index.")
+            return
+
         tag_index_array  = self.tag_index.tag_index
 
+        # build a fake tag_index_array so we dont have to rewrite
+        # lots of other parts of refinery to read halo 2/3 tag indices
         if self.engine == "halo2":
-            # build a fake tag_index_array so we dont have to rewrite
-            # lots of other parts of refinery to read halo 2 tag indices
-            self.halo2_tag_index_array = tag_index_array
-            self.tag_index.tag_index = halo2_tag_index_to_halo1_tag_index(
+            self.halo2_tag_index = self.tag_index
+            self.tag_index = halo2_tag_index_to_halo1_tag_index(
                 self.map_header, self.tag_index)
-            tag_index_array = self.tag_index.tag_index
-
-        self.set_defs()
-
-        if self.engine == "halo2":
+            return
+        elif self.engine == "halo3":
+            self.halo3_tag_index = self.tag_index
+            self.tag_index = halo3_tag_index_to_halo1_tag_index(
+                self.map_header, self.tag_index)
             return
 
         # record the original tag_paths so we know if any were changed
@@ -729,9 +809,9 @@ class Refinery(tk.Tk):
             bsp_offsets = self.bsp_header_offsets
             for b in self.scnr_meta.structure_bsps.STEPTREE:
                 bsp = b.structure_bsp
-                bsp_offsets[bsp.id[0]] = b.bsp_pointer
-                bsp_magics[bsp.id[0]]  = b.bsp_magic
-                bsp_sizes[bsp.id[0]]   = b.bsp_size
+                bsp_offsets[bsp.id.tag_table_index] = b.bsp_pointer
+                bsp_magics[bsp.id.tag_table_index]  = b.bsp_magic
+                bsp_sizes[bsp.id.tag_table_index]   = b.bsp_size
 
             # read the sbsp headers
             for tag_id in self.bsp_header_offsets:
@@ -756,7 +836,7 @@ class Refinery(tk.Tk):
             else:
                 for b in tag_index_array:
                     if fourcc(b.class_1.data) == "matg":
-                        matg_id = b.id[0]
+                        matg_id = b.id.tag_table_index
                         break
 
             if matg_id is not None:
@@ -875,13 +955,15 @@ class Refinery(tk.Tk):
         self.index_magic = 0
         self.map_is_resource = True
 
+        self.set_defs()
+
         if self.engine == "halo1pc":
             index_mul = 1
         else:
             index_mul = 2
 
         rsrc_tag_count = len(rsrc_head.tag_paths)
-        if   resource_type == 1:
+        if resource_type == 1:
             # bitmaps.map resource cache
             head.map_name = "bitmaps"
             self.bitmap_data = map_data
@@ -994,6 +1076,8 @@ class Refinery(tk.Tk):
 
                 header = self.map_header
                 index = self.tag_index
+                h2_index = self.halo2_tag_index
+                h3_index = self.halo3_tag_index
                 decomp_size = "uncompressed"
                 if self.map_is_compressed:
                     decomp_size = len(self.map_data)
@@ -1022,11 +1106,23 @@ class Refinery(tk.Tk):
                     string += ((
                         "\nTag index:\n" +
                         "    tag count           == %s\n" +
+                        "    tag types count     == %s\n" +
                         "    scenario tag id     == %s\n" +
                         "    globals  tag id     == %s\n" +
                         "    index array pointer == %s\n") %
-                    (index.tag_count, index.scenario_tag_id[0],
-                     index.globals_tag_id[0], tag_index_offset))
+                    (h2_index.tag_count, h2_index.tag_types_count,
+                     h2_index.scenario_tag_id[0], h2_index.globals_tag_id[0],
+                     tag_index_offset))
+                elif self.engine == "halo3":
+                    string += ((
+                        "\nTag index:\n" +
+                        "    tag count           == %s\n" +
+                        "    tag types count     == %s\n" +
+                        "    root tags count     == %s\n" +
+                        "    index array pointer == %s\n") %
+                    (h3_index.tag_count, h3_index.tag_types_count,
+                     h3_index.root_tags_count,
+                     tag_index_offset - self.map_magic))
                 else:
                     string += ((
                         "\nCalculated information:\n" +
@@ -1163,7 +1259,7 @@ class Refinery(tk.Tk):
             return
         elif self.map_is_resource:
             return
-        elif self.engine == "halo2":
+        elif self.engine == ("halo2", "halo3", "halo4", "halo5", "halo_reach"):
             return
         print("Running basic deprotection...")
         # rename all invalid names to usable ones
@@ -1188,7 +1284,7 @@ class Refinery(tk.Tk):
             return
         elif self.running or self.map_is_resource:
             return
-        elif self.engine == "halo2":
+        elif self.engine in ("halo2", "halo3", "halo4", "halo5", "halo_reach"):
             return
 
         print("Deprotection is not implemented yet.")
@@ -1233,11 +1329,11 @@ class Refinery(tk.Tk):
                 if tag_cls in ("matg", "Soul", "tagc"):
                     class_repair_functions[tag_cls](
                         map_data, tag_index_array, repaired,
-                        magic, bsp_magic,  b.id[0], self.engine)
+                        magic, bsp_magic,  b.id.tag_table_index, self.engine)
 
                 if tag_cls == "matg":
                     # replace self.matg_meta with the deprotected one
-                    self.matg_meta = self.get_meta(b.id[0])
+                    self.matg_meta = self.get_meta(b.id.tag_table_index)
 
             self.classes_repaired = True
             # make sure the changes are committed
@@ -1261,8 +1357,8 @@ class Refinery(tk.Tk):
         elif self.map_is_resource:
             print("Cannot save resource maps.")
             return
-        elif self.engine == "halo2":
-            print("Cannot save Halo 2 maps.")
+        elif self.engine in ("halo2", "halo3", "halo4", "halo5", "halo_reach"):
+            print("Cannot save this kind of map.")
             return
 
         save_path = asksaveasfilename(
@@ -1357,8 +1453,6 @@ class Refinery(tk.Tk):
             return
 
         self._running = True
-        handler = self.handler
-
         tag_index = self.tag_index
         tag_index_array = tag_index.tag_index
         start = time()
@@ -1436,10 +1530,10 @@ class Refinery(tk.Tk):
                     if self.stop_processing:
                         break
 
-                    tag_id = tag_index_ref.id[0]
+                    tag_id = tag_index_ref.id.tag_table_index
                     if not map_magic:
                         # resource cache tag
-                        tag_id += (tag_index_ref.id[1] << 16)
+                        tag_id += (tag_index_ref.id.table_index << 16)
 
                     # dont want to re-extract tags
                     if tag_id in extracted:
@@ -1531,7 +1625,7 @@ class Refinery(tk.Tk):
     def get_ce_resource_meta(self, tag_cls, tag_index_ref):
         '''Returns just the meta of the tag without any raw data.'''
         # read the meta data from the map
-        if self.handler.defs.get(tag_cls) is None:
+        if self.get_meta_descriptor(tag_cls) is None:
             return
         elif self.engine not in ("halo1ce", "halo1yelo"):
             return
@@ -1616,7 +1710,7 @@ class Refinery(tk.Tk):
             tag_cls = "scnr"
 
         # if we dont have a defintion for this tag_cls, then return nothing
-        if self.handler.defs.get(tag_cls) is None:
+        if self.get_meta_descriptor(tag_cls) is None:
             return
 
         if tag_cls is None:

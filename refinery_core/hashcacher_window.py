@@ -7,6 +7,7 @@ from traceback import format_exc
 
 from reclaimer.os_v4_hek.handler import OsV4HaloHandler
 from supyr_struct.defs.constants import *
+from supyr_struct.defs.util import *
 
 
 RESERVED_WINDOWS_FILENAME_MAP = {}

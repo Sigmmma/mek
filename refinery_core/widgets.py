@@ -2,6 +2,7 @@ import tkinter as tk
 
 from os.path import dirname, basename, splitext
 from supyr_struct.defs.constants import *
+from supyr_struct.defs.util import *
 from tkinter import messagebox
 from tkinter.filedialog import asksaveasfilename, askdirectory
 from traceback import format_exc
@@ -182,10 +183,10 @@ class ExplorerHierarchyTree(HierarchyFrame):
 
         for index_ref in index_refs:
             tag_cls = index_ref.class_1.data
-            tag_id  = index_ref.id[0]
+            tag_id  = index_ref.id.tag_table_index
             if not map_magic:
                 # resource cache tag
-                tag_id += (index_ref.id[1] << 16)
+                tag_id += (index_ref.id.table_index << 16)
 
             if not tags_tree.exists(tag_id):
                 continue
@@ -306,7 +307,7 @@ class ExplorerHierarchyTree(HierarchyFrame):
 
             tag_name = basename(tag_path)
             b = index_refs_by_path[tag_path]
-            tag_id = b.id[0]
+            tag_id = b.id.tag_table_index
             map_magic = self.map_magic
 
             if b.indexed and map_magic:
@@ -318,7 +319,7 @@ class ExplorerHierarchyTree(HierarchyFrame):
 
             if not map_magic:
                 # resource cache tag
-                tag_id += (b.id[1] << 16)
+                tag_id += (b.id.table_index << 16)
 
             try:
                 cls1 = cls2 = cls3 = ""
@@ -395,7 +396,7 @@ class ExplorerClassTree(ExplorerHierarchyTree):
         for tag_path in sorted(sortable_index_refs):
             b = sortable_index_refs[tag_path]
             tag_path = tag_path.split('\\', 1)[1]
-            tag_id = b.id[0]
+            tag_id = b.id.tag_table_index
             map_magic = self.map_magic
             tag_cls = "INVALID"
             if b.class_1.enum_name not in ("<INVALID>", "NONE"):
@@ -410,7 +411,7 @@ class ExplorerClassTree(ExplorerHierarchyTree):
 
             if not map_magic:
                 # resource cache tag
-                tag_id += (b.id[1] << 16)
+                tag_id += (b.id.table_index << 16)
 
             try:
                 if not tags_tree.exists(tag_cls + '\\'):
@@ -925,7 +926,7 @@ class RefineryActionsWindow(tk.Toplevel):
 
         try:
             # make sure it's re-extracted
-            meta = self.app_root.get_meta(index_ref.id[0], True)
+            meta = self.app_root.get_meta(index_ref.id.tag_table_index, True)
             if meta is None:
                 print("Could not get meta.")
                 return

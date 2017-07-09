@@ -10,6 +10,7 @@ from reclaimer.hek.handler import HaloHandler
 from reclaimer.hek.defs.bitm import bitm_def
 
 from reclaimer.field_types import *
+from supyr_struct.defs.util import *
 from .bitmap_converter_windows import *
 
 
