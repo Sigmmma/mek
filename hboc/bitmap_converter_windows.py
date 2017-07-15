@@ -8,7 +8,7 @@ import threading
 import tkinter.filedialog
 
 from time import time, sleep
-from os.path import basename, normpath
+from os.path import dirname, join
 from reclaimer.hek.defs.objs.bitm import *
 
 '''Constants that determine which index
@@ -724,9 +724,9 @@ class BitmapConverterMainWindow(Tk):
                 self.tags_directory_field.config(state=NORMAL)
                 self.tags_directory_field.delete(0,END)
                 self.tags_directory_field.insert(0,tags_dir_str)
-                self.handler.tagsdir = self.tags_directory_field.get()
-                self.handler.datadir = self.handler.tagsdir.split\
-                       (basename(normpath(self.handler.tagsdir)))[0] + "data"
+                self.handler.tagsdir = join(self.tags_directory_field.get(), '')
+                self.handler.datadir = join(dirname(dirname(
+                    self.handler.tagsdir)), 'data', '')
                 self.tags_directory_field.config(state=DISABLED)
 
 
