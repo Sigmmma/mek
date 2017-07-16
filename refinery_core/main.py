@@ -1312,13 +1312,8 @@ class Refinery(tk.Tk):
 
         if self.fix_tag_classes.get() and "stubbs" not in self.engine:
             print("Repairing tag classes...")
-            print("STILL NEED TO IMPLEMENT RENAMING BITMAP, USTR, AND FONT "
-                  "TAGS IN THE RESOURCE MAPS USING CACHED NAMES.")
-
-            if self.stop_processing:
-                print("    Deprotection stopped by user.")
-                self._running = False
-                return
+            #print("STILL NEED TO IMPLEMENT RENAMING BITMAP, USTR, AND FONT "
+            #      "TAGS IN THE RESOURCE MAPS USING CACHED NAMES.")
 
             # locate the tags to start deprotecting with
             repair = {}
