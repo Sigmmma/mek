@@ -14,7 +14,7 @@ curr_dir = os.path.abspath(os.curdir)
 # expected to be required to complete the install
 mek_required_folders = (
     "hboc",
-    "refinery",
+    "refinery_core",
     )
 
 
@@ -57,20 +57,22 @@ def _do_subprocess(exec_strs, action="Action", app=None):
                         pass
 
             result = p.wait()
-            break
         except Exception:
             print(traceback.format_exc())
-            if exec_strs[0] == "python":
-                result = 1
-                break
 
-            print("    %s failed. Trying with different arguments." % action)
+        if result:
+            print("  Error code: %02x" % result)
+
+        if result and exec_strs[0] != "python":
+            print("  %s failed. Trying with different arguments." % action)
             exec_strs = ("python", "-m") + exec_strs
+        else:
+            break
 
     if result:
-        print("    %s failed.\n" % action)
+        print("  %s failed.\n" % action)
     else:
-        print("    %s succeeded.\n" % action)
+        print("  %s succeeded.\n" % action)
     return result
 
 
@@ -163,7 +165,7 @@ class MekInstaller(tk.Tk):
 
     def __init__(self, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
-        self.title("MEK installer v1.0")
+        self.title("MEK installer v1.1")
         self.geometry("400x300+0+0")
         self.minsize(400, 260)
         
