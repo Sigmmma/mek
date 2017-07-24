@@ -121,21 +121,17 @@ def uninstall(partial_uninstall=True, app=None):
 
 
 def upgrade(install_path=None, force_reinstall=False, app=None):
-    result = 1
+    result = 0
     try:
-        exec_strs = ["pip", "install", "mozzarilla", "--upgrade"]
-        if install_path is not None:
-            exec_strs += ['--target=%s' % install_path]
-        if force_reinstall:
-            exec_strs += ['--force-reinstall']
-        result = _do_subprocess(exec_strs, "Upgrade", app)
+        for mod_name in ("supyr_struct", "reclaimer", "binilla",
+                         "arbytmap", "mozzarilla"):
+            exec_strs = ["pip", "install", mod_name, "--upgrade"]
+            if install_path is not None:
+                exec_strs += ['--target=%s' % install_path]
+            if force_reinstall:
+                exec_strs += ['--force-reinstall']
+            result |= _do_subprocess(exec_strs, "Upgrade", app)
 
-        exec_strs = ["pip", "install", "arbytmap", "--upgrade"]
-        if install_path is not None:
-            exec_strs += ['--target=%s' % install_path]
-        if force_reinstall:
-            exec_strs += ['--force-reinstall']
-        result &= _do_subprocess(exec_strs, "Upgrade", app)
     except Exception:
         print(traceback.format_exc())
 
@@ -165,7 +161,7 @@ class MekInstaller(tk.Tk):
 
     def __init__(self, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
-        self.title("MEK installer v1.1")
+        self.title("MEK installer v1.2")
         self.geometry("400x300+0+0")
         self.minsize(400, 260)
         
