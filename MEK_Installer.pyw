@@ -34,9 +34,9 @@ class IORedirecter(StringIO):
 
 
 def _do_subprocess(exec_strs, action="Action", app=None):
-    result = 0
     exec_strs = tuple(exec_strs)
     while True:
+        result = 1
         try:
             print("-"*80)
             print("%s "*len(exec_strs) % exec_strs)
