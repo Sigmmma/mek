@@ -261,7 +261,6 @@ def meta_to_tag_data(self, meta, tag_cls, tag_index_ref):
         if engine in ("halo1yelo", "halo1ce", "halo1pc", "halo1pcdemo",
                       "stubbspc"):
             # model_magic seems to be the same for all pc maps
-            # need to figure out what that magic is though.........
             verts_start = tag_index.model_data_offset
             tris_start  = verts_start + tag_index.vertex_data_size
             model_magic = None
