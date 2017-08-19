@@ -79,12 +79,12 @@ def _do_subprocess(exec_strs, action="Action", app=None):
 def install(install_path=None, app=None):
     result = 1
     try:
-        exec_strs = ["pip", "install", "mozzarilla"]
+        exec_strs = ["pip", "install", "mozzarilla", "--no-cache-dir"]
         if install_path is not None:
             exec_strs += ['--target=%s' % install_path]
         result = _do_subprocess(exec_strs, "Install", app)
 
-        exec_strs = ["pip", "install", "arbytmap"]
+        exec_strs = ["pip", "install", "arbytmap", "--no-cache-dir"]
         if install_path is not None:
             exec_strs += ['--target=%s' % install_path]
         result &= _do_subprocess(exec_strs, "Install", app)
@@ -125,7 +125,8 @@ def upgrade(install_path=None, force_reinstall=False, app=None):
     try:
         for mod_name in ("supyr_struct", "reclaimer", "binilla",
                          "arbytmap", "mozzarilla"):
-            exec_strs = ["pip", "install", mod_name, "--upgrade"]
+            exec_strs = ["pip", "install", mod_name,
+                         "--upgrade", "--no-cache-dir"]
             if install_path is not None:
                 exec_strs += ['--target=%s' % install_path]
             if force_reinstall:
@@ -161,7 +162,7 @@ class MekInstaller(tk.Tk):
 
     def __init__(self, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
-        self.title("MEK installer v1.2.1")
+        self.title("MEK installer v1.2.3")
         self.geometry("400x300+0+0")
         self.minsize(400, 260)
         
