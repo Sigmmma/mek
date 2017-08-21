@@ -980,7 +980,7 @@ class Refinery(tk.Tk):
             self.loc_rsrc_header = rsrc_head
             tag_classes = loc_tag_extensions
             index_mul = 1
-            def_class = 'unicode_strings_list'
+            def_class = 'unicode_string_list'
 
         self.loaded_rsrc_header = rsrc_head
 
@@ -1721,15 +1721,21 @@ class Refinery(tk.Tk):
             try: queue_tree.delete(iid)
             except Exception: pass
 
-            try:
-                if tagslist:
-                    with open(tags_list_path, 'a') as f:
-                        f.write("%s tags in: %s\n" % (local_total, out_dir))
-                        f.write(tagslist)
-                        f.write('\n\n')
-            except Exception:
-                print(format_exc())
-                print("Could not save tagslist.")
+            if tagslist:
+                try:
+                    try:
+                        f = open(tags_list_path, 'a')
+                    except Exception:
+                        f = open(tags_list_path, 'w')
+
+                    f.write("%s tags in: %s\n" % (local_total, out_dir))
+                    f.write(tagslist)
+                    f.write('\n\n')
+
+                    f.close()
+                except Exception:
+                    print(format_exc())
+                    print("Could not save tagslist.")
 
             total += local_total
             local_total = 0
