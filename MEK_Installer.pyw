@@ -219,7 +219,11 @@ class MekInstaller(tk.Tk):
         self.install_dir_entry.pack(side='left', fill='x', expand=True)
         self.install_dir_browse_btn.pack(side='left', fill='both')
 
-        #self.portable_checkbox.pack(side='left', fill='both')
+        '''
+        self.portable_checkbox.pack(side='left', fill='both')
+        self.install_dir_frame.pack(fill='x')
+        '''
+
         self.force_reinstall_checkbox.pack(side='left', fill='both')
         self.partial_uninstall_checkbox.pack(side='left', fill='both')
 
@@ -227,7 +231,6 @@ class MekInstaller(tk.Tk):
         self.upgrade_btn.pack(side='left', fill='x', padx=10)
         self.uninstall_btn.pack(side='right', fill='x', padx=10)
 
-        #self.install_dir_frame.pack(fill='x')
         self.settings_frame.pack(fill='both')
         self.actions_frame.pack(fill='both')
 
