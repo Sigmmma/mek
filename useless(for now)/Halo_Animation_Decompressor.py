@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import os, supyr_struct
 
 from math import sqrt

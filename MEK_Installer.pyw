@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import os, subprocess, sys, traceback
 import tkinter as tk
 from threading import Thread

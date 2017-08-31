@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 print("The Map Editor is warming up...")
 
 try:
