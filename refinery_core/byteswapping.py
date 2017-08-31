@@ -197,7 +197,10 @@ def byteswap_animation(anim):
 
     new_frame_info   = bytearray(len(frame_info))
     new_default_data = bytearray(default_data_size)
-    new_frame_data   = bytearray(uncomp_size)
+
+    # some tags actually have the offset as non-zero in meta form
+    # and it actually matters, so we need to take this into account
+    new_frame_data   = bytearray(uncomp_size - anim.offset_to_compressed_data)
 
     # byteswap the frame info
     for i in range(0, len(frame_info), 4):
