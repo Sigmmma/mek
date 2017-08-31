@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import os
 
 from traceback import format_exc

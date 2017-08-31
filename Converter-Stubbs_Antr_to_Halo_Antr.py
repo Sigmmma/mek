@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import os, struct, supyr_struct
 
 from time import time
