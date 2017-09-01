@@ -42,6 +42,16 @@ def byteswap_coll_bsp(bsp):
         byteswap_raw_reflexive(b)
 
 
+def byteswap_pcm16_samples(pcm_block):
+    data = pcm_block.STEPTREE
+
+    # replace the verts with the byteswapped ones
+    pcm_block.STEPTREE = new_data = bytearray(len(data))
+    for i in range(0, len(data), 2):
+        new_data[i]     = data[i + 1]
+        new_data[i + 1] = data[i]
+
+
 def byteswap_sbsp_meta(meta):
     if len(meta.collision_bsp.STEPTREE):
         for b in meta.collision_bsp.STEPTREE[0]:
