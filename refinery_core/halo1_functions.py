@@ -9,7 +9,8 @@ from supyr_struct.field_types import FieldType
 
 from .byteswapping import raw_block_def, byteswap_animation,\
      byteswap_uncomp_verts, byteswap_comp_verts, byteswap_tris,\
-     byteswap_coll_bsp, byteswap_sbsp_meta, byteswap_scnr_script_syntax_data
+     byteswap_coll_bsp, byteswap_sbsp_meta, byteswap_scnr_script_syntax_data,\
+     byteswap_pcm16_samples
 
 
 def inject_rawdata(self, meta, tag_cls, tag_index_ref):
@@ -493,6 +494,13 @@ def meta_to_tag_data(self, meta, tag_cls, tag_index_ref):
             b.fade_in_time /= 30
             b.up_time /= 30
             b.fade_out_time /= 30
+
+    elif tag_cls == "snd!":
+        for pitch_range in meta.pitch_ranges.STEPTREE:
+            for permutation in pitch_range.permutations.STEPTREE:
+                if permutation.compression.enum_name == "none":
+                    # byteswap pcm audio
+                    byteswap_pcm16_samples(permutation.samples)
 
     elif tag_cls == "shpp":
         predicted_resources.append(meta.predicted_resources)
