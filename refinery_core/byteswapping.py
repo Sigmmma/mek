@@ -189,28 +189,26 @@ def byteswap_animation(anim):
     default_data = anim.default_data.STEPTREE
     frame_data   = anim.frame_data.STEPTREE
 
+    comp_data_offset = anim.offset_to_compressed_data
     frame_count = anim.frame_count
     node_count  = anim.node_count
     uncomp_size = anim.frame_size * frame_count
     trans_flags = anim.trans_flags0 + (anim.trans_flags1<<32)
-    rot_flags   = anim.rot_flags0   + (anim.rot_flags1<<32)
+    rot_flags   = anim.rot_flags0   + (anim.rot_flags1  <<32)
     scale_flags = anim.scale_flags0 + (anim.scale_flags1<<32)
 
     default_data_size = 0
     for n in range(node_count):
-        if not rot_flags & (1<<n):
-            default_data_size += 8
-        if not trans_flags & (1<<n):
-            default_data_size += 12
-        if not scale_flags & (1<<n):
-            default_data_size += 4
+        if not rot_flags   & (1<<n): default_data_size += 8
+        if not trans_flags & (1<<n): default_data_size += 12
+        if not scale_flags & (1<<n): default_data_size += 4
 
     new_frame_info   = bytearray(len(frame_info))
     new_default_data = bytearray(default_data_size)
 
     # some tags actually have the offset as non-zero in meta form
     # and it actually matters, so we need to take this into account
-    new_frame_data   = bytearray(uncomp_size - anim.offset_to_compressed_data)
+    new_uncomp_frame_data = bytearray(uncomp_size)
 
     # byteswap the frame info
     for i in range(0, len(frame_info), 4):
@@ -219,55 +217,56 @@ def byteswap_animation(anim):
         new_frame_info[i+2] = frame_info[i+1]
         new_frame_info[i+3] = frame_info[i]
 
-    if anim.flags.compressed_data:
-        anim.offset_to_compressed_data = uncomp_size
-        new_frame_data += frame_data
-    else:
-        if default_data:
-            i = 0
-            swap = new_default_data
-            raw = default_data
-            # byteswap the default_data
+    if default_data:
+        i = 0
+        swap = new_default_data
+        raw = default_data
+        # byteswap the default_data
+        for n in range(node_count):
+            if not rot_flags & (1<<n):
+                for j in range(0, 8, 2):
+                    swap[i] = raw[i+1]; swap[i+1] = raw[i]
+                    i += 2
+
+            if not trans_flags & (1<<n):
+                for j in range(0, 12, 4):
+                    swap[i] = raw[i+3];   swap[i+1] = raw[i+2]
+                    swap[i+2] = raw[i+1]; swap[i+3] = raw[i]
+                    i += 4
+
+            if not scale_flags & (1<<n):
+                swap[i] = raw[i+3]; swap[i+1] = raw[i+2]
+                swap[i+2] = raw[i+1]; swap[i+3] = raw[i]
+                i += 4
+
+    if not anim.flags.compressed_data or comp_data_offset:
+        i = 0
+        swap = new_uncomp_frame_data
+        raw = frame_data
+        # byteswap the frame_data
+        for f in range(frame_count):
             for n in range(node_count):
-                if not rot_flags & (1<<n):
+                if rot_flags & (1<<n):
                     for j in range(0, 8, 2):
                         swap[i] = raw[i+1]; swap[i+1] = raw[i]
                         i += 2
 
-                if not trans_flags & (1<<n):
+                if trans_flags & (1<<n):
                     for j in range(0, 12, 4):
                         swap[i] = raw[i+3];   swap[i+1] = raw[i+2]
                         swap[i+2] = raw[i+1]; swap[i+3] = raw[i]
                         i += 4
 
-                if not scale_flags & (1<<n):
-                    swap[i] = raw[i+3]; swap[i+1] = raw[i+2]
+                if scale_flags & (1<<n):
+                    swap[i] = raw[i+3];   swap[i+1] = raw[i+2]
                     swap[i+2] = raw[i+1]; swap[i+3] = raw[i]
                     i += 4
 
-        if frame_data:
-            i = 0
-            swap = new_frame_data
-            raw = frame_data
-            # byteswap the frame_data
-            for f in range(frame_count):
-                for n in range(node_count):
-                    if rot_flags & (1<<n):
-                        for j in range(0, 8, 2):
-                            swap[i] = raw[i+1]; swap[i+1] = raw[i]
-                            i += 2
-
-                    if trans_flags & (1<<n):
-                        for j in range(0, 12, 4):
-                            swap[i] = raw[i+3];   swap[i+1] = raw[i+2]
-                            swap[i+2] = raw[i+1]; swap[i+3] = raw[i]
-                            i += 4
-
-                    if scale_flags & (1<<n):
-                        swap[i] = raw[i+3];   swap[i+1] = raw[i+2]
-                        swap[i+2] = raw[i+1]; swap[i+3] = raw[i]
-                        i += 4
-
     anim.frame_info.STEPTREE   = new_frame_info
     anim.default_data.STEPTREE = new_default_data
-    anim.frame_data.STEPTREE   = new_frame_data
+    anim.frame_data.STEPTREE   = new_uncomp_frame_data
+    anim.offset_to_compressed_data = 0
+    
+    if anim.flags.compressed_data:
+        anim.offset_to_compressed_data = len(new_uncomp_frame_data)
+        anim.frame_data.STEPTREE += frame_data[comp_data_offset:]
