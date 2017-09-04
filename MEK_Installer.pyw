@@ -249,8 +249,7 @@ class MekInstaller(tk.Tk):
 
     def destroy(self):
         tk.Tk.destroy(self)
-        #raise SystemExit(0)
-        os._exit(0)
+        raise SystemExit(0)
 
     def make_io_text(self):
         self.io_frame = tk.Frame(self, highlightthickness=0)

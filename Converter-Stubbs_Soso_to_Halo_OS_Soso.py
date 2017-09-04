@@ -85,8 +85,7 @@ class StubbsSosoConverter(Tk):
 
     def destroy(self):
         Tk.destroy(self)
-        #raise SystemExit(0)
-        os._exit(0)
+        raise SystemExit(0)
         
     def tags_dir_browse(self):
         dirpath = askdirectory(initialdir=self.tags_dir.get())
