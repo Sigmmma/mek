@@ -16,8 +16,6 @@ try:
         
     #loop the main window
     converter.root_window.mainloop()
-
-    os._exit(0)
 except SystemExit:
     pass
 except Exception:
