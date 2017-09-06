@@ -4,8 +4,7 @@ print("The Map Editor is warming up...")
 
 try:
     from traceback import format_exc
-    from refinery_core.main import *
-
+    from refinery.main import *
 
     class TheMapEditor(Refinery):
 
@@ -13,6 +12,7 @@ try:
             Refinery.__init__(self, *args, **kwargs)
             self.title("The Map Editor" +
                        self.title().lower().split('refinery')[-1])
+
     extractor = TheMapEditor()
     extractor.mainloop()
 except Exception:

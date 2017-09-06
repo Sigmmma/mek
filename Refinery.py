@@ -2,7 +2,7 @@
 
 try:
     from traceback import format_exc
-    from refinery_core.main import *
+    from refinery.main import *
 
     extractor = Refinery()
     extractor.mainloop()

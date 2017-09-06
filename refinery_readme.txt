@@ -1,5 +1,4 @@
-Refinery is NOT finished(hence the version 0.9.1), but it can do most of what
-you guys need it to do.
+Refinery is a map extractor for games utilizing Bungie's Blam engine.
 
 Here's a list of what Refinery can currently do:
     * Load and extract tags from Halo 1 Xbox, PC, CE, PC Demo, and Yelo maps
