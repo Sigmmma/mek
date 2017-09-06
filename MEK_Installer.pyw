@@ -16,7 +16,6 @@ curr_dir = os.path.abspath(os.curdir)
 # expected to be required to complete the install
 mek_required_folders = (
     "hboc",
-    "refinery_core",
     )
 
 
@@ -81,15 +80,12 @@ def _do_subprocess(exec_strs, action="Action", app=None):
 def install(install_path=None, app=None):
     result = 1
     try:
-        exec_strs = ["pip", "install", "mozzarilla", "--no-cache-dir"]
-        if install_path is not None:
-            exec_strs += ['--target=%s' % install_path]
-        result = _do_subprocess(exec_strs, "Install", app)
+        for mod_name in ("mozzarilla", "arbytmap", "refinery"):
+            exec_strs = ["pip", "install", mod_name, "--no-cache-dir"]
 
-        exec_strs = ["pip", "install", "arbytmap", "--no-cache-dir"]
-        if install_path is not None:
-            exec_strs += ['--target=%s' % install_path]
-        result &= _do_subprocess(exec_strs, "Install", app)
+            if install_path is not None:
+                exec_strs += ['--target=%s' % install_path]
+            result &= _do_subprocess(exec_strs, "Install", app)
     except Exception:
         print(traceback.format_exc())
 
@@ -105,12 +101,12 @@ def uninstall(partial_uninstall=True, app=None):
     try:
         # by default we wont uninstall supyr_struct, arbtmap, or
         # binilla since they may be needed by other applications
-        modules = ["reclaimer", "mozzarilla"]
+        modules = ["reclaimer", "mozzarilla", "refinery"]
         if not partial_uninstall:
             modules.extend(("arbytmap", "supyr_struct", "binilla"))
 
-        for mod in modules:
-            exec_strs = ["pip", "uninstall", mod, "-y"]
+        for mod_name in modules:
+            exec_strs = ["pip", "uninstall", mod_name, "-y"]
             result &= _do_subprocess(exec_strs, "Uninstall", app)
     except Exception:
         print(traceback.format_exc())
@@ -126,7 +122,7 @@ def upgrade(install_path=None, force_reinstall=False, app=None):
     result = 0
     try:
         for mod_name in ("supyr_struct", "reclaimer", "binilla",
-                         "arbytmap", "mozzarilla"):
+                         "arbytmap", "mozzarilla", "refinery"):
             exec_strs = ["pip", "install", mod_name,
                          "--upgrade", "--no-cache-dir"]
             if install_path is not None:
@@ -164,7 +160,7 @@ class MekInstaller(tk.Tk):
 
     def __init__(self, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
-        self.title("MEK installer v1.2.3")
+        self.title("MEK installer v1.3.0")
         self.geometry("400x300+0+0")
         self.minsize(400, 260)
         
@@ -213,7 +209,7 @@ class MekInstaller(tk.Tk):
             text='portable install (installs to/upgrades the "MEK directory" above)')
         self.partial_uninstall_checkbox = tk.Checkbutton(
             self.inner_settings2, variable=self.partial_uninstall,
-            text="partial uninstall (remove only Mozzarilla and Reclaimer)")
+            text="partial uninstall (remove only Mozzarilla, Reclaimer, and Refinery)")
 
         self.make_io_text()
 
@@ -306,8 +302,8 @@ class MekInstaller(tk.Tk):
                 "Portable installations do not require you to do anything\n" +
                 "special to uninstall them. Just delete the folders in the\n" +
                 "directory you specified that start with these names:\n\n" +
-                "arbytmap, binilla, mozzarilla, reclaimer, supyr_struct\n\n" +
-                "There should be ten folders.")
+                "arbytmap, binilla, mozzarilla, reclaimer, supyr_struct,\n\n" +
+                "refinery. There should be from six to twelve folders.")
         if messagebox.askyesno(
             "Uninstall warning",
             "Are you sure you want to uninstall all the libraries\n" +
