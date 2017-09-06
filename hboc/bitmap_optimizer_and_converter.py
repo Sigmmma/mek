@@ -57,6 +57,61 @@ class BitmapConverter(HaloHandler):
         self.conversion_main_thread.daemon = True
         self.conversion_main_thread.start()
 
+    def load_tags(self, paths=None, **kwargs):
+        # local references for faster access
+        tagsdir = self.tagsdir
+        tags = self.tags
+        allow = kwargs.get('allow_corrupt', self.allow_corrupt)
+        new_tag = None
+        build_tag = self.build_tag
+        tag_coll = tags.get("bitm")
+
+        if tag_coll is None:
+            return 0
+
+        # Loop through each filepath in coll in sorted order
+        for filepath in sorted(tag_coll):
+            # only load the tag if it isnt already loaded
+            if tag_coll.get(filepath) is not None:
+                continue
+
+            self.current_tag = filepath
+
+            # incrementing tags_loaded and decrementing tags_indexed
+            # in this loop is done for reporting the loading progress
+            try:
+                new_tag = build_tag(filepath=tagsdir + filepath,
+                                    allow_corrupt=allow)
+                tag_coll[filepath] = new_tag
+                self.tags_loaded += 1
+            except (OSError, MemoryError) as e:
+                print(format_exc())
+                print(('The above error occurred while ' +
+                       'opening\\parsing:\n    %s\n    ' +
+                       'Remaining unloaded tags will ' +
+                       'be de-indexed and skipped\n') % filepath)
+                del tag_coll[filepath]
+                self.clear_unloaded_tags()
+                return
+            except Exception:
+                print(format_exc())
+                print(('The above error encountered while ' +
+                       'opening\\parsing:\n    %s\n    ' +
+                       'Tag may be corrupt\n') % filepath)
+                del tag_coll[filepath]
+            self.tags_indexed -= 1
+
+            size1 = new_tag.data.tagdata.compressed_color_plate_data.size
+            size2 = new_tag.data.tagdata.processed_pixel_data.size
+            del new_tag.data.tagdata.compressed_color_plate_data.STEPTREE
+            del new_tag.data.tagdata.processed_pixel_data.STEPTREE
+            new_tag.data.tagdata.compressed_color_plate_data.size = size1
+            new_tag.data.tagdata.processed_pixel_data.size = size2
+
+        # recount how many tags are loaded/indexed
+        self.tally_tags()
+
+        return self.tags_loaded
         
     #the main loop for continuous function handeling
     #add all continuous, non-self-looping, periodic functions here
@@ -269,6 +324,9 @@ class BitmapConverter(HaloHandler):
         #loop through each tag
         for filepath in sorted(self.tags['bitm']):
             tag = self.tags['bitm'][filepath]
+
+            # make sure the tag is properly parsed and has all its rawdata
+            tag.parse()
             
             if rw is not None and rw.conversion_cancelled:
                 break
@@ -291,6 +349,13 @@ class BitmapConverter(HaloHandler):
                 conversion_report['bitm'][filepath] = None
             rw.remaining_pixel_data_to_process -= tagsize
             rw.remaining_bitmaps -= 1
+
+            size1 = tag.data.tagdata.compressed_color_plate_data.size
+            size2 = tag.data.tagdata.processed_pixel_data.size
+            del tag.data.tagdata.compressed_color_plate_data.STEPTREE
+            del tag.data.tagdata.processed_pixel_data.STEPTREE
+            tag.data.tagdata.compressed_color_plate_data.size = size1
+            tag.data.tagdata.processed_pixel_data.size = size2
 
 
         if rw is not None and rw.conversion_cancelled:
@@ -365,8 +430,10 @@ class BitmapConverter(HaloHandler):
             tagstrs  = tag_info_strs[tag.bitmap_type()][tag.bitmap_format()]
             
             #this is the string that holds the data pertaining to this tag
-            tagstr = ("\n"+" "*8+filepath+" "*8+"Compiled tag size = %sKB\n" %
-                      {True:"less than 1", False:str(filesize)}[filesize <= 0])
+            tagstr = ("\n" + " "*8 + filepath +
+                      "\n" + " "*12 + "Compiled tag size = %sKB\n" %
+                      {True:"less than 1",
+                       False:str(filesize)}[filesize <= 0])
 
             for i in range(tag.bitmap_count()):
                 tagstr += (" "*12 + base_str %
