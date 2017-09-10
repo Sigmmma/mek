@@ -9,7 +9,8 @@ from tkinter import *
 from tkinter.filedialog import askdirectory
 from traceback import format_exc
 
-from supyr_struct.defs.constants import fcc, PATHDIV
+from supyr_struct.defs.util import fcc
+from supyr_struct.defs.constants import PATHDIV
 from reclaimer.hek.defs.mod2    import fast_mod2_def as mod2_def
 from reclaimer.stubbs.defs.mode import fast_mode_def as mode_def
 

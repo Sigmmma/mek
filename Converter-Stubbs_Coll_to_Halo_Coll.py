@@ -7,7 +7,8 @@ from tkinter import *
 from tkinter.filedialog import askdirectory
 from traceback import format_exc
 
-from supyr_struct.defs.constants import fcc, PATHDIV, FieldParseError
+from supyr_struct.defs.util import fcc, FieldParseError
+from supyr_struct.defs.constants import PATHDIV
 from supyr_struct.defs.block_def import BlockDef
 from reclaimer.os_v3_hek.defs.coll import fast_coll_def as coll_def
 from reclaimer.stubbs.defs.coll    import fast_coll_def as stubbs_coll_def
