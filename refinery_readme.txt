@@ -18,6 +18,7 @@ Here's a list of what Refinery can currently do:
     * Extract the cheape.map from Yelo maps
     * Extract most Stubbs the Zombie tags(excludes vege, imef, terr, bipd, vehi, and
         obje tag classes)
+    * Fix mangled class names(aka Zteam protection)
 
     * Decompress and save Xbox maps
     * Save any loaded non-resource map(rearranges structures and renames protected
@@ -34,9 +35,6 @@ Here's a list of what Refinery can currently do:
 
 
 Here's what is currently NOT implemented that I plan to add at some point in the future:
-    * Ripping from Yelo resource maps
-    * Fixing mangled class names(aka Zteam protection)
-        Most of the framework is in place to do this, I've just gotta fill in hundreds of offsets.
     * Recursive extraction.
     * Recursive renaming(you rename a biped/weapon/etc and it'll intelligently put most
         tags it references in the same folder).
