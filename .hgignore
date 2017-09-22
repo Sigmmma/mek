@@ -3,7 +3,7 @@ data
 tags
 notes
 Notes
-Tags
+*tags/
 *.lnk
 *.log
 H2EK/
@@ -14,9 +14,7 @@ compile test/
 *.cfg
 shaders/
 maps/
-test\
 b30e/*
-*SPv3 Problem Tags/*
 a30_dino/*
 b30e_ORIG/*
 *.ini
