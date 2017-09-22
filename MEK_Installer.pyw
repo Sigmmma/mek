@@ -160,7 +160,7 @@ class MekInstaller(tk.Tk):
 
     def __init__(self, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
-        self.title("MEK installer v1.3.0")
+        self.title("MEK installer v1.4.0")
         self.geometry("400x300+0+0")
         self.minsize(400, 260)
         
@@ -217,10 +217,8 @@ class MekInstaller(tk.Tk):
         self.install_dir_entry.pack(side='left', fill='x', expand=True)
         self.install_dir_browse_btn.pack(side='left', fill='both')
 
-        '''
         self.portable_checkbox.pack(side='left', fill='both')
         self.install_dir_frame.pack(fill='x')
-        '''
 
         self.force_reinstall_checkbox.pack(side='left', fill='both')
         self.partial_uninstall_checkbox.pack(side='left', fill='both')
@@ -239,7 +237,7 @@ class MekInstaller(tk.Tk):
         self.io_frame.pack(fill='both', expand=True)
         if sys.version_info[0] < 3:
             print(
-                "You must have python 3 or higher installed to run the MEK.\n" +
+                "You must have python 3 or higher installed to run the MEK.\n"
                 "You currently have %s.%s.%s installed instead." %
                 sys.version_info[:3])
 
@@ -283,15 +281,23 @@ class MekInstaller(tk.Tk):
             install_dir = self.install_dir.get()
             for req_path in mek_required_folders:
                 valid_dir &= path.isdir(path.join(install_dir, req_path))
+            if not messagebox.askyesno(
+                "Portable install note",
+                "Portable installations have a limitation on where your MEK\n"
+                "programs can be located relative to where you install.\n\n"
+                "You must choose the MEK directory as the install location,\n"
+                "and you cannot move any of the .py or .pyw files inside\n"
+                "the MEK out of it. Click 'yes' if you understand this."):
+                return
 
-        if valid_dir:
-            return self.start_thread(install, install_dir)
+        if not valid_dir:
+            print(str(install_dir) + "\n" +
+                  "    The above is not a valid directory to install to.\n"
+                  "    Required folders could not be detected in it.\n"
+                  "    Pick the folder that contains all the programs in\n"
+                  "    the MEK, as that is where it must be installed.")
 
-        print(str(install_dir) + "\n" +
-              "    The above is not a valid directory to install to.\n" +
-              "    Required folders couldn't be detected in it.\n" +
-              "    Pick the folder that contains all the programs in\n" +
-              "    the MEK, as that is where it must be installed.")
+        return self.start_thread(install, install_dir)
 
     def uninstall(self):
         if self._running_thread is not None:
@@ -299,14 +305,14 @@ class MekInstaller(tk.Tk):
         if self.portable.get():
             return messagebox.showinfo(
                 "Uninstall not necessary",
-                "Portable installations do not require you to do anything\n" +
-                "special to uninstall them. Just delete the folders in the\n" +
-                "directory you specified that start with these names:\n\n" +
-                "arbytmap, binilla, mozzarilla, reclaimer, supyr_struct,\n\n" +
+                "Portable installations do not require you to do anything\n"
+                "special to uninstall them. Just delete the folders in the\n"
+                "directory you specified that start with these names:\n\n"
+                "arbytmap, binilla, mozzarilla, reclaimer, supyr_struct,\n\n"
                 "refinery. There should be from six to twelve folders.")
         if messagebox.askyesno(
             "Uninstall warning",
-            "Are you sure you want to uninstall all the libraries\n" +
+            "Are you sure you want to uninstall all the libraries\n"
             "and components that the MEK depends on?"):
             return self.start_thread(uninstall, self.partial_uninstall.get())
 
