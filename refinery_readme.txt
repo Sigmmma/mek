@@ -1,9 +1,11 @@
 Refinery is a map extractor for games utilizing Bungie's Blam engine.
 
 Here's a list of what Refinery can currently do:
-    * Load and extract tags from Halo 1 Xbox, PC, CE, PC Demo, and Yelo maps
-    * Load and extract tags from Stubbs the Zombie maps on PC and Xbox
-    * Load and extract tags from CE(not PC) resource maps(loc.map, bitmaps.map, and sounds.map)
+    * Load and extract tags and data from Halo 1 Xbox, PC, CE, PC Demo, and Yelo maps
+    * Load and extract tags and data from Stubbs the Zombie maps on PC and Xbox
+    * Load and extract tags and data from CE(not PC) resource maps(loc.map, bitmaps.map, 
+        and sounds.map)
+    * Load and extract data from Halo 2 Vista maps
 
     * Display all pertinent information contained in the map's header, tag index, 
         scenario bsp headers, and Open sauce header(if it exists).
@@ -34,35 +36,18 @@ Here's a list of what Refinery can currently do:
     * Allows extraction by tag class as well as by folder or individual tags.
 
 
-Here's what is currently NOT implemented that I plan to add at some point in the future:
-    * Recursive extraction.
-    * Recursive renaming(you rename a biped/weapon/etc and it'll intelligently put most
-        tags it references in the same folder).
-    * Using hashcaches of collections of tags to detect and rename any matching ones in the map.
-    * Using heuristics to rename tags based on gleamed information(weapon/vehicle names
-        in the strings list, shaders/bitmaps/physics/collision/animations that go with them, etc).
-    * Using a config file to save your settings between sessions.
-
-
 Here are all the known bugs that I can think of right now(I plan to fix them):
     * Tag explorers might not be sorted if you edit them(if you rename an entire folder
         and it disappears from the tree, it will be added to the bottom instead of alphabetically)
 
 
 So now that you've read all that, here's a few tips on using Refinery:
-    * After you've loaded a map you can extract everything to the "Default extraction folder"
-        by leaving the queue empty. Tags will not be overwritten when doing this.
     * You can double click an item in the map explorer(or select multiple and hit enter) to
         either rename it/them, add it/them to the queue, or preview the tag(only if selecting
         individual tags).
     * Renaming a folder to one that already exists puts all tags in that folder into the new one.
     * Renaming is case insensitive, and everything gets converted to lowercase. It's just
         easier this way.
-    * Before you start adding things to the queue you should set the "Default extraction folder"
-        in the main window. This way when you add items to the queue, their extraction folder
-        defaults to it and you dont have to keep re-selecting it.
-    * If the project_yellow_globals tag doesnt extract, go into the settings and check
-        "Use old project_yellow_globals definition".
     * If you just want stuff from the bitmaps.map, sounds.map, or loc.map just load that map
         up instead of an actual map.
     * If you only want one type of tag(all bitmaps) then change the explorer to "class" view,
