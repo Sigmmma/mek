@@ -36,11 +36,6 @@ Here's a list of what Refinery can currently do:
     * Allows extraction by tag class as well as by folder or individual tags.
 
 
-Here are all the known bugs that I can think of right now(I plan to fix them):
-    * Tag explorers might not be sorted if you edit them(if you rename an entire folder
-        and it disappears from the tree, it will be added to the bottom instead of alphabetically)
-
-
 So now that you've read all that, here's a few tips on using Refinery:
     * You can double click an item in the map explorer(or select multiple and hit enter) to
         either rename it/them, add it/them to the queue, or preview the tag(only if selecting
