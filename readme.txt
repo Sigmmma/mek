@@ -27,6 +27,47 @@ Doesnt have the ability to choose the directory like all the other applications,
 because this was actually my first app I ever wrote for editing Halo tags.
 
 
+Halo_Bitmap_Optimizer_&_Converter:
+Read the hboc readme.txt
+
+
+Halo_TeXource:
+Capable of ripping the uncompressed source textures from a directory of tags to tga files.
+
+
+Mozzarilla:
+Read the mozzarilla readme.txt
+
+
+Mozzarilla(console):
+Same as the above, except it runs with a console window so you get a printout of errors if
+it crashes when starting up.
+
+
+Refinery:
+A new tag extractor that works for all types of Halo 1 maps and can extract open sauce tags.
+Read the refinery_readme.txt for more information.
+
+
+stubbs\Stubbs_Antr_Compiler:
+Capable of compiling meta data extracted from a Stubbs the Zombie map into a working animation tag.
+
+
+stubbs\Stubbs_Mode_Compiler:
+Capable of compiling meta data extracted from a Stubbs the Zombie map into a working model tag.
+
+
+stubbs\Stubbs_Soso_Compiler:
+Capable of compiling meta data extracted from a Stubbs the Zombie map into a working open
+sauce shader_model tag.
+
+
+
+These next ones you shouldnt even bother with for now. They're either unfinished or just
+little tests that I decided to keep around:
+
+
+
 Halo_Animation_Fps_Changer:
 Can convert a directory of animation tags from 30 fps to 60 fps, or from 60 to 30. In order to
 preserve the original animation, the new frame count is actually 1 less than double, so a 30
@@ -45,61 +86,6 @@ because I don't fully understand the compressed animation structure, and my curr
 converting to 60 invloves more or less doubling everything in the "frame numbers" list.
 That list specifies which frames of the animation are stored, so by doubling all of them I
 space apart when each frame is played, effectively doubling the animation length. Cool huh?
-
-
-Halo_Tagset_Fps_Changer:
-Can convert a directory of tags from 30 fps to 60 fps, or from 60 to 30. This differs from the
-above program in that this converts every tag type OTHER than animations(and scenarios, but more
-on that in a minute). Not all types of tags contain fps related variables though, so those that
-dont wont need to be converted. Any tags that dont contain any fps related fields(or those whose
-fps related fields are all zero) will be skipped. Scenarios contain fps related data, but most of
-it is stuff that has to be manually changed, such as recorded animations, scripts, and cutscenes.
-
-My parsing libraries add a flag to the header of all tags which determines if the tag is 60fps.
-My tools use this flag to know if a tag needs to be converted to/from 60fps, so it is important.
-All my libraries will preserve that flag(and Mozzarilla will check/uncheck it based on whether
-or not 60fps is set in mozz when you save), but guerilla, sapien, and tool wont. This is why
-the "Do nothing except flag all tags as 30 or 60fps" checkbox exists. This will go through the
-specified directory of tags and set the flag to whatever mode the converter is set to convert to.
-This is so you can easily flag your manually converted tags as 60fps, or fix the flag if you
-accidentally opened a tag in tool/guerilla/sapien and saved it.
-
-
-Halo_Bitmap_Optimizer_&_Converter:
-Read the hboc readme.txt
-
-
-Halo_TeXource:
-Capable of ripping the uncompressed source textures from a directory of tags to tga files.
-
-
-Mozzarilla:
-Read the mozzarilla readme.txt
-
-
-Mozzarilla(console):
-Same as the above, except it runs with a console window so you get a printout of errors if
-it crashes when starting up.
-
-Refinery:
-A new tag extractor that works for all types of Halo 1 maps and can extract open sauce tags.
-Read the refinery_readme.txt for more information.
-
-stubbs\Stubbs_Antr_Compiler:
-Capable of compiling meta data extracted from a Stubbs the Zombie map into a working animation tag.
-
-
-stubbs\Stubbs_Mode_Compiler:
-Capable of compiling meta data extracted from a Stubbs the Zombie map into a working model tag.
-
-
-stubbs\Stubbs_Soso_Compiler:
-Capable of compiling meta data extracted from a Stubbs the Zombie map into a working open
-sauce shader_model tag.
-
-
-These next ones you shouldnt even bother with for now. They're either unfinished or just
-little tests that I decided to keep around:
 
 
 Halo_Meter_Extractor:
