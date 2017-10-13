@@ -25,11 +25,11 @@ pc to xbox format and vice versa from 4 channel source to 4 channel target"""
 PC_ARGB_TO_XBOX_ARGB = (1, 3, 2, 0)
 XBOX_ARGB_TO_PC_ARGB = (3, 0, 2, 1)
 
-AY_COMBO_TO_AY   = ( 0, 0 )
-AY_COMBO_TO_ARGB = ( 0,  0,  0,  0)
+AL_COMBO_TO_AL   = ( 0, 0 )
+AL_COMBO_TO_ARGB = ( 0,  0,  0,  0)
 
 I_FORMAT_NAME_MAP = {
-    "A8":0, "Y8":1, "AY8":2, "A8Y8":3,
+    "A8":0, "L8":1, "AL8":2, "A8L8":3,
     "UNUSED1":4, "UNUSED2":5,
     "R5G6B5":6, "UNUSED3":7, "A1R5G5B5":8, "A4R4G4B4":9,
     "X8R8G8B8":10, "A8R8G8B8":11,
@@ -548,7 +548,7 @@ def convert_bitmap_tag(tag, **kwargs):
                            ab.FORMAT_A4R4G4B4, ab.FORMAT_X8R8G8B8,
                            ab.FORMAT_A8R8G8B8) and type != ab.TYPE_CUBEMAP):
                 target_format = ab.FORMAT_P8
-            elif format == ab.FORMAT_Y8:
+            elif format == ab.FORMAT_L8:
                 target_format = ab.FORMAT_X8R8G8B8
             else:
                 target_format = ab.FORMAT_A8R8G8B8
@@ -561,12 +561,12 @@ def convert_bitmap_tag(tag, **kwargs):
                 print("CANNOT CONVERT 3D TEXTURES TO DXT FORMAT.")
                 
             if not(channel_to_keep) and target_format == ab.FORMAT_A8:
-                target_format = ab.FORMAT_Y8
+                target_format = ab.FORMAT_L8
                 
             """ SINCE THESE THREE FORMATS CAN BE EASILY INTERCHANGED JUST
             BY CHANGING THE FORMAT IDENTIFIER, THAT'S WHAT WE'LL DO"""
-            if (format in (ab.FORMAT_A8, ab.FORMAT_Y8, ab.FORMAT_AY8) and
-                target_format in (ab.FORMAT_A8, ab.FORMAT_Y8, ab.FORMAT_AY8)):
+            if (format in (ab.FORMAT_A8, ab.FORMAT_L8, ab.FORMAT_AL8) and
+                target_format in (ab.FORMAT_A8, ab.FORMAT_L8, ab.FORMAT_AL8)):
                 tex_info["format"] = format = target_format
 
 
@@ -721,8 +721,8 @@ def get_channel_mappings(format, mono_swap, target_format,
                 #SWAP CHANNELS FROM XBOX TO PC
                 channel_mapping = XBOX_ARGB_TO_PC_ARGB
 
-        elif target_format in (ab.FORMAT_A8, ab.FORMAT_Y8,
-                             ab.FORMAT_AY8, ab.FORMAT_P8):
+        elif target_format in (ab.FORMAT_A8,  ab.FORMAT_L8,
+                               ab.FORMAT_AL8, ab.FORMAT_P8):
             """THIS AND THE NEXT ONE TAKE CARE OF CONVERTING
             FROM A 4 CHANNEL FORMAT TO MONOCHROME"""
             if channel_to_keep:
@@ -732,36 +732,36 @@ def get_channel_mappings(format, mono_swap, target_format,
                     channel_merge_mapping = ab.M_ARGB_TO_A
             else:
                 #keep the intensity channel
-                channel_merge_mapping = ab.M_ARGB_TO_Y
+                channel_merge_mapping = ab.M_ARGB_TO_L
 
-        elif target_format == ab.FORMAT_A8Y8:
+        elif target_format == ab.FORMAT_A8L8:
             if mono_swap:
-                channel_merge_mapping = ab.M_ARGB_TO_YA
+                channel_merge_mapping = ab.M_ARGB_TO_LA
             else:
-                channel_merge_mapping = ab.M_ARGB_TO_AY
+                channel_merge_mapping = ab.M_ARGB_TO_AL
 
     elif channel_count == 2:
         """THIS TAKES CARE OF CONVERTING FROM A
         2 CHANNEL FORMAT TO OTHER FORMATS"""
 
-        if format == ab.FORMAT_A8Y8:
+        if format == ab.FORMAT_A8L8:
             if mono_swap:
-                if target_format == ab.FORMAT_A8Y8:
-                    channel_mapping = ab.AY_TO_YA
+                if target_format == ab.FORMAT_A8L8:
+                    channel_mapping = ab.AL_TO_LA
                     
                 elif target_channel_count == 4:
-                    channel_mapping = ab.YA_TO_ARGB
+                    channel_mapping = ab.LA_TO_ARGB
                 
             elif target_channel_count == 4:
-                channel_mapping = ab.AY_TO_ARGB
+                channel_mapping = ab.AL_TO_ARGB
                 
-            elif target_format in (ab.FORMAT_A8, ab.FORMAT_Y8, ab.FORMAT_AY8):
+            elif target_format in (ab.FORMAT_A8, ab.FORMAT_L8, ab.FORMAT_AL8):
                 if channel_to_keep:
                     #keep the alpha channel
                     channel_mapping = ab.ANYTHING_TO_A
                 else:
                     #keep the intensity channel
-                    channel_mapping = ab.AY_TO_Y
+                    channel_mapping = ab.AL_TO_L
     
     elif channel_count == 1:
         """THIS TAKES CARE OF CONVERTING FROM A
@@ -770,20 +770,20 @@ def get_channel_mappings(format, mono_swap, target_format,
             if format == ab.FORMAT_A8:
                 channel_mapping = ab.A_TO_ARGB
                     
-            elif format == ab.FORMAT_Y8:
-                channel_mapping = ab.Y_TO_ARGB
+            elif format == ab.FORMAT_L8:
+                channel_mapping = ab.L_TO_ARGB
                     
-            elif format == ab.FORMAT_AY8:
-                channel_mapping = AY_COMBO_TO_ARGB
+            elif format == ab.FORMAT_AL8:
+                channel_mapping = AL_COMBO_TO_ARGB
                 
         elif target_channel_count == 2:
             if format == ab.FORMAT_A8:
-                channel_mapping = ab.A_TO_AY
+                channel_mapping = ab.A_TO_AL
                 
-            elif format == ab.FORMAT_Y8:
-                channel_mapping = ab.Y_TO_AY
+            elif format == ab.FORMAT_L8:
+                channel_mapping = ab.L_TO_AL
                 
-            elif format == ab.FORMAT_AY8:
-                channel_mapping = AY_COMBO_TO_AY
+            elif format == ab.FORMAT_AL8:
+                channel_mapping = AL_COMBO_TO_AL
                 
     return(channel_mapping, channel_merge_mapping, target_format)
