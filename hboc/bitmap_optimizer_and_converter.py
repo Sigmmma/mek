@@ -584,7 +584,7 @@ def convert_bitmap_tag(tag, **kwargs):
             palette_picker = P8_PALETTE.argb_array_to_p8_array_auto
         elif target_format != ab.FORMAT_P8:
             palettize = False
-        elif ab.FORMAT_CHANNEL_COUNTS[format] != 4:
+        elif ab.CHANNEL_COUNTS[format] != 4:
             pass
         elif ck_transparency and format not in (ab.FORMAT_X8R8G8B8,
                                                 ab.FORMAT_R5G6B5):
@@ -641,7 +641,7 @@ def convert_bitmap_tag(tag, **kwargs):
             path = bm.filepath
             if tag.bitmap_count() > 1:
                 path += ("_"+str(i))
-            bm.save_to_file(output_path=path, ext=export_format)
+            bm.save_to_file(output_path=path, ext=export_format.lower())
                 
 
         """IF THE CONVERSION WAS SUCCESSFUL WE UPDATE THE
@@ -706,8 +706,8 @@ def get_channel_mappings(format, mono_swap, target_format,
     few exception cases where converting to that format would
     be bad and instead resets the target format to the source format"""
     
-    channel_count = ab.FORMAT_CHANNEL_COUNTS[format]
-    target_channel_count = ab.FORMAT_CHANNEL_COUNTS[target_format]
+    channel_count = ab.CHANNEL_COUNTS[format]
+    target_channel_count = ab.CHANNEL_COUNTS[target_format]
     channel_mapping = None
     channel_merge_mapping = None
     if channel_count == 4:

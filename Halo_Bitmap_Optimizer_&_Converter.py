@@ -9,7 +9,7 @@ try:
     # setting debug to 1 or higher will disable log file creation,
     # and instead make it so it is always printed to the console.
     converter = BitmapConverter(debug = 0)
-    if arbytmap.fast_raw_packer and arbytmap.fast_raw_unpacker:
+    if arbytmap.fast_arbytmap:
         print("C accelerator modules are installed and will be used.")
     else:
         print("C accelerator modules are not installed and cannot be used.")
