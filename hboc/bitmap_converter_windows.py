@@ -479,8 +479,9 @@ class BitmapConverterMainWindow(Tk):
                                  variable=self.tk_mipmap_gen_setting,
                                  command=self.set_mipmap_gen_setting_variable)
         self.option_menu_extract_to = OptionMenu(self.format_to_convert_to_root,
-                                 self.tk_target_extract_format, ' ', 'DDS',
-                                'TGA', command=self.set_target_extract_variable)
+                                 self.tk_target_extract_format,
+                                 ' ', 'DDS', 'TGA', 'PNG',
+                                 command=self.set_target_extract_variable)
 
         self.option_menu_extract_to.config(width=3)
 
