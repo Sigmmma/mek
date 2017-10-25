@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
 import os
+import arbytmap
 from traceback import format_exc
-from arbytmap import arbytmap
 try:
     from hboc.bitmap_optimizer_and_converter import *
 
@@ -13,7 +13,7 @@ try:
         print("C accelerator modules are installed and will be used.")
     else:
         print("C accelerator modules are not installed and cannot be used.")
-        
+
     #loop the main window
     converter.root_window.mainloop()
 except SystemExit:

@@ -191,8 +191,8 @@ class BitmapConverter(HaloHandler):
                 #since we are done with the conversion we write
                 #the debug log and change the window variables
                 if not rw.conversion_cancelled:
-                    if (self.default_conversion_flags["bitm"]
-                        [WRITE_LOG] and not self.debug >= 1):
+                    if (self.default_conversion_flags["bitm"][WRITE_LOG]
+                        and not self.debug >= 1):
                         self.make_log_file(logstr) #save the debug log to a file
                     else:
                         #if we are debugging we don't want to clutter
@@ -305,8 +305,6 @@ class BitmapConverter(HaloHandler):
         #be displayed instantly on loading a tagset
         rw.after(0, self.create_initial_tag_list)
         rw.finish_scanning()
-
-
 
     #this function is called by the conversion_main and
     #will loop through all the tags in the collection and
