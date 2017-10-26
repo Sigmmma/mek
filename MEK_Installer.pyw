@@ -7,6 +7,7 @@ from tkinter import messagebox
 from tkinter.filedialog import askdirectory
 from io import StringIO
 from os import path
+from sys import platform
 
 curr_dir = os.path.abspath(os.curdir)
 
@@ -17,6 +18,11 @@ curr_dir = os.path.abspath(os.curdir)
 mek_required_folders = (
     "hboc",
     )
+
+if platform == "linux" or platform == "linux2":
+    pip_exec_name = "pip3"
+else:
+    pip_exec_name = "pip"
 
 
 class IORedirecter(StringIO):
@@ -81,7 +87,7 @@ def install(install_path=None, app=None):
     result = 1
     try:
         for mod_name in ("mozzarilla", "arbytmap", "refinery"):
-            exec_strs = ["pip", "install", mod_name, "--no-cache-dir"]
+            exec_strs = [pip_exec_name, "install", mod_name, "--no-cache-dir"]
 
             if install_path is not None:
                 exec_strs += ['--target=%s' % install_path]
@@ -106,7 +112,7 @@ def uninstall(partial_uninstall=True, app=None):
             modules.extend(("arbytmap", "supyr_struct", "binilla"))
 
         for mod_name in modules:
-            exec_strs = ["pip", "uninstall", mod_name, "-y"]
+            exec_strs = [pip_exec_name, "uninstall", mod_name, "-y"]
             result &= _do_subprocess(exec_strs, "Uninstall", app)
     except Exception:
         print(traceback.format_exc())
@@ -123,7 +129,7 @@ def upgrade(install_path=None, force_reinstall=False, app=None):
     try:
         for mod_name in ("supyr_struct", "reclaimer", "binilla",
                          "arbytmap", "mozzarilla", "refinery"):
-            exec_strs = ["pip", "install", mod_name,
+            exec_strs = [pip_exec_name, "install", mod_name,
                          "--upgrade", "--no-cache-dir"]
             if install_path is not None:
                 exec_strs += ['--target=%s' % install_path]
