@@ -3,6 +3,40 @@ but many of them are. This will be updated whenever I commit changes, which mean
 check in whenever to see if something is new. Here's a quick rundown of what each thing is as
 of the time of me writing this:
 
+
+Halo_Bitmap_Optimizer_&_Converter:
+Read the hboc readme.txt
+
+
+Halo_TeXource:
+Capable of ripping the uncompressed source textures from a directory of tags to tga files.
+
+
+Mozzarilla:
+Read the mozzarilla readme.txt
+
+
+Mozzarilla(console):
+Same as the above, except it runs with a console window so you get a printout of errors if
+it crashes when starting up.
+
+
+Refinery:
+A new tag extractor that works for all types of Halo 1 maps and can extract open sauce tags
+and MUCH more. Read the refinery_readme.txt for more information.
+
+
+The Map Editor:
+Decided to get in on this stupid meme. This is literally just Refinery with a different title.
+
+
+
+
+These next ones are convertors that turn one type of tag into another type. The names of
+the types are the four character codes that the engine refers to them by, so if you need
+to know the full names of what converts what, just run the program and read its title.
+
+
 Convertor-Coll_to_Mod2:
 Converts a directory of model_collision_geometry tags into gbxmodel tags so they can be imported
 into 3dsmax. The converter requires that you also provide the gbxmodel that the collision goes to,
@@ -27,45 +61,15 @@ Doesnt have the ability to choose the directory like all the other applications,
 because this was actually my first app I ever wrote for editing Halo tags.
 
 
-Halo_Bitmap_Optimizer_&_Converter:
-Read the hboc readme.txt
+Convertor-Stubbs_XXXX_to_Halo_XXXX:
+Converts an extracted Stubbs the Zombie tag into an equivalent Halo Custom Edition one.
 
 
-Halo_TeXource:
-Capable of ripping the uncompressed source textures from a directory of tags to tga files.
-
-
-Mozzarilla:
-Read the mozzarilla readme.txt
-
-
-Mozzarilla(console):
-Same as the above, except it runs with a console window so you get a printout of errors if
-it crashes when starting up.
-
-
-Refinery:
-A new tag extractor that works for all types of Halo 1 maps and can extract open sauce tags.
-Read the refinery_readme.txt for more information.
-
-
-stubbs\Stubbs_Antr_Compiler:
-Capable of compiling meta data extracted from a Stubbs the Zombie map into a working animation tag.
-
-
-stubbs\Stubbs_Mode_Compiler:
-Capable of compiling meta data extracted from a Stubbs the Zombie map into a working model tag.
-
-
-stubbs\Stubbs_Soso_Compiler:
-Capable of compiling meta data extracted from a Stubbs the Zombie map into a working open
-sauce shader_model tag.
 
 
 
 These next ones you shouldnt even bother with for now. They're either unfinished or just
 little tests that I decided to keep around:
-
 
 
 Halo_Animation_Fps_Changer:
@@ -99,6 +103,8 @@ This one isnt completely finished, as the decompression is screwy and I haven't 
 out exactly what else needs to be done. Honestly, dont even bother with it.
 
 
+
+
 The MEK also contains a scripts folder with any Maxscripts that I've made or modified.
 Currently there are Gbxmodel Importer and an Animation Importer scripts, which are
 both modified variants of TheGhost's scripts.
@@ -109,6 +115,8 @@ in previous versions as well as various crash related bugs have been fixed.
 The animation importer can now import model_animiation_yelo tags, can use xbox models 
 when prompted for a model, and has been fixed to work with tags containing more than
 255 reflexives. This means you can finally open tags that have 256 or more animations.
+
+
 
 
 Installation:

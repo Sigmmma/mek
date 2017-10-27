@@ -22,7 +22,7 @@ Here's a list of what Refinery can currently do:
         obje tag classes)
     * Fix mangled class names(aka Zteam protection)
 
-    * Decompress and save Xbox maps
+    * Decompress and save Xbox Halo 1 maps
     * Save any loaded non-resource map(rearranges structures and renames protected
         tags so the map can be opened by other map tools)
 
