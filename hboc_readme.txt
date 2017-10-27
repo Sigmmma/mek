@@ -63,3 +63,7 @@ V2.0 includes:
     * replacement of "dont reprocess tags" option with "prune tiff data"
     * accelerator modules written in C that can provide more than a 100x speedup in most cases
     * miscellaneous under the hood changes and bug fixes
+
+V2.2 includes:
+    * ability to save to PNG
+    * miscellaneous under the hood changes and bug fixes
