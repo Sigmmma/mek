@@ -2,6 +2,7 @@
 
 import os, subprocess, sys, traceback
 import tkinter as tk
+import importlib
 from threading import Thread
 from tkinter import messagebox
 from tkinter.filedialog import askdirectory
@@ -19,7 +20,10 @@ mek_required_folders = (
     "hboc",
     )
 
-if platform == "linux" or platform == "linux2":
+if "linux" in platform.lower():
+    platform = "linux"
+
+if platform == "linux":
     pip_exec_name = "pip3"
 else:
     pip_exec_name = "pip"
@@ -38,6 +42,38 @@ class IORedirecter(StringIO):
         self.text_out.insert(tk.END, string)
         self.text_out.see(tk.END)
         self.text_out.config(state=tk.DISABLED)
+
+
+def is_module_fully_installed(mod_path, attrs):
+    if isinstance(attrs, str):
+        attrs = (attrs, )
+
+    mods = list(mod_path.split("."))
+    mod_name = mod_path.replace(".", "_")
+    glob = globals()
+    if mod_name not in glob:
+        import_str = ""
+        if len(mods) > 1:
+            for mod in mods[: -1]:
+                import_str += "%s." % mod
+            import_str = "from %s " % import_str[:-1]
+        import_str += "import %s as %s" % (mods.pop(-1), mod_name)
+        exec("global %s" % mod_name, glob)
+        exec(import_str, glob)
+    else:
+        importlib.reload(glob[mod_name])
+    mod = glob[mod_name]
+
+    result = True
+    for attr in attrs:
+        result &= hasattr(mod, attr)
+    return result
+
+
+def is_arbytmap_fully_compiled():
+    return is_module_fully_installed("arbytmap.ext", (
+        "arbytmap_ext", "bitmap_io_ext", "dds_defs_ext",
+        "raw_packer_ext", "raw_unpacker_ext", "swizzler_ext"))
 
 
 def _do_subprocess(exec_strs, action="Action", app=None):
@@ -86,7 +122,7 @@ def _do_subprocess(exec_strs, action="Action", app=None):
 def install(install_path=None, app=None):
     result = 1
     try:
-        for mod_name in ("mozzarilla", "arbytmap", "refinery"):
+        for mod_name in ("mozzarilla", "refinery"):
             exec_strs = [pip_exec_name, "install", mod_name, "--no-cache-dir"]
 
             if install_path is not None:
@@ -99,6 +135,9 @@ def install(install_path=None, app=None):
     except Exception: pass
 
     print("-"*10 + " Finished " + "-"*10 + "\n")
+    if platform != "linux" and not is_arbytmap_fully_compiled():
+        warn_msvc_compile()
+
     return result
 
 
@@ -109,7 +148,7 @@ def uninstall(partial_uninstall=True, app=None):
         # binilla since they may be needed by other applications
         modules = ["reclaimer", "mozzarilla", "refinery"]
         if not partial_uninstall:
-            modules.extend(("arbytmap", "supyr_struct", "binilla"))
+            modules.extend(("supyr_struct", "binilla"))
 
         for mod_name in modules:
             exec_strs = [pip_exec_name, "uninstall", mod_name, "-y"]
@@ -144,6 +183,8 @@ def upgrade(install_path=None, force_reinstall=False, app=None):
     except Exception: pass
 
     print("-"*10 + " Finished " + "-"*10 + "\n")
+    if platform != "linux" and not is_arbytmap_fully_compiled():
+        warn_msvc_compile()
     return result
 
 
@@ -156,6 +197,19 @@ def run():
         input()
 
 
+def warn_msvc_compile():
+    messagebox.showinfo(
+        "Visual Studio 2017 build tools required",
+        "VS2017 build tools required for accelerating these programs.\n"
+        "Run this program's uninstall command, download and install the\n"
+        "build tools from the link below, and run this installer again.\n\n"
+        "visualstudio.com/downloads/#build-tools-for-visual-studio-2017\n\n"
+        "These speedups make certain things possible, like bitmap viewing.\n"
+        "If you already have the build tools installed and you still\n"
+        "get this message, please contact me so I can fix the problem."
+        )
+
+
 class MekInstaller(tk.Tk):
     '''
     This class provides an interface for installing, uninstalling,
@@ -166,21 +220,21 @@ class MekInstaller(tk.Tk):
 
     def __init__(self, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
-        self.title("MEK installer v1.4.0")
+        self.title("MEK installer v1.5.0")
         self.geometry("400x300+0+0")
         self.minsize(400, 260)
         
         self.install_dir = tk.StringVar(self)
-        self.portable = tk.IntVar(self)
-        self.force_reinstall = tk.IntVar(self)
-        self.partial_uninstall = tk.IntVar(self)
+        self.portable          = tk.BooleanVar(self)
+        self.force_reinstall   = tk.BooleanVar(self, 1)
+        self.partial_uninstall = tk.BooleanVar(self)
 
         self.install_dir.set(curr_dir)
 
         # make the frames
         self.install_dir_frame = tk.LabelFrame(self, text="MEK directory")
-        self.settings_frame = tk.LabelFrame(self, text="Settings")
-        self.actions_frame  = tk.LabelFrame(self, text="Action to perform")
+        self.settings_frame    = tk.LabelFrame(self, text="Settings")
+        self.actions_frame     = tk.LabelFrame(self, text="Action to perform")
 
         self.inner_settings0 = tk.Frame(self.settings_frame)
         self.inner_settings1 = tk.Frame(self.settings_frame)
@@ -248,6 +302,7 @@ class MekInstaller(tk.Tk):
                 sys.version_info[:3])
 
     def destroy(self):
+        sys.stdout = sys.orig_stdout
         tk.Tk.destroy(self)
         raise SystemExit(0)
 
@@ -261,6 +316,7 @@ class MekInstaller(tk.Tk):
 
         self.io_scroll_y.pack(fill='y', side='right')
         self.io_text.pack(fill='both', expand=True)
+        sys.orig_stdout = sys.stdout
         sys.stdout = IORedirecter(self.io_text)
 
     def start_thread(self, func, *args, **kwargs):
