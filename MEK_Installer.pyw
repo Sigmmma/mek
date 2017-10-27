@@ -81,6 +81,9 @@ def is_module_fully_installed(mod_path, attrs):
 def _do_subprocess(exec_strs, action="Action", app=None):
     exec_strs = tuple(exec_strs)
     while True:
+        if app is not None and getattr(app, "_running_thread", 1) is None:
+            raise SystemExit(0)
+
         result = 1
         try:
             print("-"*80)
@@ -104,6 +107,9 @@ def _do_subprocess(exec_strs, action="Action", app=None):
             result = p.wait()
         except Exception:
             print(traceback.format_exc())
+
+        if app is not None and getattr(app, "_running_thread", 1) is None:
+            raise SystemExit(0)
 
         if result:
             print("  Error code: %02x" % result)
@@ -208,16 +214,52 @@ def run():
 
 
 def warn_msvc_compile():
-    messagebox.showinfo(
-        "Visual Studio 2017 build tools required",
-        "VS2017 build tools required for accelerating these programs.\n"
-        "Run this program's uninstall command, download and install the\n"
-        "build tools from the link below, and run this installer again.\n\n"
-        "visualstudio.com/downloads/#build-tools-for-visual-studio-2017\n\n"
-        "These speedups make certain things possible, like bitmap viewing.\n"
-        "If you already have the build tools installed and you still\n"
-        "get this message, please contact me so I can fix the problem."
-        )
+    if sys.version_info[0] != 3 or sys.version_info[1] < 3:
+        pass
+    elif sys.version_info[1] in (3, 4):
+        messagebox.showinfo(
+            "Accelerator modules were not compiled",
+            "A properly set up environment is required for the accelerator\n"
+            "modules these programs utilize to be compiled.\n"
+            "These accelerators make certain things possible, like bitmap viewing.\n"
+            "The MEK will still work fine without them, but anything that relies\n"
+            "on their speedup will be significantly slower(sometimes 100x slower).\n\n"
+
+            "If possible, the easiest way to fix this problem is to run this program's\n"
+            "uninstall command, uninstall your current version of python, download and\n"
+            "install python 3.5 or higher, download and install Microsoft's build tools\n"
+            "for Visual Studio 2017 from the link below, and run this installer again.\n\n"
+
+            "visualstudio.com/downloads/#build-tools-for-visual-studio-2017\n\n"
+
+            "If you cannot change your python version, follow these direction:\n"
+            "Run this program's uninstall command, follow the directions from the\n"
+            "link below to get your system configured to compile C extensions, and\n"
+            "run this installer again.\n\n"
+
+            "https://blog.ionelmc.ro/2014/12/21/compiling-python-extensions-on-windows/#for-python-3-4\n\n"
+
+            "If you have already done all of these things and you still\n"
+            "get this message, please contact me so I can fix the problem.\n"
+            )
+    elif sys.version_info[1] > 4:
+        messagebox.showinfo(
+            "Accelerator modules were not compiled",
+            "The Visual Studio 2017 build tools are required for the\n"
+            "accelerator modules these programs utilize to be compiled.\n"
+            "These accelerators make certain things possible, like bitmap viewing.\n"
+            "The MEK will still work fine without them, but anything that relies\n"
+            "on their speedup will be significantly slower(sometimes 100x slower).\n\n"
+
+            "Run this program's uninstall command, download and install the\n"
+            "build tools from the link below, and run this installer again.\n\n"
+
+            "visualstudio.com/downloads/#build-tools-for-visual-studio-2017\n\n"
+
+            "If you already have the build tools installed and you still\n"
+            "get this message, please contact me so I can fix the problem.\n"
+            )
+
 
 
 class MekInstaller(tk.Tk):
@@ -226,11 +268,11 @@ class MekInstaller(tk.Tk):
     and upgrading the libraries and programs that the MEK relies on.
     '''
     _running_thread = None
-    terminal_out = None
+    alive = False
 
     def __init__(self, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
-        self.title("MEK installer v1.5.1")
+        self.title("MEK installer v1.5.2")
         self.geometry("400x300+0+0")
         self.minsize(400, 260)
         
@@ -305,15 +347,23 @@ class MekInstaller(tk.Tk):
         self.inner_settings2.pack(fill='both')
 
         self.io_frame.pack(fill='both', expand=True)
-        if sys.version_info[0] < 3:
-            print(
-                "You must have python 3 or higher installed to run the MEK.\n"
-                "You currently have %s.%s.%s installed instead." %
-                sys.version_info[:3])
+        if sys.version_info[0] < 3 or sys.version_info[1] < 3:
+            messagebox.showinfo(
+                "Incompatible python version",
+                "The MEK requires python 3.3.0 or higher to be installed.\n" +
+                ("You are currently running version %s.%s.%s\n\n" % tuple(sys.version_info[:3])) +
+                "If you know you have python 3.3.0 or higher installed, then\n" +
+                "the version your operating system is defaulting to when\n" +
+                ("running python files is %s.%s.%s\n\n" % tuple(sys.version_info[:3]))
+                )
+            self.destroy()
+        self.alive = True
 
     def destroy(self):
         sys.stdout = sys.orig_stdout
+        self._running_thread = None
         tk.Tk.destroy(self)
+        self.alive = False
         raise SystemExit(0)
 
     def make_io_text(self):
@@ -330,9 +380,10 @@ class MekInstaller(tk.Tk):
         sys.stdout = IORedirecter(self.io_text)
 
     def start_thread(self, func, *args, **kwargs):
-        def wrapper(func_to_call=func, *a, app=self, **kw):
+        def wrapper(app=self, func_to_call=func, *a, **kw):
             try:
-                func(*a, app=app, **kw)
+                kw['app'] = app
+                func_to_call(*a, **kw)
             except Exception:
                 print(traceback.format_exc())
 
@@ -405,6 +456,10 @@ class MekInstaller(tk.Tk):
                                  self.force_reinstall.get())
 
     def write_redirect(self, string):
+        if not self.alive:
+            print(string)
+            return
+
         self.io_text.config(state='normal')
         self.io_text.insert('end', string)
         self.io_text.see('end')
