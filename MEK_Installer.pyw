@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 
-import os, subprocess, sys, traceback
-import tkinter as tk
 import importlib
+import os
+import subprocess
+import sys
+import tkinter as tk
+import traceback
 from threading import Thread
 from tkinter import messagebox
 from tkinter.filedialog import askdirectory
@@ -19,6 +22,11 @@ curr_dir = os.path.abspath(os.curdir)
 mek_required_folders = (
     "hboc",
     )
+
+required_module_extensions = {
+    "arbytmap.ext": ("arbytmap_ext", "bitmap_io_ext", "dds_defs_ext",
+                     "raw_packer_ext", "raw_unpacker_ext", "swizzler_ext")
+    }
 
 if "linux" in platform.lower():
     platform = "linux"
@@ -68,12 +76,6 @@ def is_module_fully_installed(mod_path, attrs):
     for attr in attrs:
         result &= hasattr(mod, attr)
     return result
-
-
-def is_arbytmap_fully_compiled():
-    return is_module_fully_installed("arbytmap.ext", (
-        "arbytmap_ext", "bitmap_io_ext", "dds_defs_ext",
-        "raw_packer_ext", "raw_unpacker_ext", "swizzler_ext"))
 
 
 def _do_subprocess(exec_strs, action="Action", app=None):
@@ -131,12 +133,17 @@ def install(install_path=None, app=None):
     except Exception:
         print(traceback.format_exc())
 
-    try: app._running_thread = None
-    except Exception: pass
-
     print("-"*10 + " Finished " + "-"*10 + "\n")
-    if platform != "linux" and not is_arbytmap_fully_compiled():
-        warn_msvc_compile()
+    if platform != "linux":
+        successes = []
+
+        for mod_path, attrs in required_module_extensions.items():
+            successes.append(is_module_fully_installed(mod_path, attrs))
+            if not successes[-1]:
+                print("%s did not fully compile its C extensions." % mod_path)
+
+        if sum(successes) != len(successes):
+            warn_msvc_compile()
 
     return result
 
@@ -155,9 +162,6 @@ def uninstall(partial_uninstall=True, app=None):
             result &= _do_subprocess(exec_strs, "Uninstall", app)
     except Exception:
         print(traceback.format_exc())
-
-    try: app._running_thread = None
-    except Exception: pass
 
     print("-"*10 + " Finished " + "-"*10 + "\n")
     return result
@@ -179,12 +183,18 @@ def upgrade(install_path=None, force_reinstall=False, app=None):
     except Exception:
         print(traceback.format_exc())
 
-    try: app._running_thread = None
-    except Exception: pass
-
     print("-"*10 + " Finished " + "-"*10 + "\n")
-    if platform != "linux" and not is_arbytmap_fully_compiled():
-        warn_msvc_compile()
+    if platform != "linux":
+        successes = []
+
+        for mod_path, attrs in required_module_extensions.items():
+            successes.append(is_module_fully_installed(mod_path, attrs))
+            if not successes[-1]:
+                print("%s did not fully compile its C extensions." % mod_path)
+
+        if sum(successes) != len(successes):
+            warn_msvc_compile()
+
     return result
 
 
@@ -220,7 +230,7 @@ class MekInstaller(tk.Tk):
 
     def __init__(self, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
-        self.title("MEK installer v1.5.0")
+        self.title("MEK installer v1.5.1")
         self.geometry("400x300+0+0")
         self.minsize(400, 260)
         
@@ -320,8 +330,15 @@ class MekInstaller(tk.Tk):
         sys.stdout = IORedirecter(self.io_text)
 
     def start_thread(self, func, *args, **kwargs):
-        kwargs.update(app=self)
-        new_thread = Thread(target=lambda a=args, kw=kwargs: func(*a, **kw))
+        def wrapper(func_to_call=func, *a, app=self, **kw):
+            try:
+                func(*a, app=app, **kw)
+            except Exception:
+                print(traceback.format_exc())
+
+            app._running_thread = None
+
+        new_thread = Thread(target=wrapper)
         self._running_thread = new_thread
         new_thread.daemon = True
         new_thread.start()
