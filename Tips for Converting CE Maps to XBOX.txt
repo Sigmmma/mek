@@ -1,0 +1,94 @@
+Arsenic does a ridiculous amount of work to get maps to convert over from PC to Xbox. Heck, it even knows for most bitmap tags to appear correctly on xbox that need a special bit of extra data and a 128 flag checked that isn't visible in guerilla. But there are things that it doesn't do that we need to figure out otherwise we'll never get our custom stuff working. This is a list of things I've learned while trying to export Metroid Online's "Maridia".
+
+
+1: For Halo PC and CE the the channels in multipurpose maps(textures) are used as follows:
+Red: Detail
+Green: Self illumination
+Blue: Specular\Reflection
+Alpha: Color Change
+
+For Xbox the Channels are used differently and as such the multipurpose maps will look different. Xbox channels are as follows.
+Red: Specular\Reflection
+Green: Self illumination
+Blue: Color change
+Alpha: Detail
+
+These channels MUST be rearranged by YOU because it will not be done for you when you import the .map into arsenic. This means copy the Alpha into the Blue channel, copy the Blue into the Red channel, and copy the Red into the Alpha channel.
+
+The easiest way to do this for bitmaps that already exist on vanilla halo is to extract them from an xbox map and overwrite the offending bitmaps. this is also the same with other bitmaps that need to be remade such as bump maps since xbox doesn't like true 32-bit color bumps, only p-8 bump which is just palettized meaning it has a limited amount of color possibilities.
+
+
+
+2: Since Xbox is (in most circumstances) locked in 480x640 resolution you cannot get a very high resolution. In the grenade_hud_interface, unit_hud_interface, and weapon_hud_interface tags there are checkboxes that say "use high res scale". If these are checked on ANY of these types of tags in your map(even if you don't even touch the weapon the tag is used on) it will freeze at the countdown loading screen. It's also wise to check the "don't scale size" if you have thin reticles or sprites that might become messed up if scaled.
+
+
+
+3: Halo CE uses uncompressed vertices for it's .gbxmodel tags whereas Halo Xbox uses compressed vertices. Open a .gbxmodel tag in guerilla and under the "PARTS" block inside the "GEOMETRIES" block you'll see both the compressed and uncompressed vertices. When a tag is loaded into arsenic it uses the compressed vertices to render and when it's exported to xbox it is rewritten as a .model tag which ONLY contains the compressed vertices.
+
+If you can't load a scenario in arsenic, check to see if you can narrow it down to a model tag. If a model has even one "PARTS" block that doesn't have compressed vertices it will crash(it wouldn't even have any data to export to xbox anyway). Tool is what writes both compressed and uncompressed vertices and sometimes it doesn't write any compressed. I have yet to figure out why but I think it may be due to high triangle counts in the model.
+
+
+
+4: Xbox doesn't seem to like 32bit color non-palletized bitmaps and usually displays them as garbage. The actual format is either A8R8B8G8 or X8R8B8G8. These bitmaps can also cause crashes depending on where they are used. Unless you know for a fact that your 32bit color bitmap isn't causing a crash (skies are able to use them correctly) you should use a different texture format. A side effect of using one of these bitmaps in a map is that at certain points textures will turn red and green in places for no apparent reason. This is most evident with custom normal maps as most people use this format and when converted over to xbox it causes this issue in maps.
+
+
+
+5: Monochrome format doesn't work on PC, but it works perfectly on xbox FOR HUD ELEMENTS. This is most evident in hud sprites because tons of Xbox halo's hud sprites are in monochrome. From testing I have determined monochrome bitmaps do not work as expected or at all when used on models. Use monochrome only on hud elements.
+
+
+
+6: Hud meter elements are done differently in Xbox. On PC the color channel is the image of what the meter will look like and the alpha is the gradient to mask the image off depending on how full the meter is. If you use monochrome Xbox flips these channels around and the alpha channel is the image and the chromenance channel is the gradient. The reason I wrote this is because it's best to use monochome for meter elements on Xbox because of their color fidelity while being half as large as 32bit bitmaps.
+
+
+
+7: DO NOT USE LARGE TEXTURES. A map like "Church" will murder the Xbox like if you tried to play Crysis 2 on it. If you need to use large textures for detail then for the love of god use compression. Don't use 16bit color, 32bit color(doesn't work anyway), or monochrome. Use DXT 1(if you have no alpha), DXT3(if you have an alpha with lots of noise and details), or DXT5(if you have a smooth alpha like a gradient or clouds)
+
+
+
+8: If your sky is causing the map to crash refer to tip 7.
+
+
+
+9: YOU CANNOT JUST TAKE TAGS FROM HCE AND PUT THEM IN ARSENIC'S TAGS FOLDER. When you load a map into arsenic it not only decompiles the map into tags and writes them into it's tags folder, it actually modifies the way the tags are structured when it writes them. If you plan to introduce a new tag to your arsenic tagset you must import it in either a map or as a tagset(I'm not sure how to do this last one cause I haven't done it before.)
+
+
+
+10: If your textures look like garbage ingame and are all green or rainbow-y refer to tip 9. If this isn't the problem then the Xbox is running out of memory to work with, meaning you need to optimize things in general. If the texture is 32bit refer to tip 4.
+
+
+
+11: If your map is laggy or parts of things are disappearing, or if it just won't load check to see how detailed the models are. The xbox only has 64MB of ram for the whole system, gfx card and all. The most detailed FP weapon in original halo is the sniper rifle which is 2,236 triangles. Masterchief's "Superhigh" 3rd person LOD is 2016 triangles and his FP model is 1,612.
+
+This doesn't mean you can stop here. The xbox also makes extensive use of LOD's. LOD stands for Level of Detail and for Halo CE most of us never bothered to make LOD's because our computers could handle it. Xbox can't. You'll need to make lod's for everything except FP models(since they never get distant). Masterchief's lowest LOD goes down to 304 triangles. The sniper rifle goes from 1,380 down to 182 triangles.
+
+
+
+12: If you tell arsenic to compile a map and it encounters an error on the way take a look at the tag it's currently reading in the bottom left corner. A lot of the time it'll have an issue with "characters/elite/bitmaps/plasma shield noise.bitmap" and "rasterizer/distance attenuation.bitmap". These are probably due to an incompatability between Halo PC and Halo Xbox's methods of using 3d textures. If it's either of these you are having a problem with just take a working xbox halo map, have arsenic decompile it, and take the tags from there. If it's some other tag you'll have to figure it out yourself or remake the tag because it might be corrupt. ALWAYS look at the bottom left corner because that's where it'll tell you which tag it was crashing at.
+
+
+
+13: One reason I've noticed that can cause the game to freeze at the countdown screen is if your "ui\hud\cyborg body.meter" and "ui\hud\cyborg shield.meter" have no stencil data. A working original halo meter tag is around 3KB for the body and 10KB for the shield.
+
+
+
+14: I haven't gotten to the bottom of this yet but it seems xbox halo doesn't like extra layers in shader_transparent_chicago_extended tags. I had a single extra layer in samus's 3rd person beam cannon shaders and it'd cause crashes until i removed it. The extra layer was a shader_transparent_chicago_extended with a simple 4x4 pure white dxt1 texture. Further testing is required.
+
+
+
+15: Xbox can only use Xbox ADPCM audio, meaning any OGG files need to be extracted and recompiled into xbox adpcm sound format, preferrably 22khz, not 44khz.
+
+
+
+16: Shader_transparent_chicago_extended tags don't seem to exist on xbox and when they're used they don't crash the game, but I've noticed they do not blend the same as shader_transparent_chicago. Search your tags directory for all "extended" chicago shaders and make a regular chicago tag based on the extended one. This blending difference will be very obvious with teleporter shaders.
+
+
+
+17: Scrolling text boxes don't seem to work on Xbox for UI's and you cannot make a UI widget to invert the player's aim during gameplay, the function for it doesn't do anything on xbox.
+
+
+
+18: Xbox seems to crash when trying to use Interface bitmaps on models. I'm not sure if interface bitmaps are entirely unsupported, but they have limitations. When they were used on the assault rifle they crashed the game. It may have been the fact that they were also 16 bit color, but that is less likely. Further testing is required.
+
+
+
+19: If a model appears to not have UVW's, but you know it should, check to make sure the gbxmodel has a non-zero number in the uvw scale x and y boxes
