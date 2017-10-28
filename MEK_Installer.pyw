@@ -128,7 +128,8 @@ def _do_subprocess(exec_strs, action="Action", app=None):
     return result
 
 
-def install(install_path=None, install_mek_programs=False, app=None):
+def install(install_path=None, install_mek_programs=False,
+            show_verbose=False, app=None):
     result = 1
     try:
         for mod_name in mek_program_package_names:
@@ -136,6 +137,8 @@ def install(install_path=None, install_mek_programs=False, app=None):
 
             if install_path is not None:
                 exec_strs += ['--target=%s' % install_path]
+            if show_verbose:
+                exec_strs += ['--verbose']
             result &= _do_subprocess(exec_strs, "Install", app)
 
         if not install_mek_programs:
@@ -162,7 +165,7 @@ def install(install_path=None, install_mek_programs=False, app=None):
     return result
 
 
-def uninstall(partial_uninstall=True, app=None):
+def uninstall(partial_uninstall=True, show_verbose=False, app=None):
     result = 1
     try:
         # by default we wont uninstall supyr_struct, arbtmap, or
@@ -173,6 +176,8 @@ def uninstall(partial_uninstall=True, app=None):
 
         for mod_name in modules:
             exec_strs = [pip_exec_name, "uninstall", mod_name, "-y"]
+            if show_verbose:
+                exec_strs += ['--verbose']
             result &= _do_subprocess(exec_strs, "Uninstall", app)
     except Exception:
         print(traceback.format_exc())
@@ -182,7 +187,7 @@ def uninstall(partial_uninstall=True, app=None):
 
 
 def update(install_path=None, force_reinstall=False,
-           install_mek_programs=False, app=None):
+           install_mek_programs=False, show_verbose=False, app=None):
     result = 0
     try:
         for mod in (library_package_names     + program_package_names +
@@ -192,6 +197,8 @@ def update(install_path=None, force_reinstall=False,
                          "--upgrade", "--no-cache-dir"]
             if install_path is not None:
                 exec_strs += ['--target=%s' % install_path]
+            if show_verbose:
+                exec_strs += ['--verbose']
             if force_reinstall:
                 exec_strs += ['--force-reinstall']
             result |= _do_subprocess(exec_strs, "Update", app)
@@ -317,15 +324,16 @@ class MekInstaller(tk.Tk):
 
     def __init__(self, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
-        self.title("MEK installer v2.0.0")
+        self.title("MEK installer v2.0.1")
         self.geometry("480x400+0+0")
-        self.minsize(480, 260)
+        self.minsize(480, 300)
         
         self.install_dir = tk.StringVar(self)
         self.force_reinstall   = tk.BooleanVar(self, 1)
         self.update_programs   = tk.BooleanVar(self, 1)
         self.portable          = tk.BooleanVar(self)
         self.partial_uninstall = tk.BooleanVar(self)
+        self.show_error_info   = tk.BooleanVar(self)
 
         self.install_dir.set(curr_dir)
 
@@ -338,6 +346,7 @@ class MekInstaller(tk.Tk):
         self.inner_settings1 = tk.Frame(self.settings_frame)
         self.inner_settings2 = tk.Frame(self.settings_frame)
         self.inner_settings3 = tk.Frame(self.settings_frame)
+        self.inner_settings4 = tk.Frame(self.settings_frame)
 
         # add the filepath box
         self.install_dir_entry = tk.Entry(
@@ -372,6 +381,9 @@ class MekInstaller(tk.Tk):
         self.partial_uninstall_checkbox = tk.Checkbutton(
             self.inner_settings3, variable=self.partial_uninstall,
             text="partial uninstall (remove only MEK related libraries and programs)")
+        self.show_error_info_checkbox = tk.Checkbutton(
+            self.inner_settings4, variable=self.show_error_info,
+            text="show detailed information")
 
         self.make_io_text()
 
@@ -383,6 +395,7 @@ class MekInstaller(tk.Tk):
         self.update_programs_checkbox.pack(side='left', fill='both')
         self.portable_checkbox.pack(side='left', fill='both')
         self.partial_uninstall_checkbox.pack(side='left', fill='both')
+        self.show_error_info_checkbox.pack(side='left', fill='both')
 
         self.install_btn.pack(side='left', fill='x', padx=10)
         self.update_btn.pack(side='left', fill='x', padx=10)
@@ -396,6 +409,7 @@ class MekInstaller(tk.Tk):
         self.inner_settings1.pack(fill='both')
         self.inner_settings2.pack(fill='both')
         self.inner_settings3.pack(fill='both')
+        self.inner_settings4.pack(fill='both')
 
         self.io_frame.pack(fill='both', expand=True)
         if sys.version_info[0] < 3 or sys.version_info[1] < 3:
@@ -461,7 +475,8 @@ class MekInstaller(tk.Tk):
         if self.portable.get():
             install_dir = self.install_dir.get()
         return self.start_thread(install, install_dir,
-                                 self.update_programs.get())
+                                 self.update_programs.get(),
+                                 self.show_error_info.get())
 
     def uninstall(self):
         if self._running_thread is not None:
@@ -487,7 +502,9 @@ class MekInstaller(tk.Tk):
             "Uninstall warning",
             "Are you sure you want to uninstall all the libraries\n"
             "and components that the MEK depends on?"):
-            return self.start_thread(uninstall, self.partial_uninstall.get())
+            return self.start_thread(uninstall,
+                                     self.partial_uninstall.get(),
+                                     self.show_error_info.get())
 
     def update(self):
         if self._running_thread is not None:
@@ -497,7 +514,8 @@ class MekInstaller(tk.Tk):
             install_dir = self.install_dir.get()
         return self.start_thread(update, install_dir,
                                  self.force_reinstall.get(),
-                                 self.update_programs.get())
+                                 self.update_programs.get(),
+                                 self.show_error_info.get())
 
     def write_redirect(self, string):
         if not self.alive:
