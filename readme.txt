@@ -1,11 +1,12 @@
-This is my collection of tools I've made for editing Halo. You guys wont find all of them useful,
-but many of them are. This will be updated whenever I commit changes, which means you guys can
-check in whenever to see if something is new. Here's a quick rundown of what each thing is as
-of the time of me writing this:
+The MEK(Mo's Editing Kit) is my collection of tools I've made for editing Halo.
+This will be updated whenever I commit changes, which means you guys can check in
+whenever to see if something is new. Here's a quick rundown of what each thing is
+as of the time of me writing this:
 
 
 Halo_Bitmap_Optimizer_&_Converter:
-Read the hboc readme.txt
+A program for optimizing entire directories of bitmap tags and converting them to/from
+different formats and to/from xbox. Read hboc readme.txt for more details.
 
 
 Halo_TeXource:
@@ -13,7 +14,8 @@ Capable of ripping the uncompressed source textures from a directory of tags to 
 
 
 Mozzarilla:
-Read the mozzarilla readme.txt
+A tag editor that almost entirely replaces and surpasses Guerilla(can't preview sounds).
+Read mozzarilla readme.txt for more details.
 
 
 Mozzarilla(console):
@@ -121,22 +123,16 @@ when prompted for a model, and has been fixed to work with tags containing more 
 
 Installation:
 
-1. Install python 3.4 or higher(newest version is recommended)
+1. Install python 3.5 or higher(newest version is recommended)
     When installing, make sure to check "Add python to PATH"
 2. Run MEK_Installer.pyw
-3. Choose whether or not to install it portably(to a local
-    directory) or to the machine you are running.
+3. Choose whether or not to install it in a portable fashion(to
+    a local directory) or to the machine you are running.
 4. Click "Install"
 
-Mozzarilla and all the programs in the MEK should be ready to use now. To open mozz, run
-Mozzarilla, or Mozzarilla(console). Either one works, but the console one will print any
-errors that occur if mozz fails to load.
+Mozzarilla and all the programs in the MEK should be ready to run now by double clicking.
 
 Troubleshooting:
-
-* If the updater doesn't seem to actually update anything, then clear your pip cache.
-You can find it in users\app_data\pip\Cache
-See here for more information: http://stackoverflow.com/a/41111916
 
 * If programs wont run at all, add the version of python you installed to your PATH
 environment variable. Google how to do that.
@@ -161,9 +157,4 @@ you can find it in your PATH variable. If not, then go looking lol.
 Updating:
 
 1. Run MEK_Installer.pyw
-2. Choose whether or not to force reinstalling components.
-3. Click "Upgrade"
-
-If you need to try to reinstall the arbytmap module(because you installed the Visual C++
-compiler and you are trying to get the accelerator modules to install) then simply run
-the uninstall.py script and then the install.py script.
+2. Click Update
