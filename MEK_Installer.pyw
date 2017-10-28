@@ -6,22 +6,22 @@ import subprocess
 import sys
 import tkinter as tk
 import traceback
+import zipfile
 from threading import Thread
 from tkinter import messagebox
 from tkinter.filedialog import askdirectory
 from io import StringIO
 from os import path
 from sys import platform
+from urllib import request
 
 curr_dir = os.path.abspath(os.curdir)
+mek_download_url = "https://bitbucket.org/Moses_of_Egypt/mek/get/default.zip"
 
-# folders required to be in a folder to consider it a
-# valid install target if specifying an install location
-# The HBOC is pretty much the only thing that could be
-# expected to be required to complete the install
-mek_required_folders = (
-    "hboc",
-    )
+mek_program_package_names = ("mozzarilla", "refinery", )
+mek_library_package_names = ("reclaimer", )
+program_package_names     = ("binilla", )
+library_package_names     = ("supyr_struct", "arbytmap", )
 
 required_module_extensions = {
     "arbytmap.ext": ("arbytmap_ext", "bitmap_io_ext", "dds_defs_ext",
@@ -127,15 +127,22 @@ def _do_subprocess(exec_strs, action="Action", app=None):
     return result
 
 
-def install(install_path=None, app=None):
+def install(install_path=None, install_mek_programs=False, app=None):
     result = 1
     try:
-        for mod_name in ("mozzarilla", "refinery"):
+        for mod_name in mek_program_package_names:
             exec_strs = [pip_exec_name, "install", mod_name, "--no-cache-dir"]
 
             if install_path is not None:
                 exec_strs += ['--target=%s' % install_path]
             result &= _do_subprocess(exec_strs, "Install", app)
+
+        if not install_mek_programs:
+            pass
+        elif install_path is None:
+            download_mek_to_folder(curr_dir)
+        else:
+            download_mek_to_folder(install_path)
     except Exception:
         print(traceback.format_exc())
 
@@ -159,9 +166,9 @@ def uninstall(partial_uninstall=True, app=None):
     try:
         # by default we wont uninstall supyr_struct, arbtmap, or
         # binilla since they may be needed by other applications
-        modules = ["reclaimer", "mozzarilla", "refinery"]
+        modules = list(mek_program_package_names + mek_library_package_names)
         if not partial_uninstall:
-            modules.extend(("supyr_struct", "binilla"))
+            modules.extend(program_package_names + library_package_names)
 
         for mod_name in modules:
             exec_strs = [pip_exec_name, "uninstall", mod_name, "-y"]
@@ -173,18 +180,27 @@ def uninstall(partial_uninstall=True, app=None):
     return result
 
 
-def upgrade(install_path=None, force_reinstall=False, app=None):
+def update(install_path=None, force_reinstall=False,
+           install_mek_programs=False, app=None):
     result = 0
     try:
-        for mod_name in ("supyr_struct", "reclaimer", "binilla",
-                         "arbytmap", "mozzarilla", "refinery"):
-            exec_strs = [pip_exec_name, "install", mod_name,
+        for mod in (library_package_names     + program_package_names +
+                    mek_library_package_names + mek_program_package_names):
+
+            exec_strs = [pip_exec_name, "install", mod,
                          "--upgrade", "--no-cache-dir"]
             if install_path is not None:
                 exec_strs += ['--target=%s' % install_path]
             if force_reinstall:
                 exec_strs += ['--force-reinstall']
-            result |= _do_subprocess(exec_strs, "Upgrade", app)
+            result |= _do_subprocess(exec_strs, "Update", app)
+
+        if not install_mek_programs:
+            pass
+        elif install_path is None:
+            download_mek_to_folder(curr_dir)
+        else:
+            download_mek_to_folder(install_path)
 
     except Exception:
         print(traceback.format_exc())
@@ -202,6 +218,36 @@ def upgrade(install_path=None, force_reinstall=False, app=None):
             warn_msvc_compile()
 
     return result
+
+
+def download_mek_to_folder(install_dir, src_url=None):
+    if src_url is None:
+        src_url = mek_download_url
+    print("Downloading newest version of MEK from:\n    %s\nto:\n    %s" %
+          (src_url, install_dir))
+
+    mek_zipfile_path, _ = request.urlretrieve(src_url)
+    if not mek_zipfile_path:
+        print("    Could not download MEK zipfile.")
+        return
+
+    if os.sep == "/":  find = "\\"
+    if os.sep == "\\": find = "/"
+
+    with zipfile.ZipFile(mek_zipfile_path) as mek_zipfile:
+        for name in mek_zipfile.namelist():
+            filename = os.path.join(install_dir, name.split("/", 1)[-1])
+            filename = filename.replace(find, os.sep)
+            dirpath = os.path.dirname(filename)
+
+            if not os.path.exists(dirpath):
+                os.makedirs(dirpath)
+
+            with mek_zipfile.open(name) as zf, open(filename, "wb+") as f:
+                f.write(zf.read())
+
+    try: os.remove(mek_zipfile_path)
+    except Exception: pass
 
 
 def run():
@@ -265,20 +311,21 @@ def warn_msvc_compile():
 class MekInstaller(tk.Tk):
     '''
     This class provides an interface for installing, uninstalling,
-    and upgrading the libraries and programs that the MEK relies on.
+    and updating the libraries and programs that the MEK relies on.
     '''
     _running_thread = None
     alive = False
 
     def __init__(self, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
-        self.title("MEK installer v1.5.2")
-        self.geometry("400x300+0+0")
-        self.minsize(400, 260)
+        self.title("MEK installer v2.0.0")
+        self.geometry("480x400+0+0")
+        self.minsize(480, 260)
         
         self.install_dir = tk.StringVar(self)
-        self.portable          = tk.BooleanVar(self)
         self.force_reinstall   = tk.BooleanVar(self, 1)
+        self.update_programs   = tk.BooleanVar(self, 1)
+        self.portable          = tk.BooleanVar(self)
         self.partial_uninstall = tk.BooleanVar(self)
 
         self.install_dir.set(curr_dir)
@@ -291,6 +338,7 @@ class MekInstaller(tk.Tk):
         self.inner_settings0 = tk.Frame(self.settings_frame)
         self.inner_settings1 = tk.Frame(self.settings_frame)
         self.inner_settings2 = tk.Frame(self.settings_frame)
+        self.inner_settings3 = tk.Frame(self.settings_frame)
 
         # add the filepath box
         self.install_dir_entry = tk.Entry(
@@ -308,20 +356,23 @@ class MekInstaller(tk.Tk):
         self.uninstall_btn = tk.Button(
             self.actions_frame, text="Uninstall",
             width=10, command=self.uninstall)
-        self.upgrade_btn = tk.Button(
-            self.actions_frame, text="Upgrade",
-            width=10, command=self.upgrade)
+        self.update_btn = tk.Button(
+            self.actions_frame, text="Update",
+            width=10, command=self.update)
 
         # add the checkboxes
         self.force_reinstall_checkbox = tk.Checkbutton(
             self.inner_settings0, variable=self.force_reinstall,
-            text="force reinstall when upgrading (for recompiling components)")
+            text="force reinstall when updating libraries")
+        self.update_programs_checkbox = tk.Checkbutton(
+            self.inner_settings1, variable=self.update_programs,
+            text="install up-to-date MEK when installing/updating")
         self.portable_checkbox = tk.Checkbutton(
-            self.inner_settings1, variable=self.portable,
-            text='portable install (installs to/upgrades the "MEK directory" above)')
+            self.inner_settings2, variable=self.portable,
+            text="portable install (installs to/updates the 'MEK directory' above)")
         self.partial_uninstall_checkbox = tk.Checkbutton(
-            self.inner_settings2, variable=self.partial_uninstall,
-            text="partial uninstall (remove only Mozzarilla, Reclaimer, and Refinery)")
+            self.inner_settings3, variable=self.partial_uninstall,
+            text="partial uninstall (remove only MEK related libraries and programs)")
 
         self.make_io_text()
 
@@ -329,22 +380,23 @@ class MekInstaller(tk.Tk):
         self.install_dir_entry.pack(side='left', fill='x', expand=True)
         self.install_dir_browse_btn.pack(side='left', fill='both')
 
-        self.portable_checkbox.pack(side='left', fill='both')
-        self.install_dir_frame.pack(fill='x')
-
         self.force_reinstall_checkbox.pack(side='left', fill='both')
+        self.update_programs_checkbox.pack(side='left', fill='both')
+        self.portable_checkbox.pack(side='left', fill='both')
         self.partial_uninstall_checkbox.pack(side='left', fill='both')
 
         self.install_btn.pack(side='left', fill='x', padx=10)
-        self.upgrade_btn.pack(side='left', fill='x', padx=10)
+        self.update_btn.pack(side='left', fill='x', padx=10)
         self.uninstall_btn.pack(side='right', fill='x', padx=10)
 
+        self.install_dir_frame.pack(fill='x')
         self.settings_frame.pack(fill='both')
         self.actions_frame.pack(fill='both')
 
         self.inner_settings0.pack(fill='both')
         self.inner_settings1.pack(fill='both')
         self.inner_settings2.pack(fill='both')
+        self.inner_settings3.pack(fill='both')
 
         self.io_frame.pack(fill='both', expand=True)
         if sys.version_info[0] < 3 or sys.version_info[1] < 3:
@@ -380,7 +432,7 @@ class MekInstaller(tk.Tk):
         sys.stdout = IORedirecter(self.io_text)
 
     def start_thread(self, func, *args, **kwargs):
-        def wrapper(app=self, func_to_call=func, *a, **kw):
+        def wrapper(app=self, func_to_call=func, a=args, kw=kwargs):
             try:
                 kw['app'] = app
                 func_to_call(*a, **kw)
@@ -409,51 +461,44 @@ class MekInstaller(tk.Tk):
         valid_dir = True
         if self.portable.get():
             install_dir = self.install_dir.get()
-            for req_path in mek_required_folders:
-                valid_dir &= path.isdir(path.join(install_dir, req_path))
-            if not messagebox.askyesno(
-                "Portable install note",
-                "Portable installations have a limitation on where your MEK\n"
-                "programs can be located relative to where you install.\n\n"
-                "You must choose the MEK directory as the install location,\n"
-                "and you cannot move any of the .py or .pyw files inside\n"
-                "the MEK out of it. Click 'yes' if you understand this."):
-                return
-
-        if not valid_dir:
-            print(str(install_dir) + "\n" +
-                  "    The above is not a valid directory to install to.\n"
-                  "    Required folders could not be detected in it.\n"
-                  "    Pick the folder that contains all the programs in\n"
-                  "    the MEK, as that is where it must be installed.")
-
-        return self.start_thread(install, install_dir)
+        return self.start_thread(install, install_dir,
+                                 self.update_programs.get())
 
     def uninstall(self):
         if self._running_thread is not None:
             return
         if self.portable.get():
+            names_str = ""
+            for name in (mek_program_package_names + program_package_names +
+                         mek_library_package_names + library_package_names):
+                names_str = "%s%s\n" % (names_str, name)
+                package_ct += 1
+
+            package_ct = 0
             return messagebox.showinfo(
                 "Uninstall not necessary",
                 "Portable installations do not require you to do anything\n"
                 "special to uninstall them. Just delete the folders in the\n"
                 "directory you specified that start with these names:\n\n"
-                "arbytmap, binilla, mozzarilla, reclaimer, supyr_struct,\n\n"
-                "refinery. There should be from six to twelve folders.")
+
+                "%s\nThere should be from %s to %s folders." % (
+                    names_str, package_ct, 2*package_ct)
+                )
         if messagebox.askyesno(
             "Uninstall warning",
             "Are you sure you want to uninstall all the libraries\n"
             "and components that the MEK depends on?"):
             return self.start_thread(uninstall, self.partial_uninstall.get())
 
-    def upgrade(self):
+    def update(self):
         if self._running_thread is not None:
             return
         install_dir = None
         if self.portable.get():
             install_dir = self.install_dir.get()
-        return self.start_thread(upgrade, install_dir,
-                                 self.force_reinstall.get())
+        return self.start_thread(update, install_dir,
+                                 self.force_reinstall.get(),
+                                 self.update_programs.get())
 
     def write_redirect(self, string):
         if not self.alive:
