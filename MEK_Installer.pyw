@@ -4,9 +4,10 @@ import importlib
 import os
 import subprocess
 import sys
-import tkinter as tk
 import traceback
 import zipfile
+try:    import tkinter as tk
+except: import Tkinter as tk
 from threading import Thread
 from tkinter import messagebox
 from tkinter.filedialog import askdirectory
@@ -265,47 +266,45 @@ def warn_msvc_compile():
     elif sys.version_info[1] in (3, 4):
         messagebox.showinfo(
             "Accelerator modules were not compiled",
-            "A properly set up environment is required for the accelerator\n"
-            "modules these programs utilize to be compiled.\n"
+            "A properly set up environment is required for the accelerator "
+            "modules these programs utilize to be compiled.\n\n"
             "These accelerators make certain things possible, like bitmap viewing.\n"
-            "The MEK will still work fine without them, but anything that relies\n"
-            "on their speedup will be significantly slower(sometimes 100x slower).\n\n"
+            "The MEK will still work fine without them, but anything that relies "
+            "on their speedup will be significantly slower(sometimes by 100x).\n\n"
 
-            "If possible, the easiest way to fix this problem is to run this program's\n"
-            "uninstall command, uninstall your current version of python, download and\n"
-            "install python 3.5 or higher, download and install Microsoft's build tools\n"
+            "If possible, the easiest way to fix this problem is to run this program's "
+            "uninstall command, uninstall your current version of python, download and "
+            "install python 3.5 or higher, download and install the build tools "
             "for Visual Studio 2017 from the link below, and run this installer again.\n\n"
 
             "visualstudio.com/downloads/#build-tools-for-visual-studio-2017\n\n"
 
-            "If you cannot change your python version, follow these direction:\n"
-            "Run this program's uninstall command, follow the directions from the\n"
-            "link below to get your system configured to compile C extensions, and\n"
-            "run this installer again.\n\n"
+            "If you cannot change your python version, follow the directions from the "
+            "link below to get your system configured to compile C extensions, then run "
+            "the update function of this installer with 'force reinstall' checked.\n\n"
 
             "https://blog.ionelmc.ro/2014/12/21/compiling-python-extensions-on-windows/#for-python-3-4\n\n"
 
-            "If you have already done all of these things and you still\n"
-            "get this message, please contact me so I can fix the problem.\n"
+            "If you have already done all of these things and you still receive this "
+            "message, please private message me on Halomaps.org so I can fix the problem.\n"
             )
     elif sys.version_info[1] > 4:
         messagebox.showinfo(
             "Accelerator modules were not compiled",
-            "The Visual Studio 2017 build tools are required for the\n"
-            "accelerator modules these programs utilize to be compiled.\n"
+            "The Visual Studio 2017 build tools are required for the "
+            "accelerator modules these programs utilize to be compiled.\n\n"
             "These accelerators make certain things possible, like bitmap viewing.\n"
-            "The MEK will still work fine without them, but anything that relies\n"
-            "on their speedup will be significantly slower(sometimes 100x slower).\n\n"
+            "The MEK will still work fine without them, but anything that relies "
+            "on their speedup will be significantly slower(sometimes by 100x).\n\n"
 
-            "Run this program's uninstall command, download and install the\n"
-            "build tools from the link below, and run this installer again.\n\n"
+            "To fix this, download and install the build tools from the link below and "
+            "run the update function of this installer with 'force reinstall' checked.\n\n"
 
             "visualstudio.com/downloads/#build-tools-for-visual-studio-2017\n\n"
 
-            "If you already have the build tools installed and you still\n"
-            "get this message, please contact me so I can fix the problem.\n"
+            "If you already have the build tools installed and you still receive this "
+            "message, please private message me on Halomaps.org so I can fix the problem.\n"
             )
-
 
 
 class MekInstaller(tk.Tk):
@@ -469,12 +468,12 @@ class MekInstaller(tk.Tk):
             return
         if self.portable.get():
             names_str = ""
+            package_ct = 0
             for name in (mek_program_package_names + program_package_names +
                          mek_library_package_names + library_package_names):
                 names_str = "%s%s\n" % (names_str, name)
                 package_ct += 1
 
-            package_ct = 0
             return messagebox.showinfo(
                 "Uninstall not necessary",
                 "Portable installations do not require you to do anything\n"
