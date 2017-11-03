@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import os, supyr_struct
+import os
 
 from math import sqrt
 from struct import unpack, pack_into
@@ -8,6 +8,11 @@ from time import time
 from tkinter import *
 from tkinter.filedialog import askdirectory
 from traceback import format_exc
+
+try: import mek_lib  # setup sys.path properly is portably installed
+except ImportError: pass
+
+import supyr_struct
 
 from supyr_struct.defs.util import fcc
 from supyr_struct.defs.constants import PATHDIV
