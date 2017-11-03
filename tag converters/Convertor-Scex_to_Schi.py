@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 
 import os
-
 from traceback import format_exc
+
+try: import mek_lib  # setup sys.path properly is portably installed
+except ImportError: pass
+
 from reclaimer.hek.handler import HaloHandler
 from reclaimer.hek.defs.schi import schi_def
 from reclaimer.hek.defs.scex import scex_def

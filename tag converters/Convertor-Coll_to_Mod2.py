@@ -10,6 +10,9 @@ from tkinter import *
 from tkinter.filedialog import askdirectory, askopenfilename
 from traceback import format_exc
 
+try: import mek_lib  # setup sys.path properly is portably installed
+except ImportError: pass
+
 from reclaimer.hek.defs.coll import coll_def
 from reclaimer.hek.defs.mod2 import mod2_def
 from reclaimer.hek.defs.mode import mode_def

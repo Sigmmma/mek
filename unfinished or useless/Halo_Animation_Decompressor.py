@@ -9,6 +9,9 @@ from tkinter import *
 from tkinter.filedialog import askdirectory
 from traceback import format_exc
 
+try: import mek_lib  # setup sys.path properly is portably installed
+except ImportError: pass
+
 from supyr_struct.defs.constants import PATHDIV, MOST_SHOW
 from supyr_struct.defs.block_def import BlockDef
 from reclaimer.hek.defs.antr import antr_def

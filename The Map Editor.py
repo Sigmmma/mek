@@ -2,6 +2,9 @@
 
 print("The Map Editor is warming up...")
 
+try: import mek_lib  # setup sys.path properly is portably installed
+except ImportError: pass
+
 try:
     from traceback import format_exc
     from refinery.main import *

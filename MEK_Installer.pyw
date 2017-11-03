@@ -16,6 +16,10 @@ from os import path
 from sys import platform
 from urllib import request
 
+global installer_updated
+installer_updated = False
+
+mek_lib_dirname = "mek_lib"
 curr_dir = os.path.abspath(os.curdir)
 mek_download_url = "https://bitbucket.org/Moses_of_Egypt/mek/get/default.zip"
 
@@ -25,7 +29,7 @@ program_package_names     = ("binilla", )
 library_package_names     = ("supyr_struct", "arbytmap", )
 
 required_module_extensions = {
-    "arbytmap.ext": ("arbytmap_ext", "bitmap_io_ext", "dds_defs_ext",
+    "arbytmap.ext": ("arbytmap_ext",   "bitmap_io_ext",    "dds_defs_ext",
                      "raw_packer_ext", "raw_unpacker_ext", "swizzler_ext")
     }
 
@@ -130,8 +134,20 @@ def _do_subprocess(exec_strs, action="Action", app=None):
 
 def install(install_path=None, install_mek_programs=False,
             show_verbose=False, app=None):
+    global installer_updated
+
     result = 1
     try:
+        if install_mek_programs:
+            install_dir = install_path if install_path else curr_dir
+            download_mek_to_folder(install_dir)
+            if installer_updated:
+                return
+
+        if install_path is not None:
+            install_path = os.path.join(install_path, mek_lib_dirname)
+
+        ensure_setuptools_installed("install", app)
         for mod_name in mek_program_package_names:
             exec_strs = [pip_exec_name, "install", mod_name, "--no-cache-dir"]
 
@@ -140,13 +156,6 @@ def install(install_path=None, install_mek_programs=False,
             if show_verbose:
                 exec_strs += ['--verbose']
             result &= _do_subprocess(exec_strs, "Install", app)
-
-        if not install_mek_programs:
-            pass
-        elif install_path is None:
-            download_mek_to_folder(curr_dir)
-        else:
-            download_mek_to_folder(install_path)
     except Exception:
         print(traceback.format_exc())
 
@@ -188,8 +197,20 @@ def uninstall(partial_uninstall=True, show_verbose=False, app=None):
 
 def update(install_path=None, force_reinstall=False,
            install_mek_programs=False, show_verbose=False, app=None):
+    global installer_updated
+
     result = 0
     try:
+        if install_mek_programs:
+            install_dir = install_path if install_path else curr_dir
+            download_mek_to_folder(install_dir)
+            if installer_updated:
+                return
+
+        if install_path is not None:
+            install_path = os.path.join(install_path, mek_lib_dirname)
+
+        ensure_setuptools_installed("update", app)
         for mod in (library_package_names     + program_package_names +
                     mek_library_package_names + mek_program_package_names):
 
@@ -202,13 +223,6 @@ def update(install_path=None, force_reinstall=False,
             if force_reinstall:
                 exec_strs += ['--force-reinstall']
             result |= _do_subprocess(exec_strs, "Update", app)
-
-        if not install_mek_programs:
-            pass
-        elif install_path is None:
-            download_mek_to_folder(curr_dir)
-        else:
-            download_mek_to_folder(install_path)
 
     except Exception:
         print(traceback.format_exc())
@@ -228,7 +242,17 @@ def update(install_path=None, force_reinstall=False,
     return result
 
 
+def ensure_setuptools_installed(cmd, app):
+    exec_attrs = (pip_exec_name, "install", "setuptools", "--no-cache-dir")
+    if cmd == "install":
+        _do_subprocess(exec_attrs, "Install", app)
+    elif cmd == "update":
+        _do_subprocess(exec_attrs + ("--upgrade", ), "Upgrade", app)
+
+
 def download_mek_to_folder(install_dir, src_url=None):
+    global installer_updated
+
     if src_url is None:
         src_url = mek_download_url
     print("Downloading newest version of MEK from:\n    %s\nto:\n    %s" %
@@ -239,12 +263,26 @@ def download_mek_to_folder(install_dir, src_url=None):
         print("    Could not download MEK zipfile.")
         return
 
-    if os.sep == "/":  find = "\\"
-    if os.sep == "\\": find = "/"
+    if os.sep == "/":
+        find = "\\"
+    elif os.sep == "\\":
+        find = "/"
+
+    setup_filepath = '' if "__file__" not in globals() else __file__
+    setup_filepath = setup_filepath.lower().replace(find, os.sep)
+
+    try:
+        with open(__file__, 'rb') as f:
+            setup_file_data = f.read()
+    except Exception:
+        setup_file_data = None
 
     with zipfile.ZipFile(mek_zipfile_path) as mek_zipfile:
         for name in mek_zipfile.namelist():
-            filename = os.path.join(install_dir, name.split("/", 1)[-1])
+            filename = name.split("/", 1)[-1]
+            if filename[:1] == '.':
+                continue
+            filename = os.path.join(install_dir, filename)
             filename = filename.replace(find, os.sep)
             dirpath = os.path.dirname(filename)
 
@@ -252,10 +290,20 @@ def download_mek_to_folder(install_dir, src_url=None):
                 os.makedirs(dirpath)
 
             with mek_zipfile.open(name) as zf, open(filename, "wb+") as f:
-                f.write(zf.read())
+                filedata = zf.read()
+                if (setup_filepath == filename.lower() and
+                        filedata != setup_file_data):
+                    installer_updated = True
+                f.write(filedata)
 
     try: os.remove(mek_zipfile_path)
     except Exception: pass
+
+    if installer_updated:
+        messagebox.showinfo(
+        "MEK Installer was updated",
+        "The MEK installer was updated.\nPlease close and re-run it."
+        )
 
 
 def run():
@@ -324,7 +372,7 @@ class MekInstaller(tk.Tk):
 
     def __init__(self, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
-        self.title("MEK installer v2.0.1")
+        self.title("MEK installer v2.0.2")
         self.geometry("480x400+0+0")
         self.minsize(480, 300)
         
@@ -473,7 +521,7 @@ class MekInstaller(tk.Tk):
         install_dir = None
         valid_dir = True
         if self.portable.get():
-            install_dir = self.install_dir.get()
+            install_dir = self.install_dir.get() 
         return self.start_thread(install, install_dir,
                                  self.update_programs.get(),
                                  self.show_error_info.get())

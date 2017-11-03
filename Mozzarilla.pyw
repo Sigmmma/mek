@@ -13,6 +13,9 @@ if info[0] < 3:
 from datetime import datetime
 from traceback import format_exc
 
+try: import mek_lib  # setup sys.path properly is portably installed
+except ImportError: pass
+
 try:
     from mozzarilla.app_window import Mozzarilla
     main_window = Mozzarilla(debug=3)
