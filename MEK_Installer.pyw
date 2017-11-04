@@ -147,7 +147,7 @@ def install(install_path=None, install_mek_programs=False,
         if install_path is not None:
             install_path = os.path.join(install_path, mek_lib_dirname)
 
-        ensure_setuptools_installed("install", app)
+        ensure_setuptools_installed(app)
         for mod_name in mek_program_package_names:
             exec_strs = [pip_exec_name, "install", mod_name, "--no-cache-dir"]
 
@@ -210,10 +210,8 @@ def update(install_path=None, force_reinstall=False,
         if install_path is not None:
             install_path = os.path.join(install_path, mek_lib_dirname)
 
-        ensure_setuptools_installed("update", app)
-        for mod in (library_package_names     + program_package_names +
-                    mek_library_package_names + mek_program_package_names):
-
+        ensure_setuptools_installed(app)
+        for mod in mek_program_package_names:
             exec_strs = [pip_exec_name, "install", mod,
                          "--upgrade", "--no-cache-dir"]
             if install_path is not None:
@@ -242,12 +240,8 @@ def update(install_path=None, force_reinstall=False,
     return result
 
 
-def ensure_setuptools_installed(cmd, app):
-    exec_attrs = (pip_exec_name, "install", "setuptools", "--no-cache-dir")
-    if cmd == "install":
-        _do_subprocess(exec_attrs, "Install", app)
-    elif cmd == "update":
-        _do_subprocess(exec_attrs + ("--upgrade", ), "Upgrade", app)
+def ensure_setuptools_installed(app):
+    _do_subprocess((pip_exec_name, "install", "setuptools", "--no-cache-dir"), "Install", app)
 
 
 def download_mek_to_folder(install_dir, src_url=None):
@@ -270,6 +264,7 @@ def download_mek_to_folder(install_dir, src_url=None):
 
     setup_filepath = '' if "__file__" not in globals() else __file__
     setup_filepath = setup_filepath.lower().replace(find, os.sep)
+    setup_filename = setup_filepath.split(os.sep)[-1]
 
     try:
         with open(__file__, 'rb') as f:
@@ -277,23 +272,25 @@ def download_mek_to_folder(install_dir, src_url=None):
     except Exception:
         setup_file_data = None
 
+    new_installer_path = None
+
     with zipfile.ZipFile(mek_zipfile_path) as mek_zipfile:
-        for name in mek_zipfile.namelist():
-            filename = name.split("/", 1)[-1]
-            if filename[:1] == '.':
+        for zip_name in mek_zipfile.namelist():
+            filepath = zip_name.split("/", 1)[-1]
+            if filepath[:1] == '.':
                 continue
-            filename = os.path.join(install_dir, filename)
-            filename = filename.replace(find, os.sep)
-            dirpath = os.path.dirname(filename)
+            filepath = os.path.join(install_dir, filepath).replace(find, os.sep)
+            filename = filepath.split(os.sep)[-1]
+            dirpath = os.path.dirname(filepath)
 
             if not os.path.exists(dirpath):
                 os.makedirs(dirpath)
 
-            with mek_zipfile.open(name) as zf, open(filename, "wb+") as f:
+            with mek_zipfile.open(zip_name) as zf, open(filepath, "wb+") as f:
                 filedata = zf.read()
-                if (setup_filepath == filename.lower() and
-                        filedata != setup_file_data):
+                if setup_filename == filename.lower() and filedata != setup_file_data:
                     installer_updated = True
+                    new_installer_path = filepath
                 f.write(filedata)
 
     try: os.remove(mek_zipfile_path)
@@ -302,7 +299,8 @@ def download_mek_to_folder(install_dir, src_url=None):
     if installer_updated:
         messagebox.showinfo(
         "MEK Installer was updated",
-        "The MEK installer was updated.\nPlease close and re-run it."
+        "The MEK installer that was downloaded differs from this one.\n"
+        "Please close this installer and run:\n    %s" % new_installer_path
         )
 
 
@@ -329,10 +327,11 @@ def warn_msvc_compile():
 
             "If possible, the easiest way to fix this problem is to run this program's "
             "uninstall command, uninstall your current version of python, download and "
-            "install python 3.5 or higher, download and install the build tools "
-            "for Visual Studio 2017 from the link below, and run this installer again.\n\n"
+            "install python 3.5 or higher, download and install the 2015 build tools "
+            "from the link below(make sure to check Windows 8.1 SDK) and run the update "
+            "function of this installer with 'force reinstall' checked.\n\n"
 
-            "visualstudio.com/downloads/#build-tools-for-visual-studio-2017\n\n"
+            "http://landinghub.visualstudio.com/visual-cpp-build-tools\n\n"
 
             "If you cannot change your python version, follow the directions from the "
             "link below to get your system configured to compile C extensions, then run "
@@ -346,16 +345,17 @@ def warn_msvc_compile():
     elif sys.version_info[1] > 4:
         messagebox.showinfo(
             "Accelerator modules were not compiled",
-            "The Visual Studio 2017 build tools are required for the "
+            "The Visual Studio 2015 build tools are required for the "
             "accelerator modules these programs utilize to be compiled.\n\n"
             "These accelerators make certain things possible, like bitmap viewing.\n"
             "The MEK will still work fine without them, but anything that relies "
             "on their speedup will be significantly slower(sometimes by 100x).\n\n"
 
-            "To fix this, download and install the build tools from the link below and "
-            "run the update function of this installer with 'force reinstall' checked.\n\n"
+            "To fix this, download and install the 2015 build tools from the link "
+            "below(make sure to check Windows 8.1 SDK) and run the update function "
+            "of this installer with 'force reinstall' checked.\n\n"
 
-            "visualstudio.com/downloads/#build-tools-for-visual-studio-2017\n\n"
+            "http://landinghub.visualstudio.com/visual-cpp-build-tools\n\n"
 
             "If you already have the build tools installed and you still receive this "
             "message, please private message me on Halomaps.org so I can fix the problem.\n"
@@ -372,18 +372,16 @@ class MekInstaller(tk.Tk):
 
     def __init__(self, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
-        self.title("MEK installer v2.0.2")
+        self.title("MEK installer v2.0.5")
         self.geometry("480x400+0+0")
         self.minsize(480, 300)
         
-        self.install_dir = tk.StringVar(self)
+        self.install_dir = tk.StringVar(self, curr_dir)
         self.force_reinstall   = tk.BooleanVar(self, 1)
-        self.update_programs   = tk.BooleanVar(self, 1)
+        self.update_programs   = tk.BooleanVar(self)
         self.portable          = tk.BooleanVar(self)
         self.partial_uninstall = tk.BooleanVar(self)
         self.show_error_info   = tk.BooleanVar(self)
-
-        self.install_dir.set(curr_dir)
 
         # make the frames
         self.install_dir_frame = tk.LabelFrame(self, text="MEK directory")
@@ -421,10 +419,10 @@ class MekInstaller(tk.Tk):
             self.inner_settings0, variable=self.force_reinstall,
             text="force reinstall when updating libraries")
         self.update_programs_checkbox = tk.Checkbutton(
-            self.inner_settings1, variable=self.update_programs,
+            self.inner_settings1, variable=self.update_programs, command=self.validate_mek_dir,
             text="install up-to-date MEK when installing/updating")
         self.portable_checkbox = tk.Checkbutton(
-            self.inner_settings2, variable=self.portable,
+            self.inner_settings2, variable=self.portable, command=self.validate_mek_dir,
             text="portable install (installs to/updates the 'MEK directory' above)")
         self.partial_uninstall_checkbox = tk.Checkbutton(
             self.inner_settings3, variable=self.partial_uninstall,
@@ -463,14 +461,27 @@ class MekInstaller(tk.Tk):
         if sys.version_info[0] < 3 or sys.version_info[1] < 3:
             messagebox.showinfo(
                 "Incompatible python version",
-                "The MEK requires python 3.3.0 or higher to be installed.\n" +
-                ("You are currently running version %s.%s.%s\n\n" % tuple(sys.version_info[:3])) +
-                "If you know you have python 3.3.0 or higher installed, then\n" +
-                "the version your operating system is defaulting to when\n" +
-                ("running python files is %s.%s.%s\n\n" % tuple(sys.version_info[:3]))
+                ("The MEK requires python 3.3.0 or higher to be installed.\n"
+                "You are currently running version %s.%s.%s\n\n"
+                "If you know you have python 3.3.0 or higher installed, then\n"
+                "the version your operating system is defaulting to when\n"
+                "running python files is %s.%s.%s\n\n") % tuple(sys.version_info[:3]) * 2
                 )
             self.destroy()
         self.alive = True
+        self.validate_mek_dir()
+
+    def validate_mek_dir(self, e=None):
+        is_empty_dir = True
+        try:
+            install_dir = self.install_dir.get() if self.portable.get() else curr_dir
+            if os.path.isdir(os.path.join(install_dir, mek_lib_dirname)):
+                is_empty_dir = False
+        except Exception:
+            pass
+
+        if is_empty_dir:
+            self.update_programs.set(1)
 
     def destroy(self):
         sys.stdout = sys.orig_stdout
@@ -513,6 +524,7 @@ class MekInstaller(tk.Tk):
         dirpath = askdirectory(initialdir=self.install_dir.get())
         if dirpath:
             self.install_dir.set(path.normpath(dirpath))
+            self.validate_mek_dir()
 
     def install(self):
         if self._running_thread is not None:
@@ -539,12 +551,8 @@ class MekInstaller(tk.Tk):
 
             return messagebox.showinfo(
                 "Uninstall not necessary",
-                "Portable installations do not require you to do anything\n"
-                "special to uninstall them. Just delete the folders in the\n"
-                "directory you specified that start with these names:\n\n"
-
-                "%s\nThere should be from %s to %s folders." % (
-                    names_str, package_ct, 2*package_ct)
+                "Portable installations do not require any special procedures\n"
+                "to uninstall. Just delete the MEK folder to delete the MEK."
                 )
         if messagebox.askyesno(
             "Uninstall warning",
