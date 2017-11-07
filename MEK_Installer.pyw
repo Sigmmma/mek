@@ -95,7 +95,7 @@ def _do_subprocess(exec_strs, action="Action", app=None):
             print("%s "*len(exec_strs) % exec_strs)
 
             with subprocess.Popen(exec_strs, stdout=subprocess.PIPE,
-                                  stderr=subprocess.PIPE, shell=False) as p:
+                                  stderr=subprocess.PIPE, shell=True) as p:
                 if app is not None:
                     try:
                         for line in p.stdout:
@@ -372,7 +372,7 @@ class MekInstaller(tk.Tk):
 
     def __init__(self, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
-        self.title("MEK installer v2.0.5")
+        self.title("MEK installer v2.0.6")
         self.geometry("480x400+0+0")
         self.minsize(480, 300)
         
