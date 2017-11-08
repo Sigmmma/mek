@@ -99,7 +99,7 @@ def _do_subprocess(exec_strs, action="Action", app=None):
                 if app is not None:
                     try:
                         for line in p.stdout:
-                            app.write_redirect(line)
+                            print(line.decode("latin-1"), end='')
                     except:
                         p.kill()
                         p.wait()
@@ -372,7 +372,7 @@ class MekInstaller(tk.Tk):
 
     def __init__(self, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
-        self.title("MEK installer v2.0.6")
+        self.title("MEK installer v2.0.7")
         self.geometry("480x400+0+0")
         self.minsize(480, 300)
         
@@ -572,16 +572,6 @@ class MekInstaller(tk.Tk):
                                  self.force_reinstall.get(),
                                  self.update_programs.get(),
                                  self.show_error_info.get())
-
-    def write_redirect(self, string):
-        if not self.alive:
-            print(string)
-            return
-
-        self.io_text.config(state='normal')
-        self.io_text.insert('end', string)
-        self.io_text.see('end')
-        self.io_text.config(state='disabled')
 
 if __name__ == "__main__":
     run()
