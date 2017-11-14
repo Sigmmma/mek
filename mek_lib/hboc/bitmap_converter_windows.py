@@ -9,7 +9,10 @@ import tkinter.filedialog
 
 from time import time, sleep
 from os.path import dirname, join
-from reclaimer.hek.defs.objs.bitm import *
+from reclaimer.constants import *
+import arbytmap as ab
+
+FORMAT_NONE = -1
 
 '''Constants that determine which index
 each of the flags are in per tag'''
@@ -457,7 +460,7 @@ class BitmapConverterMainWindow(Tk):
                                  variable=self.tk_conversion_format_string,
                                  command=self.set_format_to_save_as_variable)
         self.radio_save_as_p8_bump = Radiobutton(self.format_to_convert_to_root,
-                                 text="P8*/32Bit", value=FORMAT_P8,
+                                 text="P8*/32Bit", value=FORMAT_P8_BUMP,
                                  variable=self.tk_conversion_format_string,
                                  command=self.set_format_to_save_as_variable)
         self.radio_save_as_a8y8 = Radiobutton(self.format_to_convert_to_root,
@@ -976,7 +979,7 @@ class BitmapConverterMainWindow(Tk):
             self.radio_save_as_a1r5g5b5.select()
         elif conversion_flags[NEW_FORMAT] == FORMAT_A4R4G4B4:
             self.radio_save_as_a4r4g4b4.select()
-        elif conversion_flags[NEW_FORMAT] == FORMAT_P8:
+        elif conversion_flags[NEW_FORMAT] == FORMAT_P8_BUMP:
             self.radio_save_as_p8_bump.select()
         elif conversion_flags[NEW_FORMAT] == FORMAT_A8Y8:
             self.radio_save_as_a8y8.select()
@@ -1778,9 +1781,9 @@ class BitmapConverterHelpWindow(Toplevel):
                                ' supported by Custom Edition. P8-bump, A8Y8, AY8, Y8, and A8 are Xbox only formats.\n\n* Converting to 32bit color was' +
                                ' an afterthought and as such I did not make a button specifically for it. You CAN convert the Xbox only formats(P8,' +
                                ' A8Y8, AY8, Y8, A8) to 32 bit color though, as this would be the only way to make a usable Custom Edition texture from' +
-                               ' them. When one of these formats is selected, the "P8*/32Bit"' + " button's function will be converting the bitmaps to" +
-                               " 32 bit color. If a 32bit, 16bit, or DXT texture is selected though, the button's function will be converting the" +
-                               ' selected tags to P-8 bump. If a mixture of these formats is selected the appropriate conversion will be used.' +
+                               ' them. When a bitmap whose format is one of these(or a dxt format), the "P8*/32Bit"' + " button's function will be" +
+                               " converting the bitmaps to 32 bit color. If a 32 or 16 bit texture is selected though, the button's function will " +
+                               ' be converting to P-8 bump. If a mixture of these formats is selected the appropriate conversion will be used.' +
                                '\n\n* Bitmaps that are not a power of 2 dimensions will be skipped entirely. So much of this program revolves around' +
                                ' the bitmaps being in power of 2 dimensions that I did not want to try and rework all of it just to get those very' +
                                ' rare bitmap types incorporated. The CMD window will notify you of any bitmaps that are not power of 2 dimensions' +
