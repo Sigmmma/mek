@@ -25,8 +25,8 @@ pc to xbox format and vice versa from 4 channel source to 4 channel target"""
 PC_ARGB_TO_XBOX_ARGB = (1, 3, 2, 0)
 XBOX_ARGB_TO_PC_ARGB = (3, 0, 2, 1)
 
-AL_COMBO_TO_AL   = ( 0, 0 )
-AL_COMBO_TO_ARGB = ( 0,  0,  0,  0)
+AL_COMBO_TO_AL   = (0, 0)
+AL_COMBO_TO_ARGB = (0, 0, 0, 0)
 
 I_FORMAT_NAME_MAP = {
     "A8":0, "L8":1, "AL8":2, "A8L8":3,
@@ -493,12 +493,15 @@ def convert_bitmap_tag(tag, **kwargs):
     p8_mode = conversion_flags[P8_MODE]
     channel_to_keep = conversion_flags[MONO_KEEP]
     ck_transparency = conversion_flags[CK_TRANS]
-    new_format = FORMAT_NAME_MAP[conversion_flags[NEW_FORMAT]]
     multi_swap = conversion_flags[MULTI_SWAP]
     mono_swap = conversion_flags[MONO_SWAP]
     gamma = conversion_flags[GAMMA]
-    generate_mipmaps = conversion_flags[MIP_GEN]
+    mipmap_gen = conversion_flags[MIP_GEN]
     export_format = conversion_flags[EXTRACT_TO]
+    if conversion_flags[NEW_FORMAT] < 0:
+        new_format = None
+    else:
+        new_format = FORMAT_NAME_MAP[conversion_flags[NEW_FORMAT]]
 
     processing = process_bitmap_tag(tag)
 
@@ -539,9 +542,6 @@ def convert_bitmap_tag(tag, **kwargs):
         """MAKE SOME CHECKS TO FIGURE OUT WHICH FORMAT WE ARE
         REALLY CONVERTING TO (IT'S NOT STRAIGHTFORWARD)"""
         if target_format == ab.FORMAT_P8:
-            #since this button is shared between
-            #p-8 and 32 bit we make another check
-            #also make sure this ISN'T a cubemap
             if (format in (ab.FORMAT_R5G6B5, ab.FORMAT_A1R5G5B5,
                            ab.FORMAT_A4R4G4B4, ab.FORMAT_X8R8G8B8,
                            ab.FORMAT_A8R8G8B8) and type != ab.TYPE_CUBEMAP):
@@ -613,7 +613,7 @@ def convert_bitmap_tag(tag, **kwargs):
             swizzle_mode=swizzle_mode, one_bit_bias=alpha_cutoff_bias,
             downres_amount=downres_amount, palettize=palettize,
             color_key_transparency=ck_transparency,
-            gamma=gamma, generate_mipmaps=generate_mipmaps)
+            gamma=gamma, mipmap_gen=mipmap_gen)
 
 
         #add the variable settings into the conversion settings list
@@ -635,6 +635,8 @@ def convert_bitmap_tag(tag, **kwargs):
         status = True
         if processing:
             status = bm.convert_texture()
+            tag.tex_infos[i] = bm.texture_info  # tex_info may have changed
+
         if export_format != " ":
             path = bm.filepath
             if tag.bitmap_count() > 1:

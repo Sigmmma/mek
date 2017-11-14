@@ -128,7 +128,7 @@ Installation:
 2. Run MEK_Installer.pyw
 3. Choose whether or not to install it in a portable fashion(to
     a local directory) or to the machine you are running.
-4. Click "Install"
+4. Click "Install/Update"
 
 Mozzarilla and all the programs in the MEK should be ready to run now by double clicking.
 
@@ -157,4 +157,4 @@ you can find it in your PATH variable. If not, then go looking lol.
 Updating:
 
 1. Run MEK_Installer.pyw
-2. Click Update
+2. Click "Install/Update"
