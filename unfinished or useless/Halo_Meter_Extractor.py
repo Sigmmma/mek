@@ -3,12 +3,12 @@
 from os.path import splitext
 from traceback import format_exc
 
-RED_FILL = b'\x00\x00\xff\x00'
-
 try:
     from reclaimer.hek.handler import HaloHandler
     from supyr_struct import buffer
     from supyr_struct.defs.bitmaps.tga import tga_def
+
+    RED_FILL = b'\x00\x00\xff\x00'
 
     #used for loading all meter tags that can be found
     metr_loader = HaloHandler(valid_def_ids="metr", print_test=False)

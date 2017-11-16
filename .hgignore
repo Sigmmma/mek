@@ -1,8 +1,6 @@
 syntax: glob
 data
 tags
-notes
-Notes
 *tags/
 *.lnk
 *.log
