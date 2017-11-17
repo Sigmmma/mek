@@ -86,7 +86,7 @@ def is_module_fully_installed(mod_path, attrs):
     return result
 
 
-def _do_subprocess(exec_strs, action="Action", app=None):
+def _do_subprocess(exec_strs, action="Action", app=None, printout=True):
     exec_strs = tuple(exec_strs)
     while True:
         if app is not None and getattr(app, "_running_thread", 1) is None:
@@ -94,15 +94,17 @@ def _do_subprocess(exec_strs, action="Action", app=None):
 
         result = 1
         try:
-            print("-"*80)
-            print("%s "*len(exec_strs) % exec_strs)
+            if printout:
+                print("-"*80)
+                print("%s "*len(exec_strs) % exec_strs)
 
             with subprocess.Popen(exec_strs, stdout=subprocess.PIPE,
                                   stderr=subprocess.PIPE, shell=True) as p:
                 if app is not None:
                     try:
                         for line in p.stdout:
-                            print(line.decode("latin-1"), end='')
+                            if printout:
+                                print(line.decode("latin-1"), end='')
                     except:
                         p.kill()
                         p.wait()
@@ -114,13 +116,13 @@ def _do_subprocess(exec_strs, action="Action", app=None):
 
             result = p.wait()
         except Exception:
-            print(traceback.format_exc())
+            if printout:
+                print(traceback.format_exc())
 
         if app is not None and getattr(app, "_running_thread", 1) is None:
             raise SystemExit(0)
 
-        if result:
-            print("  Error code: %02x" % result)
+        print("  Error code: %02x" % result)
 
         if result and exec_strs[0] != "python":
             print("  %s failed. Trying with different arguments." % action)
@@ -137,6 +139,11 @@ def _do_subprocess(exec_strs, action="Action", app=None):
 
 def uninstall(partial_uninstall=True, show_verbose=False, app=None):
     result = 1
+    if not ensure_pip_installed(app):
+        print("Pip doesnt appear to be installed for your version of Python.\n"
+              "Cannot uninstall without Pip.")
+        return
+
     try:
         # by default we wont uninstall supyr_struct, arbtmap, or
         # binilla since they may be needed by other applications
@@ -159,6 +166,12 @@ def uninstall(partial_uninstall=True, show_verbose=False, app=None):
 def install(install_path=None, force_reinstall=False,
             install_mek_programs=False, show_verbose=False, app=None):
     global installer_updated
+    if not ensure_pip_installed(app):
+        print("Pip doesnt appear to be installed for your version of Python.\n"
+              "Run your Python installer again, make sure 'Install Pip' is "
+              "checked, and complete the installation.\n"
+              "If this doesnt help, consult the Google senpai.")
+        return
 
     result = 0
     try:
@@ -202,7 +215,12 @@ def install(install_path=None, force_reinstall=False,
 
 
 def ensure_setuptools_installed(app):
-    _do_subprocess((pip_exec_name, "install", "setuptools", "--no-cache-dir"), "Install", app)
+    _do_subprocess((pip_exec_name, "install", "setuptools", "--no-cache-dir"),
+                   "Install", app)
+
+
+def is_pip_installed(app):
+    return _do_subprocess((pip_exec_name, ), "Pip check", app, printout=False)
 
 
 def download_mek_to_folder(install_dir, src_url=None):
@@ -333,7 +351,7 @@ class MekInstaller(tk.Tk):
 
     def __init__(self, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
-        self.title("MEK installer v2.1.1")
+        self.title("MEK installer v2.1.2")
         self.geometry("480x400+0+0")
         self.minsize(480, 300)
         
