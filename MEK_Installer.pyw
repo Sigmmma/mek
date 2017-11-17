@@ -122,7 +122,8 @@ def _do_subprocess(exec_strs, action="Action", app=None, printout=True):
         if app is not None and getattr(app, "_running_thread", 1) is None:
             raise SystemExit(0)
 
-        print("  Error code: %02x" % result)
+        if result:
+            print("  Error code: %02x" % result)
 
         if result and exec_strs[0] != "python":
             print("  %s failed. Trying with different arguments." % action)
@@ -215,11 +216,13 @@ def install(install_path=None, force_reinstall=False,
 
 
 def ensure_setuptools_installed(app):
+    print("Making sure setuptools is installed")
     _do_subprocess((pip_exec_name, "install", "setuptools", "--no-cache-dir"),
                    "Install", app)
 
 
 def is_pip_installed(app):
+    print("Making sure Pip is installed")
     return not _do_subprocess((pip_exec_name, ), "Pip check", app, printout=False)
 
 
