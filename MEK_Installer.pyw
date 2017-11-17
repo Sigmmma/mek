@@ -139,7 +139,7 @@ def _do_subprocess(exec_strs, action="Action", app=None, printout=True):
 
 def uninstall(partial_uninstall=True, show_verbose=False, app=None):
     result = 1
-    if not ensure_pip_installed(app):
+    if not is_pip_installed(app):
         print("Pip doesnt appear to be installed for your version of Python.\n"
               "Cannot uninstall without Pip.")
         return
@@ -166,7 +166,7 @@ def uninstall(partial_uninstall=True, show_verbose=False, app=None):
 def install(install_path=None, force_reinstall=False,
             install_mek_programs=False, show_verbose=False, app=None):
     global installer_updated
-    if not ensure_pip_installed(app):
+    if not is_pip_installed(app):
         print("Pip doesnt appear to be installed for your version of Python.\n"
               "Run your Python installer again, make sure 'Install Pip' is "
               "checked, and complete the installation.\n"
@@ -220,7 +220,7 @@ def ensure_setuptools_installed(app):
 
 
 def is_pip_installed(app):
-    return _do_subprocess((pip_exec_name, ), "Pip check", app, printout=False)
+    return not _do_subprocess((pip_exec_name, ), "Pip check", app, printout=False)
 
 
 def download_mek_to_folder(install_dir, src_url=None):
