@@ -1,23 +1,26 @@
 #!/usr/bin/env python3
 
-print("The Map Editor is warming up...")
-
 try: import mek_lib  # setup sys.path properly is portably installed
 except ImportError: pass
 
 try:
     from traceback import format_exc
-    from refinery.main import *
+    try:
+        from refinery.main import *
+    except Exception:
+        Refinery = None
+        input("Refinery is not installed. Install it with the MEK installer to fix this.")
 
-    class TheMapEditor(Refinery):
+    if Refinery:
+        class TheMapEditor(Refinery):
 
-        def __init__(self, *args, **kwargs):
-            Refinery.__init__(self, *args, **kwargs)
-            self.title("The Map Editor" +
-                       self.title().lower().split('refinery')[-1])
+            def __init__(self, *args, **kwargs):
+                Refinery.__init__(self, *args, **kwargs)
+                self.title("The Map Editor" +
+                           self.title().lower().split('refinery')[-1])
 
-    extractor = TheMapEditor()
-    extractor.mainloop()
+        extractor = TheMapEditor()
+        extractor.mainloop()
 except Exception:
     print(format_exc())
     input()
