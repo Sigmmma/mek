@@ -72,7 +72,10 @@ def is_module_fully_installed(mod_path, attrs):
             import_str = "from %s " % import_str[:-1]
         import_str += "import %s as %s" % (mods.pop(-1), mod_name)
         exec("global %s" % mod_name, glob)
-        exec(import_str, glob)
+        try:
+            exec(import_str, glob)
+        except Exception:
+            return False
     else:
         importlib.reload(glob[mod_name])
     mod = glob[mod_name]
@@ -330,7 +333,7 @@ class MekInstaller(tk.Tk):
 
     def __init__(self, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
-        self.title("MEK installer v2.1.0")
+        self.title("MEK installer v2.1.1")
         self.geometry("480x400+0+0")
         self.minsize(480, 300)
         

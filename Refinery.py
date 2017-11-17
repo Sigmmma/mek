@@ -4,11 +4,16 @@ try: import mek_lib  # setup sys.path properly is portably installed
 except ImportError: pass
 
 try:
-    from refinery.main import *
     from traceback import format_exc
+    try:
+        from refinery.main import Refinery
+    except Exception:
+        Refinery = None
+        input("Refinery is not installed. Install it with the MEK installer to fix this.")
 
-    extractor = Refinery()
-    extractor.mainloop()
+    if Refinery:
+        extractor = Refinery()
+        extractor.mainloop()
 except Exception:
     print(format_exc())
     input()
