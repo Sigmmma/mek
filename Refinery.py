@@ -7,7 +7,7 @@ try:
     from traceback import format_exc
     try:
         from refinery.main import Refinery
-    except Exception:
+    except ImportError:
         Refinery = None
         input("Refinery is not installed. Install it with the MEK installer to fix this.")
 

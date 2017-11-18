@@ -216,14 +216,17 @@ def install(install_path=None, force_reinstall=False,
 
 
 def ensure_setuptools_installed(app):
-    print("Making sure setuptools is installed")
-    _do_subprocess((pip_exec_name, "install", "setuptools", "--no-cache-dir"),
-                   "Install", app)
+    print("Ensuring setuptools is installed")
+    return _do_subprocess(
+        (pip_exec_name, "install", "setuptools", "--no-cache-dir"),
+        "Ensure setuptools", app)
 
 
 def is_pip_installed(app):
-    print("Making sure Pip is installed")
-    return not _do_subprocess((pip_exec_name, ), "Pip check", app, printout=False)
+    print("Checking that Pip is installed")
+    return not _do_subprocess(
+        (pip_exec_name, ),
+        "Pip check", app, printout=False)
 
 
 def download_mek_to_folder(install_dir, src_url=None):
@@ -231,7 +234,7 @@ def download_mek_to_folder(install_dir, src_url=None):
 
     if src_url is None:
         src_url = mek_download_url
-    print("Downloading newest version of MEK from:\n    %s\nto:\n    %s" %
+    print("Downloading newest version of MEK from:\n    %s\n    to:\n    %s\n" %
           (src_url, install_dir))
 
     mek_zipfile_path, _ = request.urlretrieve(src_url)
