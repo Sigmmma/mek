@@ -19,7 +19,7 @@ except ImportError: pass
 try:
     try:
         from mozzarilla.app_window import Mozzarilla
-    except Exception:
+    except ImportError:
         Mozzarilla = None
         input("Mozzarilla is not installed. Install it with the MEK installer to fix this.")
 
