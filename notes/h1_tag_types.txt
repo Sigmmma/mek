@@ -84,7 +84,9 @@ wphi = weapon_hud_interface
 rain = weather_particle_system
 wind = wind
 
+
 # Open Sauce tag types
+
 avti = actor_variant_transform_in
 avto = actor_variant_transform_out
 avtc = actor_variant_transform_collection
