@@ -2,7 +2,7 @@
 This whole module is a horrid mess from years back. I want to throw it all
 away and replace it, but that would be a lot of effort, and this DOES work
 '''
-from .threadsafe_tkinter import *
+from threadsafe_tkinter import *
 
 import threading
 import tkinter.filedialog
@@ -60,9 +60,9 @@ def process_bitmap_tag(tag):
     '''this function will return whether or not the conversion
     routine below should be run on a bitmap based on its format,
     type, etc and how they compare to the conversion variablers'''
-    
+
     flags = tag.tag_conversion_settings
-    
+
     #check if the bitmap has already been processed, or
     #is a PC bitmap or if we are just creating a debug log
     if tag.processed_by_hboc or not(tag.is_xbox_bitmap):
@@ -85,7 +85,7 @@ def get_will_be_processed(tag, conv_flags):
     #only run if the bitmap contains bitmaps and we are NOT in read-only mode
     if (tag.bitmap_count()==0) or conv_flags[READ_ONLY]:
         return False
-    
+
     return conv_flags[PRUNE_TIFF] or (process_bitmap_tag(tag) or extracting_texture(tag))
 
 
@@ -96,7 +96,7 @@ class BitmapConverterMainWindow(Tk):
 
     def __init__(self, handler, **options):
         Tk.__init__(self, **options )
-        
+
         '''THE PROGRAM MUST BE CLASS WITH VARIABLES SUCH AS TAG_COLLECTION'''
         self.handler = handler
 
@@ -108,23 +108,23 @@ class BitmapConverterMainWindow(Tk):
         #this is used to make it so only 1 window update can be called at a time
         self.window_updating = False
         self.window_docking_updating = False
-        
+
         self.window_update_interval = 0.33
         self.window_docking_interval = 0.1
 
-        
+
         self.save_all_tags_as = True
 
         self.proceed_with_conversion = False #False = do nothing
                                              #True  = index and load tags, or
                                              #  convert tags if already loaded
-        
+
         self.tags_indexed = False #False = program is still indexing tags
                                   #True  = tags indexed and ready to be loaded
-        
+
         self.tags_loaded = False #False = program just loaded
                                  #True  = tags indexed and ready to convert
-        
+
         #used to signal to the conversion routine to cancel conversion
         self.conversion_cancelled = False
 
@@ -135,16 +135,16 @@ class BitmapConverterMainWindow(Tk):
         self.elapsed_time = self.Estimated_Time_Remaining = 0.0
         self.total_pixel_data_to_process = 0
         self.remaining_bitmaps = self.remaining_pixel_data_to_process = 0
-        
+
         #we'll use this to know how many tags we've
         #skipped while iterating the tag collection
         self.bad_bitmaps = 0
-        
+
         self.scan_start_time = 0.0
         #set this to true when wanting to have the program
         #display exactly what's in the "current_tag" string
         self.display_new_text = False
-        
+
         #used for setting the position of the child windows
         #so when you move the main it moves the others
         self.prev_pos_x = 0
@@ -154,16 +154,16 @@ class BitmapConverterMainWindow(Tk):
         #Window variables that we'll use as an intermediary
         #between user input and giving to the program
         self.tk_tags_directory = StringVar(self)
-        
+
         self.tk_prune_tiff = IntVar(self)
         self.tk_backup_edited_tags = IntVar(self)
         self.tk_read_only = IntVar(self)
         self.tk_write_debug_log = IntVar(self)
-        
+
         self.tk_platform_to_save_as = IntVar(self)
         self.tk_swizzle_bitmap = IntVar(self)
         self.tk_number_of_times_to_halve_resolution = StringVar(self)
-        
+
         self.tk_multipurpose_swap_setting = IntVar(self)
 
         self.tk_alpha_cutoff_bias = StringVar(self)
@@ -172,12 +172,12 @@ class BitmapConverterMainWindow(Tk):
         self.tk_channel_to_keep = IntVar(self)
         self.tk_swap_a8y8_alpha_and_intensity = IntVar(self)
         self.tk_preserve_ck_transparency = IntVar(self)
-        
+
         self.tk_conversion_format_string = IntVar(self)
         self.tk_target_extract_format = StringVar(self)
         self.tk_mipmap_gen_setting = IntVar(self)
         self.tk_target_extract_format.set(" ")
-        
+
         self.displayed_info_string = ('For information on what each '+
                           'setting does and how to use this program,\n'+
                           'open and look through the "Useful help" window.')
@@ -236,23 +236,23 @@ class BitmapConverterMainWindow(Tk):
 
         #Create the GLOBAL PARAMETERS check buttons
         self.checkbox_prune_tiff = Checkbutton(
-            self.global_param_root, 
+            self.global_param_root,
             variable=self.tk_prune_tiff,
             onvalue=1, offvalue=0, text="Prune Tiff data",
             command=self.set_prune_tiff_variable)
-        
+
         self.checkbox_backup_old_tags = Checkbutton(
             self.global_param_root,
             variable=self.tk_backup_edited_tags,
             onvalue=1, offvalue=0, text="Backup old tags",
             command=self.set_backup_old_tags_variable)
-        
+
         self.checkbox_read_only = Checkbutton(
             self.global_param_root,
             variable=self.tk_read_only,
             onvalue=1, offvalue=0, text="Read only mode",
             command=self.set_read_only_variable)
-        
+
         self.checkbox_write_debug_log = Checkbutton(
             self.global_param_root,
             variable=self.tk_write_debug_log,
@@ -261,13 +261,13 @@ class BitmapConverterMainWindow(Tk):
 
         self.checkbox_backup_old_tags.select()
         self.checkbox_write_debug_log.select()
-        
+
         self.checkbox_prune_tiff.place(x=4, y=23, anchor=NW)
         self.checkbox_backup_old_tags.place(x=4, y=41, anchor=NW)
         self.checkbox_read_only.place(x=4, y=59, anchor=NW)
         self.checkbox_write_debug_log.place(x=4, y=77, anchor=NW)
         #--------------------------------------------------------------
-        
+
         #Create the GENERAL PARAMETERS field
         self.general_param_root = Canvas(self, width=236,
                                          height=95, highlightthickness=0)
@@ -283,7 +283,7 @@ class BitmapConverterMainWindow(Tk):
             self.general_param_root, text="Save as Xbox tag",
             variable=self.tk_platform_to_save_as, value=1,
             command=self.set_platform_to_save_as_variable)
-        
+
         self.radio_save_as_pc = Radiobutton(
             self.general_param_root, text="Save as PC tag",
             variable=self.tk_platform_to_save_as, value=0,
@@ -293,20 +293,20 @@ class BitmapConverterMainWindow(Tk):
             self.general_param_root, text="Save as swizzled",
             variable=self.tk_swizzle_bitmap, value=1,
             command=self.set_swizzle_mode_variable)
-        
+
         self.radio_save_as_unswizzled = Radiobutton(
             self.general_param_root, text="Save as un-swizzled",
             variable=self.tk_swizzle_bitmap, value=0,
             command=self.set_swizzle_mode_variable)
-        
+
         self.spinbox_times_to_halve_resolution = Spinbox(
             self.general_param_root, from_=0, to=12, width=3, state="readonly",
             textvariable=self.tk_number_of_times_to_halve_resolution,
             command=self.set_number_of_times_to_halve_variable)
-        
+
         self.times_to_halve_resolution_text = self.general_param_root.\
                                               create_text(45, 75, anchor="nw")
-        
+
         self.radio_save_as_xbox.place(x=4, y=23, anchor=NW)
         self.radio_save_as_pc.place(x=112, y=23, anchor=NW)
         self.radio_save_as_swizzled.place(x=4, y=49, anchor=NW)
@@ -331,12 +331,12 @@ class BitmapConverterMainWindow(Tk):
             self.multipurpose_swap_root, text="None",
             variable=self.tk_multipurpose_swap_setting, value=0,
             command=self.set_multipurpose_swap_variable)
-        
+
         self.radio_swap_multipurpose_to_xbox = Radiobutton(
             self.multipurpose_swap_root, text="Swap PC to Xbox",
-            variable=self.tk_multipurpose_swap_setting, value=1, 
+            variable=self.tk_multipurpose_swap_setting, value=1,
             command=self.set_multipurpose_swap_variable)
-        
+
         self.radio_swap_multipurpose_to_pc = Radiobutton(
             self.multipurpose_swap_root, text="Swap Xbox to PC",
             variable=self.tk_multipurpose_swap_setting, value=2,
@@ -347,7 +347,7 @@ class BitmapConverterMainWindow(Tk):
         self.radio_swap_multipurpose_to_xbox.place(x=4, y=48, anchor=NW)
         self.radio_swap_multipurpose_to_pc.place(x=4, y=73, anchor=NW)
         #--------------------------------------------------------------
-        
+
         #Create the FORMAT SPECIFIC PARAMETERS field
         self.format_param_root = Canvas(self, width=238,
                                         height=133, highlightthickness=0)
@@ -363,32 +363,32 @@ class BitmapConverterMainWindow(Tk):
             self.format_param_root, from_=0, to=255, width=3,
             textvariable=self.tk_alpha_cutoff_bias, state="readonly",
             command=self.set_alpha_cutoff_bias_variable, repeatinterval=5)
-        
+
         self.radio_auto_bias_mode = Radiobutton(
             self.format_param_root, text="Auto-bias",
             variable=self.tk_p8_conversion_mode, value=0,
             command=self.set_p8_conversion_mode_variable)
-        
+
         self.radio_average_bias_mode = Radiobutton(
             self.format_param_root, text="Average-bias",
             variable=self.tk_p8_conversion_mode, value=1,
             command=self.set_p8_conversion_mode_variable)
-        
+
         self.radio_keep_intensity_channel = Radiobutton(
             self.format_param_root, text="Intensity(RGB)",
             variable=self.tk_channel_to_keep, value=0,
             command=self.set_monochrome_channel_to_keep_variable)
-        
+
         self.radio_keep_alpha_channel = Radiobutton(
             self.format_param_root, text="Alpha",
             variable=self.tk_channel_to_keep, value=1,
             command=self.set_monochrome_channel_to_keep_variable)
-        
+
         self.checkbox_swap_a8y8_channels = Checkbutton(
             self.format_param_root, text="Swap A8Y8 channels",
             variable=self.tk_swap_a8y8_alpha_and_intensity, onvalue=1,
             command=self.set_swap_alpha_and_intensity_variable, offvalue=0)
-        
+
         self.checkbox_preserve_ck_transparency = Checkbutton(
             self.format_param_root, text="C-Key Transparent",
             variable=self.tk_preserve_ck_transparency, onvalue=1, offvalue=0,
@@ -401,14 +401,14 @@ class BitmapConverterMainWindow(Tk):
         self.radio_keep_alpha_channel.place(x=126, y=90, anchor=NW)
         self.checkbox_swap_a8y8_channels.place(x=2, y=113, anchor=NW)
         self.checkbox_preserve_ck_transparency.place(x=123, y=113, anchor=NW)
-        
+
         self.alpha_cutoff_bias_text = self.format_param_root.\
                                       create_text(69, 23, anchor="nw")
         self.p8_bump_conversion_mode_text = self.format_param_root.\
                                             create_text(8, 40, anchor="nw")
         self.monochrome_channel_to_keep_text = self.format_param_root.\
                                                create_text(6, 75, anchor="nw")
-        
+
         self.format_param_root.itemconfig(self.alpha_cutoff_bias_text,
                                           text="Alpha cutoff bias")
         self.format_param_root.itemconfig(self.p8_bump_conversion_mode_text,
@@ -416,7 +416,7 @@ class BitmapConverterMainWindow(Tk):
         self.format_param_root.itemconfig(self.monochrome_channel_to_keep_text,
                                           text="Monochrome channel to keep")
         #--------------------------------------------------------------
-        
+
         #Create the FORMAT TO CONVERT TO field
         self.format_to_convert_to_root = Canvas(self, width=247, height=133,
                                                 highlightthickness=0)
@@ -434,11 +434,11 @@ class BitmapConverterMainWindow(Tk):
                                  variable=self.tk_conversion_format_string,
                                  command=self.set_format_to_save_as_variable)
         self.radio_save_as_dxt1 = Radiobutton(self.format_to_convert_to_root,
-                                 text="DXT1", value=FORMAT_DXT1, 
+                                 text="DXT1", value=FORMAT_DXT1,
                                  variable=self.tk_conversion_format_string,
                                  command=self.set_format_to_save_as_variable)
         self.radio_save_as_dxt3 = Radiobutton(self.format_to_convert_to_root,
-                                 text="DXT3",value=FORMAT_DXT3, 
+                                 text="DXT3",value=FORMAT_DXT3,
                                  variable=self.tk_conversion_format_string,
                                  command=self.set_format_to_save_as_variable)
         self.radio_save_as_dxt5 = Radiobutton(self.format_to_convert_to_root,
@@ -446,12 +446,12 @@ class BitmapConverterMainWindow(Tk):
                                  variable=self.tk_conversion_format_string,
                                  command=self.set_format_to_save_as_variable)
         self.radio_save_as_r5g6b5 = Radiobutton(self.format_to_convert_to_root,
-                                 text="R5G6B5",value=FORMAT_R5G6B5, 
+                                 text="R5G6B5",value=FORMAT_R5G6B5,
                                  variable=self.tk_conversion_format_string,
                                  command=self.set_format_to_save_as_variable)
         self.radio_save_as_a1r5g5b5 = Radiobutton(
                                  self.format_to_convert_to_root,
-                                 text="A1R5G5B5*", value=FORMAT_A1R5G5B5, 
+                                 text="A1R5G5B5*", value=FORMAT_A1R5G5B5,
                                  variable=self.tk_conversion_format_string,
                                  command=self.set_format_to_save_as_variable)
         self.radio_save_as_a4r4g4b4 = Radiobutton(
@@ -468,7 +468,7 @@ class BitmapConverterMainWindow(Tk):
                                  variable=self.tk_conversion_format_string,
                                  command=self.set_format_to_save_as_variable)
         self.radio_save_as_ay8 = Radiobutton(self.format_to_convert_to_root,
-                                 text="AY8*", value=FORMAT_AY8, 
+                                 text="AY8*", value=FORMAT_AY8,
                                  variable=self.tk_conversion_format_string,
                                  command=self.set_format_to_save_as_variable)
         self.radio_save_as_a8_or_y8 = Radiobutton(
@@ -499,16 +499,16 @@ class BitmapConverterMainWindow(Tk):
         self.radio_save_as_a8y8.place(x=78, y=78, anchor=NW)
         self.radio_save_as_ay8.place(x=132, y=78, anchor=NW)
         self.radio_save_as_a8_or_y8.place(x=180, y=78, anchor=NW)
-        
+
         self.checkbox_mipmap_gen.place(x=10, y=106, anchor=NW)
         self.option_menu_extract_to.place(x=160, y=103, anchor=NW)
-        
+
         self.extract_to_text = self.format_to_convert_to_root.create_text(105,
                                                               110, anchor="nw")
         self.format_to_convert_to_root.itemconfig(self.extract_to_text,
-                                                  text="Extract to:")  
+                                                  text="Extract to:")
 
-        
+
         #--------------------------------------------------------------
 
         #Create SCAN STATUS field
@@ -518,16 +518,16 @@ class BitmapConverterMainWindow(Tk):
         self.scan_status_text_1 = self.scan_status_root.create_text(5, 5,
                                                                     anchor="nw")
         self.scan_status_root.itemconfig(self.scan_status_text_1,
-                                         text="2D bitmaps found:-")    
+                                         text="2D bitmaps found:-")
         self.scan_status_text_2 = self.scan_status_root.create_text(5, 25,
                                                                     anchor="nw")
         self.scan_status_root.itemconfig(self.scan_status_text_2,
-                                         text="3D bitmaps found:-")    
+                                         text="3D bitmaps found:-")
         self.scan_status_text_3 = self.scan_status_root.create_text(5, 45,
                                                                     anchor="nw")
         self.scan_status_root.itemconfig(self.scan_status_text_3,
                                          text="Cubemaps found: -")
-        
+
         self.scan_status_text_4 = self.scan_status_root.create_text(150, 45,
                                                                     anchor="nw")
         self.scan_status_root.itemconfig(self.scan_status_text_4,
@@ -540,11 +540,11 @@ class BitmapConverterMainWindow(Tk):
                                                                     anchor="nw")
         self.scan_status_root.itemconfig(self.scan_status_text_6,
                                          text="Total data:-----")
-        
+
         self.scan_status_text_7 = self.scan_status_root.create_text(310, 25,
                                                                     anchor="nw")
         self.scan_status_root.itemconfig(self.scan_status_text_7,
-                                         text="Remaining bitmaps:-")    
+                                         text="Remaining bitmaps:-")
         self.scan_status_text_8 = self.scan_status_root.create_text(310, 5,
                                                                     anchor="nw")
         self.scan_status_root.itemconfig(self.scan_status_text_8,
@@ -597,10 +597,10 @@ class BitmapConverterMainWindow(Tk):
         self.displayed_info_text_box.config(state=DISABLED)
         self.displayed_info_text_box.place(x=0, y=0, anchor=NW)
 
-        
+
         self.disable_settings_window_buttons()
         self.tag_list_window = BitmapConverterListWindow(handler, self)
-        
+
         self.tag_data_canvas = BitmapConverterDataWindow(handler, self)
         self.tag_data_canvas.place(x=495, y=2, anchor=NW)
 
@@ -625,7 +625,7 @@ class BitmapConverterMainWindow(Tk):
         while not self.handler.close_program:
             #we don't want it to run too often or it'll be laggy
             sleep(self.window_docking_interval)
-            
+
             #calls a function to lock the position of the
             #provided child windows to the provided parent window
             if not(self.window_docking_updating):
@@ -634,17 +634,17 @@ class BitmapConverterMainWindow(Tk):
 
     def dock_window_movement(self, child_windows):
         self.window_docking_updating = True
-        
+
         #the .geometry() returns the dimensions as a string that looks like
         #"widthxheight+posx+posy". an example would be "200x200+50+50".
         #Because of that we need to split them apart at the x and +
         root_dim = self.geometry().split('+')
-        
+
         #we want to move the child windows with the main,
         #but keep their relative position to the main
         if ((int(root_dim[1]) != self.prev_pos_x) or
             (int(root_dim[2]) != self.prev_pos_y)):
-            
+
             #get the amount that the main window has been moved
             root_x_shift = (int(root_dim[1]) - self.prev_pos_x)
             root_y_shift = (int(root_dim[2]) - self.prev_pos_y)
@@ -654,18 +654,18 @@ class BitmapConverterMainWindow(Tk):
             self.prev_pos_y = int(root_dim[2])
 
             if self.docking_state:
-                
+
                 #move each of the child windows with the parent
                 for child_window in child_windows:
                     child_dim = child_window.geometry().split('+')
-                    
+
                     child_window.prev_pos_x = int(child_dim[1])
                     child_window.prev_pos_y = int(child_dim[2])
-                    
+
                     child_dim = ("%s+%s+%s" % (child_dim[0],
                                  str(root_x_shift+child_window.prev_pos_x),
                                  str(root_y_shift+child_window.prev_pos_y)))
-                    
+
                     child_window.geometry(child_dim)
 
         self.window_docking_updating = False
@@ -676,7 +676,7 @@ class BitmapConverterMainWindow(Tk):
         while not self.handler.close_program:
             #we don't want it to run too often or it'll be laggy
             sleep(self.window_update_interval)
-                
+
             #if the program is being told to display new, literal text
             if self.display_new_text:
                 if not(self.window_updating):
@@ -713,7 +713,7 @@ class BitmapConverterMainWindow(Tk):
                     (self.update_bitmap_converter_main_window(update_string))))
 
 
-            
+
     #This function is to make the window to browse for the tags folder
     def make_bitmap_converter_browse(self):
         if not(self.proceed_with_conversion):
@@ -721,7 +721,7 @@ class BitmapConverterMainWindow(Tk):
                 initialdir=self.handler.tagsdir,
                 title='Select a folder that contains bitmap tags')
             tags_dir_str = tags_dir_str.replace('/', '\\')
-            
+
             if(len(tags_dir_str)):
                 if not tags_dir_str.endswith('\\'):
                     tags_dir_str += "\\"
@@ -746,7 +746,7 @@ class BitmapConverterMainWindow(Tk):
             self.help_window.destroy()
         except Exception:
             pass
-            
+
     def close_main_window(self):
         self.proceed_with_conversion = False
         self.handler.close_program = True
@@ -759,13 +759,13 @@ class BitmapConverterMainWindow(Tk):
             bitm_coll = self.handler.tags["bitm"]
             list_window = self.tag_list_window
             save_as = self.save_all_tags_as
-            
+
             for index in range(len(list_window.displayed_tag_index_mapping)):
                 filepath = list_window.displayed_tag_index_mapping[index]
                 bitm_coll[filepath].tag_conversion_settings[PLATFORM] = save_as
                 bitm_coll[filepath].tag_conversion_settings[SWIZZLED] = save_as
                 list_window.set_listbox_entry_color(index, filepath)
-              
+
             if save_as:
                 self.menubar.entryconfig(2,label="Toggle all tags to PC")
             else:
@@ -779,14 +779,14 @@ class BitmapConverterMainWindow(Tk):
                     self.radio_save_as_xbox.select()
                 else:
                     self.radio_save_as_pc.select()
-                    
+
                 if bitm_coll[list_window.selected_tags[0]].\
                    tag_conversion_settings[SWIZZLED]:
                     self.radio_save_as_swizzled.select()
                 else:
                     self.radio_save_as_unswizzled.select()
 
-        
+
     def toggle_window_docking(self):
         if self.docking_state:
             self.docking_state = False
@@ -798,7 +798,7 @@ class BitmapConverterMainWindow(Tk):
 
     def invert_selection(self):
         self.tag_list_window.invert_selection()
-            
+
 
     #These function disables all buttons when starting a scan
     def run_pressed(self):
@@ -808,11 +808,11 @@ class BitmapConverterMainWindow(Tk):
                 self.cancel_conversion()
         elif not(self.conversion_cancelled):
             self.proceed_with_conversion = True
-            
+
             self.close_help()
             self.disable_global_settings()
             self.disable_settings_window_buttons()
-            
+
             if self.tags_loaded:
                 if self.handler.default_conversion_flags["bitm"][READ_ONLY]:
                     self.btn_start.config(text="Logging")
@@ -827,7 +827,7 @@ class BitmapConverterMainWindow(Tk):
     #These function enables all buttons when a scan finishes
     def finish_scanning(self):
         self.proceed_with_conversion = False
-        
+
         self.display_new_text = True
         self.btn_start.config(state=NORMAL)
         self.btn_start.config(text="Run")
@@ -840,10 +840,10 @@ class BitmapConverterMainWindow(Tk):
         self.tags_indexed = False
         self.tags_loaded = False
         self.proceed_with_conversion = False
-        
+
         self.tag_list_window.initialize_tag_sort_mappings()
         self.tag_list_window.reset_lists()
-        
+
         self.display_new_text = True
         self.btn_start.config(text="Load")
         self.btn_start.config(state=NORMAL)
@@ -856,7 +856,7 @@ class BitmapConverterMainWindow(Tk):
         self.btn_start.config(text="Wait...")
         self.display_new_text = True
         self.proceed_with_conversion = False
-        
+
         self.conversion_cancelled = True
 
     def disable_global_settings(self):
@@ -864,7 +864,7 @@ class BitmapConverterMainWindow(Tk):
                       self.checkbox_backup_old_tags,
                       self.checkbox_read_only, self.checkbox_write_debug_log):
             widget.config(state=DISABLED)
-            
+
     def enable_global_settings(self):
         for widget in(self.checkbox_prune_tiff,
                       self.checkbox_backup_old_tags,
@@ -914,7 +914,7 @@ class BitmapConverterMainWindow(Tk):
 
         for widget in widget_list:
             widget.config(state=NORMAL)
-        
+
         self.spinbox_times_to_halve_resolution.config(state="readonly")
         self.spinbox_alpha_cutoff_bias.config(state="readonly")
 
@@ -927,7 +927,7 @@ class BitmapConverterMainWindow(Tk):
 
         tag = self.handler.tags["bitm"][self.tag_list_window.selected_tags[0]]
         conversion_flags = tag.tag_conversion_settings
-        
+
         if tag.bitmap_count() != 0 and tag.bitmap_format() == 14:
             conversion_flags[CK_TRANS] = True
             self.tk_preserve_ck_transparency.set(1)
@@ -935,38 +935,38 @@ class BitmapConverterMainWindow(Tk):
         if conversion_flags[PLATFORM]:
             self.radio_save_as_xbox.select()
         else: self.radio_save_as_pc.select()
-            
+
         if conversion_flags[SWIZZLED]:
             self.radio_save_as_swizzled.select()
         else: self.radio_save_as_unswizzled.select()
-            
+
         self.tk_number_of_times_to_halve_resolution.set(
             conversion_flags[DOWNRES])
-        
+
         if conversion_flags[MULTI_SWAP] == 1:
             self.radio_swap_multipurpose_to_xbox.select()
         elif conversion_flags[MULTI_SWAP] == 2:
             self.radio_swap_multipurpose_to_pc.select()
         else: self.radio_dont_swap_multipurpose.select()
-            
+
         self.tk_alpha_cutoff_bias.set(conversion_flags[CUTOFF_BIAS])
-        
+
         if conversion_flags[P8_MODE]:
             self.radio_average_bias_mode.select()
         else: self.radio_auto_bias_mode.select()
-            
+
         if conversion_flags[MONO_KEEP]:
             self.radio_keep_alpha_channel.select()
         else: self.radio_keep_intensity_channel.select()
-            
+
         if conversion_flags[MONO_SWAP]:
             self.tk_swap_a8y8_alpha_and_intensity.set(1)
         else: self.tk_swap_a8y8_alpha_and_intensity.set(0)
-            
+
         if conversion_flags[CK_TRANS]:
             self.tk_preserve_ck_transparency.set(1)
         else: self.tk_preserve_ck_transparency.set(0)
-            
+
         if conversion_flags[NEW_FORMAT] == FORMAT_DXT1:
             self.radio_save_as_dxt1.select()
         elif conversion_flags[NEW_FORMAT] == FORMAT_DXT3:
@@ -991,30 +991,30 @@ class BitmapConverterMainWindow(Tk):
             self.radio_dont_change_format.select()
 
         self.tk_target_extract_format.set(conversion_flags[EXTRACT_TO])
-        
+
         self.tk_mipmap_gen_setting.set(conversion_flags[MIP_GEN])
-            
+
 
     #This function updates all the information in the main window's widgets
     def update_bitmap_converter_main_window(self, newtext=None):
         self.window_updating = True
-            
+
         #Update the message text if supplied with a non-blank string
         if (newtext is not None and newtext!=(
             self.displayed_info_text_box.get('0.0',END+"-1c"))):
-            
+
             self.displayed_info_text_box.config(state=NORMAL)
             self.displayed_info_text_box.delete('0.0', END)
             self.displayed_info_text_box.insert(INSERT, newtext)
             self.displayed_info_text_box.config(state=DISABLED)
 
-        
+
         self.elapsed_time = int(time() - self.scan_start_time)
-        
+
         elapsed_time_string = (str(self.elapsed_time//3600)+"h:"+
                                str((self.elapsed_time%3600)//60)+"m:"+
                                str(self.elapsed_time%60)+"s")
-        
+
         total_pixel_data_string = (str(
             self.total_pixel_data_to_process//1048576)[:9]+"MB")
         remaining_pixel_data_string = tmpstr = (str(
@@ -1055,64 +1055,64 @@ class BitmapConverterMainWindow(Tk):
             PRUNE_TIFF] = self.tk_prune_tiff.get()
         self._set_selection_color(range(len(
             self.tag_list_window.displayed_tag_index_mapping)))
-        
+
     def set_backup_old_tags_variable(self):
         self.handler.default_conversion_flags["bitm"][
             RENAME_OLD] = self.tk_backup_edited_tags.get()
-        
+
     def set_read_only_variable(self):
         self.handler.default_conversion_flags["bitm"][
             READ_ONLY] = self.tk_read_only.get()
         self._set_selection_color(range(
             len(self.tag_list_window.displayed_tag_index_mapping)))
-        
+
     def set_write_debug_log_variable(self):
         self.handler.default_conversion_flags["bitm"][
             WRITE_LOG] = self.tk_write_debug_log.get()
-        
+
     def set_platform_to_save_as_variable(self):
         self._set_selection_flag(PLATFORM, self.tk_platform_to_save_as, bool)
         self._set_selection_color()
-        
+
     def set_swizzle_mode_variable(self):
         self._set_selection_flag(SWIZZLED, self.tk_swizzle_bitmap, bool)
         self._set_selection_color()
-        
+
     def set_number_of_times_to_halve_variable(self):
         self._set_selection_flag(DOWNRES,
                                  self.tk_number_of_times_to_halve_resolution)
         self._set_selection_color()
-        
+
     def set_multipurpose_swap_variable(self):
         self._set_selection_flag(MULTI_SWAP, self.tk_multipurpose_swap_setting)
         self._set_selection_color()
-        
+
     def set_alpha_cutoff_bias_variable(self):
         self._set_selection_flag(CUTOFF_BIAS, self.tk_alpha_cutoff_bias)
-        
+
     def set_p8_conversion_mode_variable(self):
         self._set_selection_flag(P8_MODE, self.tk_p8_conversion_mode, bool)
-                
+
     def set_monochrome_channel_to_keep_variable(self):
         self._set_selection_flag(MONO_KEEP, self.tk_channel_to_keep, bool)
-        
+
     def set_swap_alpha_and_intensity_variable(self):
         self._set_selection_flag(MONO_SWAP,
                                  self.tk_swap_a8y8_alpha_and_intensity, bool)
         self._set_selection_color()
-        
+
     def set_preserve_ck_transparency_variable(self):
         self._set_selection_flag(CK_TRANS,
                                  self.tk_preserve_ck_transparency, bool)
-        
+
     def set_format_to_save_as_variable(self):
         self._set_selection_flag(NEW_FORMAT, self.tk_conversion_format_string)
         self._set_selection_color()
-        
+
     def set_mipmap_gen_setting_variable(self):
         self._set_selection_flag(MIP_GEN, self.tk_mipmap_gen_setting)
         self._set_selection_color()
-        
+
     def set_target_extract_variable(self, *args):
         self._set_selection_flag(EXTRACT_TO, self.tk_target_extract_format)
         self._set_selection_color()
@@ -1139,7 +1139,7 @@ class BitmapConverterDataWindow(Canvas):
     def __init__(self, handler, parent, **options):
         options.update({"width":250, "height":155, "highlightthickness":0})
         Canvas.__init__(self, parent, **options )
-        
+
         self.handler = handler
         self.parent  = parent
 
@@ -1147,7 +1147,7 @@ class BitmapConverterDataWindow(Canvas):
         self.tk_selected_bitmap_index.set("")
 
         #--------------------------------------------------------------
-        
+
         #Create BITMAP INDEX SELECTION field
 
         self.tag_data_sel_bitmap_root = Canvas(self, width=236,
@@ -1164,7 +1164,7 @@ class BitmapConverterDataWindow(Canvas):
                                         create_text(8, 7, anchor="nw")
         self.tag_data_sel_bitmap_root.itemconfig(self.tag_data_sel_bitmap_text,
                                      text="Current bitmap:"+" "*14 + "out of:")
-        
+
         self.selected_bitmap_index = Spinbox(self.tag_data_sel_bitmap_root,
                                      from_=0, to=0, width=2, state="readonly",
                                      textvariable=self.tk_selected_bitmap_index,
@@ -1193,7 +1193,7 @@ class BitmapConverterDataWindow(Canvas):
             110, 94, anchor="nw")
         self.tag_data_platform_text = self.tag_data_sel_bitmap_root.create_text(
             110, 119, anchor="nw")
-        
+
         self.tag_data_sel_bitmap_root.itemconfig(self.tag_data_height_text,
                                                  text="Height:")
         self.tag_data_sel_bitmap_root.itemconfig(self.tag_data_width_text,
@@ -1227,7 +1227,7 @@ class BitmapConverterDataWindow(Canvas):
                               height=1, bg='#ece9d8', state=DISABLED, width=8)
         self.tag_data_platform_box = Text(self.tag_data_sel_bitmap_root,
                               height=1, bg='#ece9d8', state=DISABLED, width=8)
-        
+
         self.tag_data_height_box.place(x=58, y=46, anchor=NW)
         self.tag_data_width_box.place(x=58, y=69, anchor=NW)
         self.tag_data_depth_box.place(x=58, y=92, anchor=NW)
@@ -1236,8 +1236,8 @@ class BitmapConverterDataWindow(Canvas):
         self.tag_data_format_box.place(x=160, y=69, anchor=NW)
         self.tag_data_swizzled_box.place(x=160, y=92, anchor=NW)
         self.tag_data_platform_box.place(x=160, y=115, anchor=NW)
-        
-                    
+
+
     #when called this function will update the info in the
     #tag data box to show the single tag that is selected
     def display_selected_bitmap(self):
@@ -1248,7 +1248,7 @@ class BitmapConverterDataWindow(Canvas):
             filepath = self.parent.tag_list_window.\
                        displayed_tag_index_mapping[int(selection[0])]
             tag = handler.tags["bitm"][filepath]
-            
+
             #only run if the tag contains bitmaps
             bitmap_count = tag.bitmap_count()
             if bitmap_count:
@@ -1270,7 +1270,7 @@ class BitmapConverterDataWindow(Canvas):
                            self.tag_data_type_box, self.tag_data_swizzled_box,
                            self.tag_data_format_box,self.tag_data_platform_box):
                     widget.delete('1.0', END)
-                
+
                 self.tag_data_bitmap_count_box.insert(INSERT,
                             str(bitmap_count-1))
                 self.tag_data_height_box.insert(INSERT,
@@ -1291,7 +1291,7 @@ class BitmapConverterDataWindow(Canvas):
                                               BITMAP_SHORT_TYPE_STRINGS[b_type])
                 else:
                     self.tag_data_type_box.insert(INSERT, "UNKNOWN")
-                    
+
                 if tag.is_xbox_bitmap:
                     if tag.processed_by_hboc():
                         self.tag_data_platform_box.insert(INSERT, 'XBOX')
@@ -1316,7 +1316,7 @@ class BitmapConverterListWindow(Toplevel):
 
     def __init__(self, handler, parent, **options):
         Toplevel.__init__(self, parent, **options )
-        
+
         '''THE PROGRAM MUST BE CLASS WITH VARIABLES SUCH AS TAG_COLLECTION'''
         self.handler = handler
         self.parent = parent
@@ -1326,10 +1326,10 @@ class BitmapConverterListWindow(Toplevel):
         #this is used for determining how the list is currently sorted
         self.tag_list_sort_type = 0
         #this is used for determining whether the list is reversed or not
-        self.tag_list_sort_reversed = False        
-        
+        self.tag_list_sort_reversed = False
+
         self.initialize_tag_sort_mappings()
-        
+
         self.protocol("WM_DELETE_WINDOW", self.parent.close_main_window)
         self.title("Tag List")
 
@@ -1344,7 +1344,7 @@ class BitmapConverterListWindow(Toplevel):
         #Make the menu bar
         self.tag_list_menubar = Menu(self)
         tag_list_menubar = self.tag_list_menubar
-        
+
         tag_list_menubar.add_command(label="Sort by Path",
                          command=lambda:(self.sort_displayed_tags_by(0, True)) )
         tag_list_menubar.add_command(label="Sort by Type",
@@ -1353,19 +1353,19 @@ class BitmapConverterListWindow(Toplevel):
                          command=lambda:(self.sort_displayed_tags_by(4, True)) )
         tag_list_menubar.add_command(label="Sort by Pixel Data Bytes",
                          command=lambda:(self.sort_displayed_tags_by(6, True)) )
-        
+
         self.types_settings_menu = Menu(tag_list_menubar, tearoff=False)
         self.formats_settings_menu = Menu(tag_list_menubar, tearoff=False)
-        
+
         #we'll reference these locally to save screen space
         types_settings_menu = self.types_settings_menu
         formats_settings_menu = self.formats_settings_menu
-        
+
         tag_list_menubar.add_cascade(label="Enable/Disable Types",
                                      menu=types_settings_menu)
         tag_list_menubar.add_cascade(label="Enable/Disable Formats",
                                      menu=formats_settings_menu)
-        
+
         self.config(menu=tag_list_menubar)
 
 
@@ -1374,7 +1374,7 @@ class BitmapConverterListWindow(Toplevel):
             types_settings_menu.add_command(
                 label=(BITMAP_TYPE_STRINGS[b_type]+" "+u'\u2713'),
                 command=lambda T=b_type:self.toggle_types_allowed(T))
-            
+
         for b_format in (0,1,2,3,6,8,9,10,11,14,15,16,17):
             formats_settings_menu.add_command(
                 label=(BITMAP_FORMAT_STRINGS[b_format]+" "+u'\u2713'),
@@ -1387,11 +1387,11 @@ class BitmapConverterListWindow(Toplevel):
                                    selectmode=EXTENDED, highlightthickness=0,
                                    xscrollcommand=self.tag_list_scrollbar_x.set,
                                    yscrollcommand=self._scroll_tag_list)
-        
+
         self.tag_data_listbox = Listbox(self, width=25,
                                     selectmode=EXTENDED, highlightthickness=0,
                                     yscrollcommand=self._scroll_tag_data,)
-        
+
         self.tag_list_scrollbar_x.config(command=self.tag_list_listbox.xview)
         self.tag_list_scrollbar_y.config(command=self._scroll_both_listboxes)
 
@@ -1414,18 +1414,18 @@ class BitmapConverterListWindow(Toplevel):
     def initialize_tag_sort_mappings(self):
         #since the order of the displayed tags can vary based on
         #how we want to display them, we use this list to map the
-        #index's of the selected tags into the path of the tag 
+        #index's of the selected tags into the path of the tag
         self.displayed_tag_index_mapping = []
-        
+
         #this is used to store the paths of the tags that are
         #selected. this makes it easy to change the flags by
         #iterating through the list and changing them
         self.selected_tags = []
-        
+
         #there are 4 types and 18 formats
         self.bitmap_formats_shown = [ True ]*18
         self.bitmap_types_shown   = [ True ]*4
-        
+
         #we'll build these once the tags are loaded. they serve
         #the same purpose as the above list, to make it easy
         #and fast to change the displayed tags
@@ -1442,14 +1442,14 @@ class BitmapConverterListWindow(Toplevel):
         for filepath in self.handler.tags["bitm"]:
             #only run if the bitmap contains bitmaps
             tag = self.handler.tags["bitm"][filepath]
-                
+
             b_type   = tag.bitmap_type()
             b_format = tag.bitmap_format()
 
             #put together the lists that'll allow us to
             #visually sort the tags in different ways
             pixel_bytesize = tag.pixel_data_bytes_size()
-            
+
             if not pixel_bytesize in self.bitmaps_indexed_by_size:
                 self.bitmaps_indexed_by_size[pixel_bytesize] = []
 
@@ -1467,13 +1467,13 @@ class BitmapConverterListWindow(Toplevel):
             for index in indexes:
                 self.selected_tags.append(self.displayed_tag_index_mapping\
                                           [int(index)])
-                
+
         elif len(indexes) == 1:
             self.selected_tags = [self.displayed_tag_index_mapping\
                                   [int(indexes[0])]]
 
             self.parent.select_proper_settings_window_settings()
-            
+
             self.parent.tag_data_canvas.tk_selected_bitmap_index.set("0")
             self.parent.tag_data_canvas.display_selected_bitmap()
 
@@ -1482,10 +1482,10 @@ class BitmapConverterListWindow(Toplevel):
         if self.parent.tags_loaded:
             self.tag_list_listbox.selection_clear(first=0,
                                      last=len(self.displayed_tag_index_mapping))
-            
+
             for index in range(len(self.displayed_tag_index_mapping)):
                 filepath = self.displayed_tag_index_mapping[index]
-                
+
                 #if the index wasn't selected we select it
                 if filepath not in self.selected_tags:
                     self.tag_list_listbox.selection_set(index)
@@ -1499,8 +1499,8 @@ class BitmapConverterListWindow(Toplevel):
             self.tag_list_listbox.selection_set(self.tag_data_listbox.\
                                                 curselection()[0])
             self.set_selected_tags_list()
-        
-        
+
+
     def toggle_types_allowed(self, b_type):
         if self.bitmap_types_shown[b_type]:
             self.types_settings_menu.entryconfig(b_type,
@@ -1512,7 +1512,7 @@ class BitmapConverterListWindow(Toplevel):
             self.bitmap_types_shown[b_type] = True
 
         self.sort_displayed_tags_by(self.tag_list_sort_type)
-        
+
     def toggle_formats_allowed(self, menu_element, b_format):
         if self.bitmap_formats_shown[b_format]:
             self.formats_settings_menu.entryconfig(menu_element,
@@ -1544,38 +1544,38 @@ class BitmapConverterListWindow(Toplevel):
                         if (formats_shown[tag.bitmap_format()] and
                             types_shown[tag.bitmap_type()]):
                             display_map.append(filepath)
-                            
+
             elif sortby == 2:#sorting by type
                 for b_type in range(4):#loop through each format
                     for b_format in range(18):
                         #only add the tag index to the list if we've enabled it
                         if formats_shown[b_format] and types_shown[b_type]:
                             display_map.extend(by_type_format[b_type][b_format])
-                            
+
             elif sortby == 4:#sorting by format
                 for b_format in range(18):#loop through each format
                     for b_type in range(4):
                         #only add the tag index to the list if we've enabled it
                         if formats_shown[b_format] and types_shown[b_type]:
                             display_map.extend(by_type_format[b_type][b_format])
-                            
+
             else:#sorting by size
                 byte_sizes_in_order = sorted(self.bitmaps_indexed_by_size)
                 for tagsize in byte_sizes_in_order:
-                    for filepath in self.bitmaps_indexed_by_size[tagsize]:     
+                    for filepath in self.bitmaps_indexed_by_size[tagsize]:
                         tag = bitmaps[filepath]
-                        
+
                         if (formats_shown[tag.bitmap_format()] and
                             types_shown[tag.bitmap_type()]):
                             display_map.append(filepath)
-                    
+
             self.tag_list_sort_type = sortby
             if not(self.tag_list_sort_reversed) and enable_reverse:
                 self.tag_list_sort_reversed = True
                 display_map.reverse()
             else:
                 self.tag_list_sort_reversed = False
-                
+
             self.populate_tag_list_boxes()
 
 
@@ -1588,12 +1588,12 @@ class BitmapConverterListWindow(Toplevel):
             curr_tag_list_index = 0
             for index in range(len(self.displayed_tag_index_mapping)):
                 filepath = self.displayed_tag_index_mapping[index]
-                
+
                 self.tag_list_listbox.insert(END,filepath)
                 tag = self.handler.tags["bitm"][filepath]
 
                 self.set_listbox_entry_color(END, filepath)
-                
+
                 curr_tag_list_index += 1
 
                 b_type   = tag.bitmap_type()
@@ -1609,11 +1609,11 @@ class BitmapConverterListWindow(Toplevel):
                     tag_str += str((bitmap_size+512)//1024) +"  KB"
                 else:
                     tag_str += str((bitmap_size+524288)//1048576) +"  MB"
-                
+
                 self.tag_data_listbox.insert(END, tag_str)
-                
+
             self.populating_tag_window = False
-        
+
 
     def set_listbox_entry_color(self, listbox_index, filepath):
         if get_will_be_processed(self.handler.tags["bitm"][filepath],
@@ -1623,7 +1623,7 @@ class BitmapConverterListWindow(Toplevel):
         else:
             self.tag_list_listbox.itemconfig(listbox_index,
                                              bg='white', fg='black')
-            
+
 
     #these next functions are used for scrolling both tag list boxes at once.
     #they need to be in this class since they use the inherited handler
@@ -1631,7 +1631,7 @@ class BitmapConverterListWindow(Toplevel):
     def _scroll_both_listboxes(self, *args):
         self.tag_list_listbox.yview(*args)
         self.tag_data_listbox.yview(*args)
-        
+
     def _scroll_tag_list(self, *args):
         if (self.tag_data_listbox.yview() != self.tag_list_listbox.yview()):
             self.tag_data_listbox.yview_moveto(args[0])
@@ -1650,10 +1650,10 @@ class BitmapConverterHelpWindow(Toplevel):
 
     def __init__(self, parent, **options):
         Toplevel.__init__(self, parent, **options )
-        
+
         self.parent = parent
         self.is_alive = True
-        
+
         self.title("Useful Help")
         self.geometry("440x400")
         self.resizable(0, 1)
@@ -1669,7 +1669,7 @@ class BitmapConverterHelpWindow(Toplevel):
         for i in range(len(str_tmp)):
             self.help_window_menubar.add_command(label=str_tmp[i],
                              command=lambda i=i:(self.change_displayed_help(i)))
-            
+
         self.config(menu=self.help_window_menubar)
 
         self.help_window_scrollbar_y = Scrollbar(self, orient="vertical")
@@ -1679,7 +1679,7 @@ class BitmapConverterHelpWindow(Toplevel):
         self.displayed_help_text_box.insert(INSERT,
                                         "Click a button on the menubar above.")
         self.displayed_help_text_box.config(state=NORMAL, wrap=WORD)
-        
+
         self.help_window_scrollbar_y.config(
             command=self.displayed_help_text_box.yview)
 
@@ -1690,7 +1690,7 @@ class BitmapConverterHelpWindow(Toplevel):
     def close_help(self):
         self.parent.help_window = None
         Toplevel.destroy(self)
-    
+
     def change_displayed_help(self, help_type):
         self.displayed_help_text_box.delete('0.0', END)
 
@@ -1814,6 +1814,6 @@ class BitmapConverterHelpWindow(Toplevel):
                                " BUT AT LEAST IT'S AUTOMATED RIGHT?!?!?!\n\nMade by Moses")
         else:
             new_help_string = ""
-        
+
         self.displayed_help_text_box.insert(INSERT, new_help_string)
 
