@@ -8,6 +8,7 @@ from traceback import format_exc
 
 from reclaimer.hek.handler import HaloHandler
 from reclaimer.hek.defs.bitm import bitm_def
+from reclaimer.hek.defs.objs.bitm import P8_PALETTE
 
 from reclaimer.field_types import *
 from supyr_struct.defs.util import *
@@ -41,14 +42,14 @@ class BitmapConverter(HaloHandler):
 
     log_filename = "Bitmap_Converter.log"
     default_defs_path = ''
-    
+
     close_program = False #if set to True the program will close
     main_delay = 0.03 #determines how often the main loop is run
-    
+
     def __init__(self, **kwargs):
         HaloHandler.__init__(self, valid_def_ids=(), **kwargs)
         self.add_def(bitm_def)
-        
+
         self.default_conversion_flags["bitm"] = self.make_default_flags()
         self.root_window = BitmapConverterMainWindow(self)
 
@@ -112,23 +113,23 @@ class BitmapConverter(HaloHandler):
         self.tally_tags()
 
         return self.tags_loaded
-        
+
     #the main loop for continuous function handeling
     #add all continuous, non-self-looping, periodic functions here
     def _main_loop(self):
         while not hasattr(self, "root_window"):
             pass
-        
+
         while not self.close_program:
             #we don't want it to run too often or it'll be laggy
             sleep(self.main_delay)
             self.root_window.total_bitmaps = (len(self.tags["bitm"]) -
                                               self.root_window.bad_bitmaps)
-            
+
             #If the program is being told to close then close
             if self.close_program:
                 raise SystemExit(0)
-            
+
 
     def conversion_main(self):
         rw = self.root_window
@@ -151,7 +152,7 @@ class BitmapConverter(HaloHandler):
                     rw.tags_indexed = True
 
                     self.load_tags()
-                    
+
                     rw.tags_loaded = True
                     tags = self.tags['bitm']
                     def_flags = self.default_conversion_flags['bitm']
@@ -159,20 +160,20 @@ class BitmapConverter(HaloHandler):
                     #we need to build the list of conversion flags for each tag
                     for filepath in tags:
                         tags[filepath].tag_conversion_settings = list(def_flags)
-                        
+
                     self.initialize_window_variables()
                 else:
                     self.current_tag = "No tags found in selected directory."
                     rw.finish_conversion()
-                    
-                
+
+
             elif rw.tags_loaded and rw.proceed_with_conversion:
                 #reset the status variables
                 rw.elapsed_time = rw.estimated_time_remaining = 0.0
                 rw.scan_start_time = time()
                 rw.remaining_pixel_data_to_process = rw.total_pixel_data_to_process
                 rw.remaining_bitmaps = rw.total_bitmaps
-                
+
                 #are we just scanning the folder or are we doing shiz
                 if (self.default_conversion_flags["bitm"][READ_ONLY]):
                     #used below for writing the results of the scan
@@ -182,7 +183,7 @@ class BitmapConverter(HaloHandler):
                 else:
                     """SPLIT OFF INTO THE MAIN PROCESSING ROUTINE"""
                     logstr = self.process_bitmap_tags()
-                
+
                 #to keep from bloating the RAM, we delete all loaded bitmap tags
                 for filepath in tuple(self.tags['bitm']):
                     del self.tags['bitm'][filepath]
@@ -210,16 +211,16 @@ class BitmapConverter(HaloHandler):
         '''
         If no settings have been defined specifically
         for a tag then the flags below will be used
-        
+
         the first 4 conversion flags are global conversion
         flags and aren't assigned on a per-tag basis
 
           PRUNE TIFF: Prune the compressed tiff data from the tags
           RENAME OLD: Rename old tags instead of deleting them
-          READ ONLY: compiles a list of all bitmaps and what their types, 
+          READ ONLY: compiles a list of all bitmaps and what their types,
                     sizes, etc are instead of converting in any way
           WRITE LOG: Write debug Log
-        
+
           PLATFORM: Platform to save as(True = Xbox, False = PC)
           SWIZZLED: True = save as swizzled, False = save as deswizzled
           DOWNRES: Number of times to cut resolution in half
@@ -241,7 +242,7 @@ class BitmapConverter(HaloHandler):
                        6=R5G6B5 8=A1R5G5B5, 9=A4R4G4B4, 14=DXT1,
                        15=DXT3, 16=DXT5, 17=P8/A8R8G8B8/X8R8G8B8
         '''
-        
+
         flags = [False, True, False, True, False, False,
                  '0', 0, '127', False, False, False,
                  False, FORMAT_NONE, False, 1.0, " "]
@@ -254,7 +255,7 @@ class BitmapConverter(HaloHandler):
         rw.bitmaps_found_2d  = rw.bitmaps_found_3d = 0
         rw.cubemaps_found    = rw.total_bitmaps    = 0
         rw.remaining_bitmaps = rw.bad_bitmaps      = 0
-        
+
         tags_to_remove = []
 
         #for the conversion variables we want to return
@@ -264,7 +265,7 @@ class BitmapConverter(HaloHandler):
             #only run if the bitmap contains bitmaps
             tag = self.tags['bitm'][filepath]
             if tag.bitmap_count() and tag.is_power_of_2_bitmap():
-                
+
                 b_type = tag.bitmap_type()
                 b_format = tag.bitmap_format()
                 if b_type == 2:
@@ -273,7 +274,7 @@ class BitmapConverter(HaloHandler):
                     rw.bitmaps_found_3d += 1
                 else:
                     rw.bitmaps_found_2d += 1
-                
+
                 rw.total_pixel_data_to_process += tag.pixel_data_bytes_size()
             else:
                 if tag.bitmap_count():
@@ -283,24 +284,24 @@ class BitmapConverter(HaloHandler):
                           tag.filepath)
                 tags_to_remove.append(filepath)
                 rw.bad_bitmaps += 1
-                
+
             rw.total_bitmaps += 1
 
         for filepath in tags_to_remove:
             del self.tags['bitm'][filepath]
         del tags_to_remove
-            
+
         rw.tag_list_window.build_tag_sort_mappings()
-        
+
         #set the status variables
         rw.remaining_pixel_data_to_process = rw.total_pixel_data_to_process
         rw.remaining_bitmaps = len(self.tags['bitm']) - rw.bad_bitmaps
-        
+
         self.current_tag = ("Tags loaded... Please select tags in the "+
                             "tags list window and specify\nthe conversion "+
                             "settings for them in this window.\nWhen you "+
                             'are finished hit "Convert"')
-        
+
         #set up the hack to allow the tag list to
         #be displayed instantly on loading a tagset
         rw.after(0, self.create_initial_tag_list)
@@ -313,7 +314,7 @@ class BitmapConverter(HaloHandler):
         rw = None
         if hasattr(self, "root_window"):
             rw = self.root_window
-        
+
         #used below for debug writing
         logstr = "Debug log for Halo Bitmap Converter\n"
         def_flags = self.default_conversion_flags['bitm']
@@ -325,10 +326,10 @@ class BitmapConverter(HaloHandler):
 
             # make sure the tag is properly parsed and has all its rawdata
             tag.parse()
-            
+
             if rw is not None and rw.conversion_cancelled:
                 break
-            
+
             self.current_tag = filepath
 
             #this may change after the below function
@@ -338,7 +339,7 @@ class BitmapConverter(HaloHandler):
                 """DO THE CONVERSION NOW"""
                 try:
                     convert_bitmap_tag(tag, root_window=rw, filepath=filepath,
-                                   conversion_report=conversion_report['bitm'], 
+                                   conversion_report=conversion_report['bitm'],
                                    prune_tiff=def_flags[PRUNE_TIFF])
                 except:
                     print(format_exc())
@@ -358,7 +359,7 @@ class BitmapConverter(HaloHandler):
 
         if rw is not None and rw.conversion_cancelled:
             self.current_tag = "Conversion cancelled."
-            
+
             rw.display_new_text = True
             rw.btn_start.config(text="Convert")
             rw.enable_global_settings()
@@ -374,7 +375,7 @@ class BitmapConverter(HaloHandler):
                 print("ERROR OCCURRED WHILE TRYING TO WRITE "+
                       "DEBUG LOG AND/OR RENAME TEMP FILES")
                 print(format_exc())
-            
+
             self.current_tag = "Finished converting tags"
 
         return logstr
@@ -386,7 +387,7 @@ class BitmapConverter(HaloHandler):
         logstr = ("CE-XBOX Bitmap Converter: tagset scan results\n\n\n"+
                   "These are the bitmaps located in the tags folder "+
                   "organized by type and then by format.\n\n")
-        
+
         valid_formats = (0,1,2,3,6,8,9,10,11,14,15,16,17)
 
         base_str = "Bitmap %s --- WxHxD: %sx%sx%s --- Mipmaps: %s\n"
@@ -426,7 +427,7 @@ class BitmapConverter(HaloHandler):
             filesize = (getsize(tag.filepath)-
                         tag.color_plate_data_bytes_size())//1024
             tagstrs  = tag_info_strs[tag.bitmap_type()][tag.bitmap_format()]
-            
+
             #this is the string that holds the data pertaining to this tag
             tagstr = ("\n" + " "*8 + filepath +
                       "\n" + " "*12 + "Compiled tag size = %sKB\n" %
@@ -438,7 +439,7 @@ class BitmapConverter(HaloHandler):
                            (i, tag.bitmap_width(i), tag.bitmap_height(i),
                             tag.bitmap_depth(i), tag.bitmap_mipmaps_count(i)) )
 
-            #check if the strings list exists in the spot with 
+            #check if the strings list exists in the spot with
             if filesize in tagstrs:
                 tagstrs[filesize].append(tagstr)
             else:
@@ -474,7 +475,7 @@ def convert_bitmap_tag(tag, **kwargs):
     tagpath = kwargs.get("tagpath",tag.filepath.split(tagsdir)[-1])
     conversion_report = kwargs.get("conversion_report",{})
     prune_tiff = kwargs.get("prune_tiff", False)
-    
+
     '''if ANY of the bitmaps does not have a power of 2
     dimensions height/width/depth then we need to break
     out of this since we can't work with it properly'''
@@ -482,7 +483,7 @@ def convert_bitmap_tag(tag, **kwargs):
         if not(tag.is_power_of_2_bitmap(i)):
             conversion_report[tagpath] = False
             return False
-    
+
 
     """GET THE FLAGS FOR THE CONVERSION SETTINGS
     THAT DON'T DEPEND ON BITMAP FORMAT OR TYPE"""
@@ -527,7 +528,7 @@ def convert_bitmap_tag(tag, **kwargs):
     if root_window and (not load_status or root_window.conversion_cancelled):
         conversion_report[tagpath] = False
         return False
-        
+
     """LOOP THROUGH ALL THE BITMAPS, FIGURE OUT
     HOW THEY'RE BEING CONVERTED AND CONVERT THEM"""
     for i in range(tag.bitmap_count()):
@@ -550,17 +551,17 @@ def convert_bitmap_tag(tag, **kwargs):
                 target_format = ab.FORMAT_X8R8G8B8
             else:
                 target_format = ab.FORMAT_A8R8G8B8
-                
+
         elif target_format not in ab.VALID_FORMATS:
             target_format = format
         else:
             if target_format in ab.DDS_FORMATS and type == "3D":
                 target_format = format
                 print("CANNOT CONVERT 3D TEXTURES TO DXT FORMAT.")
-                
+
             if not(channel_to_keep) and target_format == ab.FORMAT_A8:
                 target_format = ab.FORMAT_L8
-                
+
             """ SINCE THESE THREE FORMATS CAN BE EASILY INTERCHANGED JUST
             BY CHANGING THE FORMAT IDENTIFIER, THAT'S WHAT WE'LL DO"""
             if (format in (ab.FORMAT_A8, ab.FORMAT_L8, ab.FORMAT_AL8) and
@@ -575,7 +576,7 @@ def convert_bitmap_tag(tag, **kwargs):
                                               multi_swap, channel_to_keep)
         palette_picker = None
         palettize = True
-        
+
         """IF WE ARE CONVERTING TO P8 THIS IS
         WHERE WE SELECT THE SPECIFIC SETTINGS"""
         if format == ab.FORMAT_P8:
@@ -607,7 +608,7 @@ def convert_bitmap_tag(tag, **kwargs):
         """LOAD THE TEXTURE INTO THE BITMAP CONVERTER"""
         bm.load_new_texture(texture_block = tex_block,
                             texture_info = tex_info)
-        
+
         #build the initial conversion settings list from the above settings
         conv_settings = dict(
             swizzle_mode=swizzle_mode, one_bit_bias=alpha_cutoff_bias,
@@ -642,7 +643,7 @@ def convert_bitmap_tag(tag, **kwargs):
             if tag.bitmap_count() > 1:
                 path += ("_"+str(i))
             bm.save_to_file(output_path=path, ext=export_format.lower())
-                
+
 
         """IF THE CONVERSION WAS SUCCESSFUL WE UPDATE THE
         TAG'S DATA TO THE NEW FORMAT AND SWIZZLE MODE.
@@ -673,13 +674,13 @@ def convert_bitmap_tag(tag, **kwargs):
         """RECALCULATE THE BITMAP HEADER AND FOOTER
         DATA AFTER POSSIBLY CHANGING IT ABOVE"""
         tag.sanitize_bitmaps()
-        
+
         #SET THE TAG'S CHARACTERISTICS TO XBOX OR PC FORMAT
         tag.set_platform(save_as_xbox)
 
         #SET THE "PROCESSED BY RECLAIMER" FLAG
         tag.processed_by_hboc(True)
-        
+
         #IF THE FORMAT IS P8 OR PLATFORM IS XBOX WE NEED TO ADD PADDING
         tag.add_bitmap_padding(save_as_xbox)
 
@@ -695,7 +696,7 @@ def convert_bitmap_tag(tag, **kwargs):
     elif export_format == " ":
         conversion_report[tagpath] = False
         return False
-    
+
     conversion_report[tagpath] = None
     return None
 
@@ -705,7 +706,7 @@ def get_channel_mappings(format, mono_swap, target_format,
     mapping to use for converting(and returns it). Also checks a
     few exception cases where converting to that format would
     be bad and instead resets the target format to the source format"""
-    
+
     channel_count = ab.CHANNEL_COUNTS[format]
     target_channel_count = ab.CHANNEL_COUNTS[target_format]
     channel_mapping = None
@@ -748,13 +749,13 @@ def get_channel_mappings(format, mono_swap, target_format,
             if mono_swap:
                 if target_format == ab.FORMAT_A8L8:
                     channel_mapping = ab.AL_TO_LA
-                    
+
                 elif target_channel_count == 4:
                     channel_mapping = ab.LA_TO_ARGB
-                
+
             elif target_channel_count == 4:
                 channel_mapping = ab.AL_TO_ARGB
-                
+
             elif target_format in (ab.FORMAT_A8, ab.FORMAT_L8, ab.FORMAT_AL8):
                 if channel_to_keep:
                     #keep the alpha channel
@@ -762,28 +763,28 @@ def get_channel_mappings(format, mono_swap, target_format,
                 else:
                     #keep the intensity channel
                     channel_mapping = ab.AL_TO_L
-    
+
     elif channel_count == 1:
         """THIS TAKES CARE OF CONVERTING FROM A
         1 CHANNEL FORMAT TO OTHER FORMATS"""
         if target_channel_count == 4:
             if format == ab.FORMAT_A8:
                 channel_mapping = ab.A_TO_ARGB
-                    
+
             elif format == ab.FORMAT_L8:
                 channel_mapping = ab.L_TO_ARGB
-                    
+
             elif format == ab.FORMAT_AL8:
                 channel_mapping = AL_COMBO_TO_ARGB
-                
+
         elif target_channel_count == 2:
             if format == ab.FORMAT_A8:
                 channel_mapping = ab.A_TO_AL
-                
+
             elif format == ab.FORMAT_L8:
                 channel_mapping = ab.L_TO_AL
-                
+
             elif format == ab.FORMAT_AL8:
                 channel_mapping = AL_COMBO_TO_AL
-                
+
     return(channel_mapping, channel_merge_mapping, target_format)
