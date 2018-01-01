@@ -6,7 +6,7 @@ info = sys.version_info
 
 if info[0] < 3:
     input(
-        "You must have python 3 or higher installed to run Refinery.\n" +
+        "You must have python 3 or higher installed to run HekPool.\n" +
         "You currently have %s.%s.%s installed instead." % info[:3])
     raise SystemExit(0)
 
@@ -18,13 +18,13 @@ except ImportError: pass
 
 try:
     try:
-        from refinery.main import Refinery
+        from hek_pool.app_window import HekPool
     except ImportError:
-        Refinery = None
-        input("Refinery is not installed. Install it with the MEK installer to fix this.")
+        HekPool = None
+        input("HEK Pool is not installed. Install it with the MEK installer to fix this.")
 
-    if Refinery:
-        main_window = Refinery()
+    if HekPool:
+        main_window = HekPool()
         main_window.mainloop()
 except SystemExit:
     pass

@@ -17,9 +17,15 @@ try: import mek_lib  # setup sys.path properly is portably installed
 except ImportError: pass
 
 try:
-    from mozzarilla.app_window import Mozzarilla
-    main_window = Mozzarilla(debug=3)
-    main_window.mainloop()
+    try:
+        from mozzarilla.app_window import Mozzarilla
+    except ImportError:
+        Mozzarilla = None
+        input("Mozzarilla is not installed. Install it with the MEK installer to fix this.")
+
+    if Mozzarilla:
+        main_window = Mozzarilla(debug=3)
+        main_window.mainloop()
 except SystemExit:
     pass
 except Exception:
@@ -28,7 +34,7 @@ except Exception:
         main_window.log_file.write('\n' + exception)
     except Exception:
         try:
-            with open('startup_crash.log', 'a+') as cfile:
+            with open('STARTUP_CRASH.LOG', 'a+') as cfile:
                 time = datetime.now().strftime("%Y-%m-%d  %H:%M:%S")
                 cfile.write("\n%s%s%s\n" % ("-"*30, time, "-"*(50-len(time))))
                 cfile.write(time + exception)

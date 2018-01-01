@@ -229,11 +229,17 @@ def make_raw_verts_block(node_bsp, node_transforms, node_i):
     return raw_verts
 
 
-def make_parts_by_mats(faces, raw_verts, parts, node_i,
+def make_parts_by_mats(faces, raw_verts, parts, shaders, node_i,
                        use_mats=True, has_frames=True):
     parts_by_mats = {}
     for face in faces:
         mat = face.material
+        missing_shader_ct = (mat + 1) - len(shaders)
+        if missing_shader_ct > 0:
+            for i in range(missing_shader_ct):
+                shaders.append()
+                shaders[-1].shader.filepath = "MISSING"
+
         if mat in parts_by_mats:
             continue
         if use_mats or not parts_by_mats:
@@ -402,7 +408,8 @@ def coll_to_mod2(coll_path, model_in_path=None, guess_mod2=True, use_mats=True):
                 # find out how many materials are in this node_bsp
                 # and create parts blocks for each of them.
                 parts_by_mats = make_parts_by_mats(
-                    faces, raw_verts, parts, node_i, use_mats, model_in_tag)
+                    faces, raw_verts, parts, shaders,
+                    node_i, use_mats, model_in_tag)
 
                 # collect all the edge loops that make up all the faces
                 edge_loops_by_mats = get_edge_loops_by_mats(faces, edges)
@@ -435,7 +442,7 @@ class CollToMod2Convertor(Tk):
     def __init__(self, *args, **kwargs):
         Tk.__init__(self, *args, **kwargs)
 
-        self.title("Collision Geometry to Gbxmodel Convertor v1.5")
+        self.title("Collision Geometry to Gbxmodel Convertor v1.6")
         self.geometry("400x150+0+0")
         self.resizable(0, 0)
 
