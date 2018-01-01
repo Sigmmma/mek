@@ -25,7 +25,7 @@ mek_download_url = "https://bitbucket.org/Moses_of_Egypt/mek/get/default.zip"
 
 # refinery requires mozzarilla(tag preview features and such), so we dont
 # need to specify it here as it will be installed anyway when refinery is.
-mek_program_package_names = ("refinery", ) # "mozzarilla")
+mek_program_package_names = ("refinery", "hek_pool") # "mozzarilla")
 mek_library_package_names = ("reclaimer", )
 program_package_names     = ("binilla", )
 library_package_names     = ("supyr_struct", "arbytmap", )
@@ -359,7 +359,7 @@ class MekInstaller(tk.Tk):
 
     def __init__(self, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
-        self.title("MEK installer v2.1.3")
+        self.title("MEK installer v2.1.5")
         self.geometry("480x400+0+0")
         self.minsize(480, 300)
         

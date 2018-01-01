@@ -34,7 +34,7 @@ except Exception:
         main_window.log_file.write('\n' + exception)
     except Exception:
         try:
-            with open('startup_crash.log', 'a+') as cfile:
+            with open('STARTUP_CRASH.LOG', 'a+') as cfile:
                 time = datetime.now().strftime("%Y-%m-%d  %H:%M:%S")
                 cfile.write("\n%s%s%s\n" % ("-"*30, time, "-"*(50-len(time))))
                 cfile.write(time + exception)
