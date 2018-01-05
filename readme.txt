@@ -28,11 +28,6 @@ A new tag extractor that works for all types of Halo 1 maps and can extract open
 and MUCH more. Read the refinery_readme.txt for more information.
 
 
-The Map Editor:
-Decided to get in on this stupid meme. This is literally just Refinery with a different title.
-
-
-
 
 These next ones are convertors that turn one type of tag into another type. The names of
 the types are the four character codes that the engine refers to them by, so if you need
