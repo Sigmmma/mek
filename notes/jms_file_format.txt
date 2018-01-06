@@ -1,0 +1,116 @@
+# This is the structure of the .jms model format.
+# The first 2 values are constants. everything else
+# is either a block count, or a sequence of blocks.
+#
+# IMPORTANT!
+# All values are either separated by new lines or tabs.
+# Redundant tabs and new lines between values are ignored.
+# DO NOT USE SPACES TO SEPARATE VALUES!!!
+
+
+######################
+#  GENERAL JMS BODY
+######################
+8200    # unknown constant
+3251    # unknown constant
+
+node_count
+node_array
+
+material_count
+material_array
+
+marker_count
+marker_array
+
+region_count
+region_array
+
+vertex_count
+vertex_array
+
+triangle_count
+triangle_array
+
+
+
+##########
+#  NODE
+##########
+name                    # must be less than 32 characters
+sibling_node_index      # -1 if no sibling
+first_child_node_index  # -1 if no children
+i_j_k_w_rotation
+x_y_z_position
+# EXAMPLE:
+#    frame
+#    1
+#    -1
+#    0.0	0.0	0.0	1.0
+#    0.0	0.0	0.0
+
+
+##############
+#  MATERIAL
+##############
+name        # must be less than 32 characters(excluding special
+            # characters used for defining the shader)
+tiff_path   # must either be <none>, or be an absolute filepath
+#             without an extension that points to a .tif file 
+# EXAMPLE:
+#    example_tutorial_ladder%^
+#    C:\Program Files\Microsoft Games\Halo GBX\data\levels\test\tutorial\bitmaps\example_tutorial_ladder
+
+
+############
+#  MARKER
+############
+name        # must be less than 32 characters
+unknown     # seems to always be -1 ?
+parent_node
+i_j_k_w_rotation
+x_y_z_position
+radius
+# EXAMPLE:
+#    wheel l b
+#    -1
+#    24
+#    0.0	0.707105	0.0	0.707108
+#    0.0	7.86504	-0.175461
+#    2.0
+
+
+#############
+#  REGION
+#############
+name     # must be less than 32 characters
+
+
+############
+#  VERTEX
+############
+node_0_index
+x_y_z_position
+i_j_k_normal
+node_1_index
+node_1_weight
+u_v_w_tex_coords
+# EXAMPLE:
+#    0
+#    -121.83	35.4844	57.4495
+#    -0.488387	0.458348	0.74256
+#    -1
+#    0
+#    0	0	0
+
+
+##############
+#  TRIANGLE
+##############
+region_index
+shader_index
+vertex_indices_0_1_2
+# EXAMPLE:
+#    0
+#    0
+#    0	1	2
