@@ -1,6 +1,4 @@
 # This is the structure of the .jms model format.
-# The first 2 values are constants. everything else
-# is either a block count, or a sequence of blocks.
 #
 # IMPORTANT!
 # All values are either separated by new lines or tabs.
@@ -11,8 +9,8 @@
 ######################
 #  GENERAL JMS BODY
 ######################
-8200    # unknown constant
-3251    # unknown constant
+unknown_constant    # default value of 8200
+node_list_checksum  # default value of 3251
 
 node_count
 node_array
