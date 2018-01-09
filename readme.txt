@@ -23,6 +23,10 @@ Same as the above, except it runs with a console window so you get a printout of
 it crashes when starting up.
 
 
+Pool:
+A nice little wrapper for tool.exe with a lot of ease-of-use enhancements. Read the pool_readme.txt for more information.
+
+
 Refinery:
 A new tag extractor that works for all types of Halo 1 maps and can extract open sauce tags
 and MUCH more. Read the refinery_readme.txt for more information.
