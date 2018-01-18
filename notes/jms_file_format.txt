@@ -51,8 +51,8 @@ x_y_z_position
 ##############
 #  MATERIAL
 ##############
-name        # must be less than 32 characters(excluding special
-            # characters used for defining the shader)
+name        # must be less than 32 characters(including special
+            # characters used for defining the shader type)
 tiff_path   # must either be <none>, or be an absolute filepath
 #             without an extension that points to a .tif file 
 # EXAMPLE:
