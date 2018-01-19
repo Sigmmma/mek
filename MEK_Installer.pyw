@@ -180,7 +180,11 @@ def install(install_path=None, force_reinstall=False,
     try:
         if install_mek_programs:
             install_dir = install_path if install_path else curr_dir
-            download_mek_to_folder(install_dir)
+            try:
+                download_mek_to_folder(install_dir)
+            except Exception:
+                print(traceback.format_exc())
+
             if installer_updated:
                 return
 
@@ -266,19 +270,23 @@ def download_mek_to_folder(install_dir, src_url=None):
             filepath = zip_name.split("/", 1)[-1]
             if filepath[:1] == '.':
                 continue
-            filepath = os.path.join(install_dir, filepath).replace(find, os.sep)
-            filename = filepath.split(os.sep)[-1]
-            dirpath = os.path.dirname(filepath)
 
-            if not os.path.exists(dirpath):
-                os.makedirs(dirpath)
+            try:
+                filepath = os.path.join(install_dir, filepath).replace(find, os.sep)
+                filename = filepath.split(os.sep)[-1]
+                dirpath = os.path.dirname(filepath)
 
-            with mek_zipfile.open(zip_name) as zf, open(filepath, "wb+") as f:
-                filedata = zf.read()
-                if setup_filename == filename.lower() and filedata != setup_file_data:
-                    installer_updated = True
-                    new_installer_path = filepath
-                f.write(filedata)
+                if not os.path.exists(dirpath):
+                    os.makedirs(dirpath)
+
+                with mek_zipfile.open(zip_name) as zf, open(filepath, "wb+") as f:
+                    filedata = zf.read()
+                    if setup_filename == filename.lower() and filedata != setup_file_data:
+                        installer_updated = True
+                        new_installer_path = filepath
+                    f.write(filedata)
+            except Exception:
+                print(traceback.format_exc())
 
     try: os.remove(mek_zipfile_path)
     except Exception: pass
@@ -359,13 +367,13 @@ class MekInstaller(tk.Tk):
 
     def __init__(self, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
-        self.title("MEK installer v2.1.5")
+        self.title("MEK installer v2.1.6")
         self.geometry("480x400+0+0")
         self.minsize(480, 300)
         
         self.install_dir = tk.StringVar(self, curr_dir)
         self.force_reinstall   = tk.BooleanVar(self, 1)
-        self.update_programs   = tk.BooleanVar(self)
+        self.update_programs   = tk.BooleanVar(self, 1)
         self.portable          = tk.BooleanVar(self)
         self.partial_uninstall = tk.BooleanVar(self)
         self.show_error_info   = tk.BooleanVar(self)
