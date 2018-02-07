@@ -22,8 +22,8 @@ Installation:
 2. Run MEK_Installer.pyw
 3. Choose whether or not to install the MEK's libraries in a portable fashion
     (to a local directory) or to the machine you are running. Make sure that
-    "install up-to-date MEK when installing/updating" is checked so it will
-    download the rest of the MEK to the current directory.
+    "install up-to-date MEK" is checked so it will download the rest of the
+    MEK to the current directory.
 4. Click "Install/Update"
 5. If the installer fails because it says pip is not installed, close it and
     run get-pip.py to install pip. When it finishes, go back to step 2.
