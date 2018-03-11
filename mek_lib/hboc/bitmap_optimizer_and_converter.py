@@ -764,6 +764,12 @@ def get_channel_mappings(format, mono_swap, target_format,
                     #keep the intensity channel
                     channel_mapping = ab.AL_TO_L
 
+        elif format == ab.FORMAT_AL8:
+            if target_channel_count == 4:
+                channel_mapping = AL_COMBO_TO_ARGB
+            else:
+                channel_mapping = AL_COMBO_TO_AL
+
     elif channel_count == 1:
         """THIS TAKES CARE OF CONVERTING FROM A
         1 CHANNEL FORMAT TO OTHER FORMATS"""
@@ -774,17 +780,11 @@ def get_channel_mappings(format, mono_swap, target_format,
             elif format == ab.FORMAT_L8:
                 channel_mapping = ab.L_TO_ARGB
 
-            elif format == ab.FORMAT_AL8:
-                channel_mapping = AL_COMBO_TO_ARGB
-
         elif target_channel_count == 2:
             if format == ab.FORMAT_A8:
                 channel_mapping = ab.A_TO_AL
 
             elif format == ab.FORMAT_L8:
                 channel_mapping = ab.L_TO_AL
-
-            elif format == ab.FORMAT_AL8:
-                channel_mapping = AL_COMBO_TO_AL
 
     return(channel_mapping, channel_merge_mapping, target_format)
