@@ -103,21 +103,26 @@ def mode_to_mod2(mode_path):
             for i in range(mod2_comp_verts.size):
                 n, b, t, u, v, ni_0, ni_1, nw = unpack(
                     ">3I2h2bh", comp_verts[in_off + 12: in_off + 32])
-                ni = n&2047; nj = (n>>11)&2047; nk = (n>>22)&1023
-                bi = b&2047; bj = (b>>11)&2047; bk = (b>>22)&1023
-                ti = t&2047; tj = (t>>11)&2047; tk = (t>>22)&1023
-                if ni&1024: ni = -1*((~ni) & 2047)
-                if nj&1024: nj = -1*((~nj) & 2047)
-                if nk&512:  nk = -1*((~nk) & 1023)
-                if bi&1024: bi = -1*((~bi) & 2047)
-                if bj&1024: bj = -1*((~bj) & 2047)
-                if bk&512:  bk = -1*((~bk) & 1023)
-                if ti&1024: ti = -1*((~ti) & 2047)
-                if tj&1024: tj = -1*((~tj) & 2047)
-                if tk&512:  tk = -1*((~tk) & 1023)
-                ni /= 1023; nj /= 1023; nk /= 511
-                bi /= 1023; bj /= 1023; bk /= 511
-                ti /= 1023; tj /= 1023; tk /= 511
+                ni = (n&1023) / 1023
+                nj = ((n>>11)&1023) / 1023
+                nk = ((n>>22)&511) / 511
+                if (n>>10)&1: ni = ni - 1.0
+                if (n>>21)&1: nj = nj - 1.0
+                if (n>>31)&1: nk = nk - 1.0
+
+                bi = (b&1023) / 1023
+                bj = ((b>>11)&1023) / 1023
+                bk = ((b>>22)&511) / 511
+                if (b>>10)&1: bi = bi - 1.0
+                if (b>>21)&1: bj = bj - 1.0
+                if (b>>31)&1: bk = bk - 1.0
+
+                ti = (t&1023) / 1023
+                tj = ((t>>11)&1023) / 1023
+                tk = ((t>>22)&511) / 511
+                if (t>>10)&1: ti = ti - 1.0
+                if (t>>21)&1: tj = tj - 1.0
+                if (t>>31)&1: tk = tk - 1.0
 
                 nmag = max(sqrt(ni**2 + nj**2 + nk**2), 0.00000001)
                 bmag = max(sqrt(bi**2 + bj**2 + bk**2), 0.00000001)
@@ -200,6 +205,8 @@ class ModeToMod2Convertor(Tk):
                 filepath = root + filename
                 if os.path.splitext(filename)[-1].lower() != '.model':
                     continue
+                #elif os.path.isfile(os.path.splitext(filepath)[0] + '.gbxmodel'):
+                #    continue
 
                 print('Converting %s' % filepath.split(tags_dir)[-1])
 
