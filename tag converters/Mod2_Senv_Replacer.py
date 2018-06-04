@@ -270,7 +270,7 @@ class Mod2SenvReplacer(Tk):
                 if not next_found_shaders:
                     continue
 
-                print('\nFound senv in: ' % filepath.split(tags_dir)[-1])
+                print('\nFound senv in: %s' % filepath.split(tags_dir)[-1])
                 found_shaders.update(next_found_shaders)
 
         print("\n\nThese shader_environment tags were found in gbxmodels:")
