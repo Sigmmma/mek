@@ -34,8 +34,8 @@ def replace_senv_in_mod2(mod2_tag, tags_dir, make_shaders=False, edit_gbxmodel=F
             senv_shader_paths.add(shader_ref.shader.filepath.lower())
 
     make_shaders &= len(senv_shader_paths) != 0
-    if len(senv_shader_paths) > 0:
-        print("    %s senv in : %s" % (len(senv_shader_paths), mod2_tag.filepath))
+    print("")
+    print("%s senv in : %s" % (len(senv_shader_paths), mod2_tag.filepath))
 
     if not make_shaders:
         return senv_shader_paths
@@ -115,9 +115,9 @@ def replace_senv_in_mod2(mod2_tag, tags_dir, make_shaders=False, edit_gbxmodel=F
             soso_scrolling.v_animation.scale = senv_scrolling.v_animation.scale
 
             # copy the reflection and specular
-            soso_reflection.falloff_distance = soso_reflection.cutoff_distance = 100000.0
-            soso_reflection.perpendicular_brightness = senv_reflection.perpendicular_brightness * senv_specular.brightness
-            soso_reflection.parallel_brightness = senv_reflection.parallel_brightness * senv_specular.brightness
+            brightness = 1 + senv_specular.brightness
+            soso_reflection.perpendicular_brightness = max(0, min(1, senv_reflection.perpendicular_brightness * brightness))
+            soso_reflection.parallel_brightness = max(0, min(1, senv_reflection.parallel_brightness * brightness))
             soso_reflection.perpendicular_tint_color[:] = senv_specular.perpendicular_tint_color[:]
             soso_reflection.parallel_tint_color[:] = senv_specular.parallel_tint_color[:]
             soso_reflection.cube_map.filepath = senv_reflection.cube_map.filepath
@@ -137,7 +137,7 @@ def replace_senv_in_mod2(mod2_tag, tags_dir, make_shaders=False, edit_gbxmodel=F
             shader_ref.shader.tag_class.set_to("shader_model")
             shader_ref.shader.filepath += "_soso"
 
-    if not os.path.isfile(os.path.splitext(mod2_tag.filepath)[0] + '.gbxmodel.ORIG'):
+    if not os.path.isfile(mod2_tag.filepath + '.ORIG'):
         os.rename(mod2_tag.filepath, mod2_tag.filepath + '.ORIG')
 
     mod2_tag.serialize(temp=False, backup=False, int_test=False,
@@ -190,13 +190,13 @@ class Mod2SenvReplacer(Tk):
 
         self.restore_orig_checkbutton = Checkbutton(
             self.checkbox_frame, variable=self.restore_orig,
-            text="Restore original gbxmodels(ignores settings below)")
+            text="Restore files with .ORIG extension(ignores settings below)")
         self.make_shaders_checkbutton = Checkbutton(
             self.checkbox_frame, variable=self.make_shaders,
             text="Make soso shaders from senv shaders")
         self.edit_gbxmodel_checkbutton = Checkbutton(
             self.checkbox_frame, variable=self.edit_gbxmodel,
-            text=("Edits gbxmodels to point to the new soso shaders\n"
+            text=("Edit gbxmodels to point to the new soso shaders\n"
                   "(has no effect if not making soso shaders)"))
 
         # pack everything
@@ -249,11 +249,12 @@ class Mod2SenvReplacer(Tk):
             for filename in files:
                 filepath = root + filename
                 if restore_orig:
-                    if os.path.isfile(filepath + '.ORIG'):
-                        print("Restoring: %s.orig" % filepath)
-                        if os.path.isfile(filepath):
-                            os.remove(filepath)
-                        os.rename(filepath + ".ORIG", filepath)
+                    if filepath.lower().endswith(".gbxmodel.orig"):
+                        target_filepath = os.path.splitext(filepath)[0]
+                        print("Restoring: %s" % filepath)
+                        if os.path.isfile(target_filepath):
+                            os.remove(target_filepath)
+                        os.rename(filepath, target_filepath)
                     continue
                 elif os.path.splitext(filename)[-1].lower() != '.gbxmodel':
                     continue
@@ -270,7 +271,7 @@ class Mod2SenvReplacer(Tk):
                 if not next_found_shaders:
                     continue
 
-                print('\nFound senv in: %s' % filepath.split(tags_dir)[-1])
+                print('\n    Found senv in: %s' % filepath.split(tags_dir)[-1])
                 found_shaders.update(next_found_shaders)
 
         print("\n\nThese shader_environment tags were found in gbxmodels:")
