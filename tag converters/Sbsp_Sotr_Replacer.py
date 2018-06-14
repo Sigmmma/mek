@@ -39,21 +39,28 @@ def replace_sotr_in_sbsp(sbsp_tag, tags_dir, edit_sbsp=False):
     if not edit_sbsp:
         return sotr_shader_paths
 
-    print("        Editing sbsp...")
-
+    save_bsp = False
     for shader in shader_blocks:
         shader_path = os.path.join(tags_dir, shader.filepath)
         if shader.tag_class.enum_name == "shader_transparent_generic":
             if os.path.isfile(shader_path + '.shader_transparent_chicago_extended'):
                 shader.tag_class.set_to("shader_transparent_chicago_extended")
+                save_bsp = True
             elif os.path.isfile(shader_path + '.shader_transparent_chicago'):
                 shader.tag_class.set_to("shader_transparent_chicago")
+                save_bsp = True
             else:
-                print("    No scex/schi exists for: " % shader.filepath)
+                print("    No scex/schi exists for: %s" % shader.filepath)
         elif (shader.tag_class.enum_name == "shader_transparent_chicago" and
               not os.path.isfile(shader_path + '.shader_transparent_chicago') and
               os.path.isfile(shader_path + '.shader_transparent_chicago_extended')):
             shader.tag_class.set_to("shader_transparent_chicago_extended")
+            save_bsp = True
+
+    if not save_bsp:
+        return sotr_shader_paths
+
+    print("        Editing sbsp...")
 
     if not os.path.isfile(sbsp_tag.filepath + '.ORIG'):
         os.rename(sbsp_tag.filepath, sbsp_tag.filepath + '.ORIG')
