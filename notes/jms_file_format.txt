@@ -36,8 +36,8 @@ triangle_array
 #  NODE
 ##########
 name                    # must be less than 32 characters
-sibling_node_index      # -1 if no sibling
 first_child_node_index  # -1 if no children
+sibling_node_index      # -1 if no sibling
 i_j_k_w_rotation
 x_y_z_position
 # EXAMPLE:
@@ -90,7 +90,7 @@ name     # must be less than 32 characters
 node_0_index
 x_y_z_position
 i_j_k_normal
-node_1_index
+node_1_index  	# -1 if no other weight
 node_1_weight
 u_v_w_tex_coords
 # EXAMPLE:
