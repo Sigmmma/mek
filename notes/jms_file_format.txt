@@ -64,7 +64,7 @@ tiff_path   # must either be <none>, or be an absolute filepath
 #  MARKER
 ############
 name        # must be less than 32 characters
-unknown     # seems to always be -1 ?
+region      # -1 if no specific region
 parent_node
 i_j_k_w_rotation
 x_y_z_position
