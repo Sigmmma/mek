@@ -71,6 +71,7 @@ for root, directories, files in walk(dirname(__file__)):
                         gc.collect()
 
                 print("%08x" % (crc ^ 0xFFffFFff) + " : Calculated")
+                print()
         except Exception:
             print(format_exc())
 
