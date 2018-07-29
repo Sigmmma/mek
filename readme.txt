@@ -4,11 +4,6 @@ whenever to see if something is new. Here's a quick rundown of what each thing i
 as of the time of me writing this:
 
 
-Halo_Bitmap_Optimizer_&_Converter:
-A program for optimizing entire directories of bitmap tags and converting them to/from
-different formats and to/from xbox. Read hboc readme.txt for more details.
-
-
 Halo_TeXource:
 Capable of ripping the uncompressed source textures from a directory of tags to tga files.
 
