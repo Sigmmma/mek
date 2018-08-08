@@ -1,5 +1,5 @@
 --***************************************************************************
---*					  GBX/Xbox Model Impoter v5.0 by TheGhost\Moses			*
+--*					  GBX/Xbox Model Impoter v5.1 by TheGhost\Moses			*
 --*					   for 3ds Max v9+										*
 --*				http://ghost.halomaps.org/bluestreak/gbxmodel/				*
 --*					   as part of Project BlueStreak						*
@@ -45,14 +45,14 @@ marker_instance_node_index = #()
 marker_instance_translation = #()
 marker_instance_rotation = #()
 
-node_blocks = 0
-node_name = #()
-node_next_sibling_node_index = #()
-node_first_child_node_index = #()
-node_parent_node_index = #()
-node_translation = #()
-node_rotation = #()
-node_distance_from_parent = #()
+gbx_node_blocks = 0
+gbx_node_name = #()
+gbx_node_next_sibling_node_index = #()
+gbx_node_first_child_node_index = #()
+gbx_node_parent_node_index = #()
+gbx_node_translation = #()
+gbx_node_rotation = #()
+gbx_node_distance_from_parent = #()
 
 region_blocks = 0
 region_name = #()
@@ -81,14 +81,14 @@ compressed_vert_sum   = 0
 shader_blocks = 0
 shader_name = #()
 
-node_array = #()
+gbx_node_array = #()
 marker_array = #()
 
 model_type = 0
 vertex_type = 0
 node_list_checksum = 0
-temp_buffer = undefined
-in_file = undefined
+gbx_tmp_buffer = undefined
+gbx_in_file = undefined
 in_name = undefined
 local_nodes = false
 u_scale = 1.0
@@ -97,16 +97,16 @@ ceRoot = ""
 tagLoc = ""
 maxver = maxVersion()
 
-fn readUShortB =
+fn gbxReadUShortB =
 (
-	b1 = readByte in_file #unsigned
-	b2 = readByte in_file #unsigned
+	b1 = readByte gbx_in_file #unsigned
+	b2 = readByte gbx_in_file #unsigned
 	(b1 * 256) + b2
 )
-fn readShortB =
+fn gbxReadShortB =
 (
-	b1 = readByte in_file #unsigned
-	b2 = readByte in_file #unsigned
+	b1 = readByte gbx_in_file #unsigned
+	b2 = readByte gbx_in_file #unsigned
 	if b1 > 127 then 
 	(
 		((b1 * 256) + b2) - 65536
@@ -117,21 +117,21 @@ fn readShortB =
 	)
 )
 
-fn readULongB =
+fn gbxReadULongB =
 (
-	b1 = readByte in_file #unsigned
-	b2 = readByte in_file #unsigned
-	b3 = readByte in_file #unsigned
-	b4 = readByte in_file #unsigned
+	b1 = readByte gbx_in_file #unsigned
+	b2 = readByte gbx_in_file #unsigned
+	b3 = readByte gbx_in_file #unsigned
+	b4 = readByte gbx_in_file #unsigned
 	(b1 * 16777216) + (b2 * 65536) + (b3 * 256) + (b4 * 1)
 )
 
-fn readLongB =
+fn gbxReadLongB =
 (
-	b1 = readByte in_file #unsigned
-	b2 = readByte in_file #unsigned
-	b3 = readByte in_file #unsigned
-	b4 = readByte in_file #unsigned
+	b1 = readByte gbx_in_file #unsigned
+	b2 = readByte gbx_in_file #unsigned
+	b3 = readByte gbx_in_file #unsigned
+	b4 = readByte gbx_in_file #unsigned
 	if b1 > 127 then
 	(
 		((b1 * 16777216) + (b2 * 65536) + (b3 * 256) + b4) - 4294967296
@@ -142,34 +142,34 @@ fn readLongB =
 	)
 )
 
-fn readFloatB =
+fn gbxReadFloatB =
 (
 	local myBitArray = #{}
-	b1 = readByte in_file #unsigned
-	b2 = readByte in_file #unsigned
-	b3 = readByte in_file #unsigned
-	b4 = readByte in_file #unsigned
-	fseek temp_buffer 0 #seek_set
-	WriteByte temp_buffer b4
-	WriteByte temp_buffer b3
-	WriteByte temp_buffer b2
-	WriteByte temp_buffer b1
-	fseek temp_buffer 0 #seek_set
-	readFloat temp_buffer
+	b1 = readByte gbx_in_file #unsigned
+	b2 = readByte gbx_in_file #unsigned
+	b3 = readByte gbx_in_file #unsigned
+	b4 = readByte gbx_in_file #unsigned
+	fseek gbx_tmp_buffer 0 #seek_set
+	WriteByte gbx_tmp_buffer b4
+	WriteByte gbx_tmp_buffer b3
+	WriteByte gbx_tmp_buffer b2
+	WriteByte gbx_tmp_buffer b1
+	fseek gbx_tmp_buffer 0 #seek_set
+	readFloat gbx_tmp_buffer
 )
 
-fn readQuat =
+fn gbxReadQuat =
 (
-	q1 = readFloatB()
-	q2 = readFloatB()
-	q3 = readFloatB()
-	q4 = readFloatB()
+	q1 = gbxReadFloatB()
+	q2 = gbxReadFloatB()
+	q3 = gbxReadFloatB()
+	q4 = gbxReadFloatB()
 	normalize (quat q1 q2 q3 q4)
 )
 
-fn readTrans =
+fn gbxReadTrans =
 (
-	[readFloatB() * 100, readFloatB() * 100, readFloatB() * 100]
+	[gbxReadFloatB() * 100, gbxReadFloatB() * 100, gbxReadFloatB() * 100]
 )
 
 fn getFlagArray num =
@@ -183,7 +183,7 @@ fn getFlagArray num =
 	myBitArray
 )
 
-rollout roll "GBX/XBOX Model Importer v5.0 by TheGhost/Moses" width:408 height:450
+rollout gbxImporter "GBX/XBOX Model Importer v5.1 by TheGhost/Moses" width:408 height:450
 (
 	GroupBox grp_load "Load File" pos:[8,8] width:392 height:77
 	button unload_button "Unload GBX/XBOX Model" pos:[211,22] width:127 height:29 enabled:false
@@ -217,26 +217,26 @@ rollout roll "GBX/XBOX Model Importer v5.0 by TheGhost/Moses" width:408 height:4
 	spinner spn_marker "" pos:[330,363] width:42 height:16 enabled:false range:[0.01,30,1]
 	
 	GroupBox grp_import "Import Button" pos:[8,388] width:392 height:54 enabled:false
-	button import_button "Import GBX/XBOX Model" pos:[144,403] width:141 height:29 enabled:false
-	label lbl_by "Script by TheGhost/Moses." pos:[16,423] width:105 height:15 enabled:false
-	label lbl_version "v5.0.0" pos:[357,423] width:37 height:15 enabled:false
+	button import_button "Import GBX/XBOX Model" pos:[150,403] width:141 height:29 enabled:false
+	label lbl_by "Script by TheGhost/Moses." pos:[16,423] width:130 height:15 enabled:false
+	label lbl_version "v5.1.0" pos:[357,423] width:37 height:15 enabled:false
 	
-	on roll open do
+	on gbxImporter open do
 	(
 		ClearListener()
 		
-		temp_buffer = fopen (sysInfo.tempdir + "\\float_conv_buffer.bin") "wb+"
-		format "-- Halo Model Importer v5.0 by TheGhost/Moses --\n"
+		gbx_tmp_buffer = fopen (sysInfo.tempdir + "\\gbxmodel_conv_buf.bin") "wbD+"
+		format "-- Halo Model Importer v5.1 by TheGhost/Moses --\n"
 		format "Using max version: %\n" (maxver[1] / 1000.0)
 	)
-	on roll close do
+	on gbxImporter close do
 	(
-		fclose in_file
-		fclose temp_buffer
+		fclose gbx_in_file
+		fclose gbx_tmp_buffer
 	)
 	on unload_button pressed do
 	(
-		fclose in_file
+		fclose gbx_in_file
 		unload_button.enabled = false
 		lbl_model.enabled = false
 		edt_model.text = ""
@@ -274,16 +274,16 @@ rollout roll "GBX/XBOX Model Importer v5.0 by TheGhost/Moses" width:408 height:4
 			
 		if in_name != undefined then
 		(
-			in_file = fopen in_name "rb"
-			if in_file == undefined then
+			gbx_in_file = fopen in_name "rbR"
+			if gbx_in_file == undefined then
 			(
 				messageBox "Error in opening file!" title:"File opening error"
 			)
 			else
 			(
 				print ("Opened File: " + in_name)
-				fseek in_file 36 #seek_set
-				tag_type = readULongB ()
+				fseek gbx_in_file 36 #seek_set
+				tag_type = gbxReadULongB ()
 				print ("Tag type check: " + tag_type as string)
 				model_type  = -1
 				vertex_type = -1
@@ -345,14 +345,14 @@ rollout roll "GBX/XBOX Model Importer v5.0 by TheGhost/Moses" width:408 height:4
 					marker_instance_node_index = #()
 					marker_instance_translation = #()
 					marker_instance_rotation = #()
-					node_blocks = 0
-					node_name = #()
-					node_next_sibling_node_index = #()
-					node_first_child_node_index = #()
-					node_parent_node_index = #()
-					node_translation = #()
-					node_rotation = #()
-					node_distance_from_parent = #()
+					gbx_node_blocks = 0
+					gbx_node_name = #()
+					gbx_node_next_sibling_node_index = #()
+					gbx_node_first_child_node_index = #()
+					gbx_node_parent_node_index = #()
+					gbx_node_translation = #()
+					gbx_node_rotation = #()
+					gbx_node_distance_from_parent = #()
 					region_blocks = 0
 					region_name = #()
 					region_permutation_blocks = #()
@@ -396,8 +396,8 @@ rollout roll "GBX/XBOX Model Importer v5.0 by TheGhost/Moses" width:408 height:4
 							
 					print ("-------------------------------------------------------")
 					
-					fseek in_file 66 #seek_set
-					flags = readUShortB ()
+					fseek gbx_in_file 66 #seek_set
+					flags = gbxReadUShortB ()
 					model_flags = getFlagArray flags
 					print ("Model Flags: " + model_flags as string)
 
@@ -408,65 +408,65 @@ rollout roll "GBX/XBOX Model Importer v5.0 by TheGhost/Moses" width:408 height:4
 						print ("Model uses local nodes")
 					)
 					
-					fseek in_file 68 #seek_set
-					node_list_checksum = readLongB ()
+					fseek gbx_in_file 68 #seek_set
+					node_list_checksum = gbxReadLongB ()
 					print ("Node List Checksum: " + node_list_checksum as string)
 					
-					fseek in_file 112 #seek_set
-					u_scale = readFloatB()
-					fseek in_file 112 #seek_set
-					if readFloat in_file == 0.0 do u_scale = 1.0
+					fseek gbx_in_file 112 #seek_set
+					u_scale = gbxReadFloatB()
+					fseek gbx_in_file 112 #seek_set
+					if readFloat gbx_in_file == 0.0 do u_scale = 1.0
 					print ("Base Map U-Scale: " + u_scale as string)
 					
-					fseek in_file 116 #seek_set
-					v_scale = readFloatB()
-					fseek in_file 116 #seek_set
-					if readFloat in_file == 0.0 do v_scale = 1.0
+					fseek gbx_in_file 116 #seek_set
+					v_scale = gbxReadFloatB()
+					fseek gbx_in_file 116 #seek_set
+					if readFloat gbx_in_file == 0.0 do v_scale = 1.0
 					print ("Base Map V-Scale: " + v_scale as string)
 					
 					print ("-------------------------------------------------------")
 
-					fseek in_file 224 #seek_set
-					unknown_blocks = readULongB ()
+					fseek gbx_in_file 224 #seek_set
+					unknown_blocks = gbxReadULongB ()
 					print ("Unknown Blocks: " + unknown_blocks as string)
 
-					fseek in_file 236 #seek_set
-					marker_blocks = readULongB ()
+					fseek gbx_in_file 236 #seek_set
+					marker_blocks = gbxReadULongB ()
 					print ("Marker Blocks: " + marker_blocks as string)
 					
-					fseek in_file 248 #seek_set
-					node_blocks = readULongB ()
-					print ("Node Blocks: " + node_blocks as string)
+					fseek gbx_in_file 248 #seek_set
+					gbx_node_blocks = gbxReadULongB ()
+					print ("Node Blocks: " + gbx_node_blocks as string)
 					
-					fseek in_file 260 #seek_set
-					region_blocks = readULongB ()
+					fseek gbx_in_file 260 #seek_set
+					region_blocks = gbxReadULongB ()
 					print ("Region Blocks: " + region_blocks as string)
 					
-					fseek in_file 272 #seek_set
-					geometry_blocks = readULongB ()
+					fseek gbx_in_file 272 #seek_set
+					geometry_blocks = gbxReadULongB ()
 					print ("Geometry Blocks: " + geometry_blocks as string)
 					
-					fseek in_file 284 #seek_set
-					shader_blocks = readULongB ()
+					fseek gbx_in_file 284 #seek_set
+					shader_blocks = gbxReadULongB ()
 					print ("Shader Blocks: " + shader_blocks as string)
 					
 					print ("-------------------------------------------------------")
 					
-					fseek in_file 296 #seek_set
+					fseek gbx_in_file 296 #seek_set
 					
 					--*skip all the unknown_blocks*
-					fseek in_file (unknown_blocks*64) #seek_cur
+					fseek gbx_in_file (unknown_blocks*64) #seek_cur
 					
-					print ("Marker block offset: " + (ftell in_file) as string)
+					print ("Marker block offset: " + (ftell gbx_in_file) as string)
 					
 					for m = 1 to marker_blocks do
 					(
-						offset = (ftell in_file)
-						marker_name[m] = readString in_file
-						fseek in_file (offset + 32) #seek_set
-						fseek in_file 20 #seek_cur
-						marker_instance_blocks[m] = readULongB ()
-						fseek in_file 8 #seek_cur
+						offset = (ftell gbx_in_file)
+						marker_name[m] = readString gbx_in_file
+						fseek gbx_in_file (offset + 32) #seek_set
+						fseek gbx_in_file 20 #seek_cur
+						marker_instance_blocks[m] = gbxReadULongB ()
+						fseek gbx_in_file 8 #seek_cur
 					)
 					for m = 1 to marker_blocks do
 					(
@@ -477,12 +477,12 @@ rollout roll "GBX/XBOX Model Importer v5.0 by TheGhost/Moses" width:408 height:4
 						temp_rotation = #()
 						for i = 1 to marker_instance_blocks[m] do
 						(
-							temp_region_index[i] = readByte in_file #unsigned
-							temp_permutation_index[i] = readByte in_file #unsigned
-							temp_node_index[i] = readByte in_file #unsigned
-							fseek in_file 1 #seek_cur
-							temp_translation[i] = readTrans()
-							temp_rotation[i] = readQuat()
+							temp_region_index[i] = readByte gbx_in_file #unsigned
+							temp_permutation_index[i] = readByte gbx_in_file #unsigned
+							temp_node_index[i] = readByte gbx_in_file #unsigned
+							fseek gbx_in_file 1 #seek_cur
+							temp_translation[i] = gbxReadTrans()
+							temp_rotation[i] = gbxReadQuat()
 						)
 						marker_instance_region_index[m] = temp_region_index
 						marker_instance_permutation_index[m] = temp_permutation_index
@@ -491,33 +491,33 @@ rollout roll "GBX/XBOX Model Importer v5.0 by TheGhost/Moses" width:408 height:4
 						marker_instance_rotation[m] = temp_rotation
 					)
 					
-					print ("Node block offset: " + (ftell in_file) as string)
+					print ("Node block offset: " + (ftell gbx_in_file) as string)
 					
-					for n = 1 to node_blocks do
+					for n = 1 to gbx_node_blocks do
 					(
-						offset = (ftell in_file)
-						node_name[n] = readString in_file
-						fseek in_file (offset + 32) #seek_set
-						node_next_sibling_node_index[n] = readShortB ()
-						node_first_child_node_index[n] = readShortB ()
-						node_parent_node_index[n] = readShortB ()
-						fseek in_file 2 #seek_cur
-						node_translation[n] = readTrans()
-						node_rotation[n] = readQuat()
-						node_distance_from_parent[n] = readFloatB()
-						fseek in_file 84 #seek_cur
+						offset = (ftell gbx_in_file)
+						gbx_node_name[n] = readString gbx_in_file
+						fseek gbx_in_file (offset + 32) #seek_set
+						gbx_node_next_sibling_node_index[n] = gbxReadShortB ()
+						gbx_node_first_child_node_index[n] = gbxReadShortB ()
+						gbx_node_parent_node_index[n] = gbxReadShortB ()
+						fseek gbx_in_file 2 #seek_cur
+						gbx_node_translation[n] = gbxReadTrans()
+						gbx_node_rotation[n] = gbxReadQuat()
+						gbx_node_distance_from_parent[n] = gbxReadFloatB()
+						fseek gbx_in_file 84 #seek_cur
 					)
 					
-					print ("Region block offset: " + (ftell in_file) as string)
+					print ("Region block offset: " + (ftell gbx_in_file) as string)
 					
 					for r = 1 to region_blocks do
 					(
-						offset = (ftell in_file)
-						region_name[r] = readString in_file
-						fseek in_file (offset + 32) #seek_set
-						fseek in_file 34 #seek_cur
-						region_permutation_blocks[r] = readShortB ()
-						fseek in_file 8 #seek_cur
+						offset = (ftell gbx_in_file)
+						region_name[r] = readString gbx_in_file
+						fseek gbx_in_file (offset + 32) #seek_set
+						fseek gbx_in_file 34 #seek_cur
+						region_permutation_blocks[r] = gbxReadShortB ()
+						fseek gbx_in_file 8 #seek_cur
 					)
 					for r = 1 to region_blocks do
 					(
@@ -526,19 +526,19 @@ rollout roll "GBX/XBOX Model Importer v5.0 by TheGhost/Moses" width:408 height:4
 						temp_permutation_marker_blocks = #()
 						for p = 1 to region_permutation_blocks[r] do
 						(
-							offset = (ftell in_file)
-							temp_permutation_name[p] = readString in_file
-							fseek in_file (offset + 32) #seek_set
-							fseek in_file 32 #seek_cur
-							superlow = readShortB ()
-							low = readShortB ()
-							medium = readShortB ()
-							high = readShortB ()
-							superhigh = readShortB ()
+							offset = (ftell gbx_in_file)
+							temp_permutation_name[p] = readString gbx_in_file
+							fseek gbx_in_file (offset + 32) #seek_set
+							fseek gbx_in_file 32 #seek_cur
+							superlow = gbxReadShortB ()
+							low = gbxReadShortB ()
+							medium = gbxReadShortB ()
+							high = gbxReadShortB ()
+							superhigh = gbxReadShortB ()
 							temp_permutation_LOD_indices[p] = #(superlow, low, medium, high, superhigh)
-							fseek in_file 2 #seek_cur
-							temp_permutation_marker_blocks[p] = readULongB ()
-							fseek in_file 8 #seek_cur
+							fseek gbx_in_file 2 #seek_cur
+							temp_permutation_marker_blocks[p] = gbxReadULongB ()
+							fseek gbx_in_file 8 #seek_cur
 						)
 						region_permutation_name[r] = temp_permutation_name
 						region_permutation_LOD_indices[r] = temp_permutation_LOD_indices
@@ -556,14 +556,14 @@ rollout roll "GBX/XBOX Model Importer v5.0 by TheGhost/Moses" width:408 height:4
 							temp_marker_translation = #()
 							for m = 1 to region_permutation_marker_blocks[r][p] do
 							(
-								offset = (ftell in_file)
-								temp_marker_name[m] = readString in_file
-								fseek in_file (offset + 32) #seek_set
-								temp_marker_node_index[m] = readShortB ()
-								fseek in_file 2 #seek_cur
-								temp_marker_rotation[m] = readQuat()
-								temp_marker_translation[m] = readTrans()
-								fseek in_file 16 #seek_cur
+								offset = (ftell gbx_in_file)
+								temp_marker_name[m] = readString gbx_in_file
+								fseek gbx_in_file (offset + 32) #seek_set
+								temp_marker_node_index[m] = gbxReadShortB ()
+								fseek gbx_in_file 2 #seek_cur
+								temp_marker_rotation[m] = gbxReadQuat()
+								temp_marker_translation[m] = gbxReadTrans()
+								fseek gbx_in_file 16 #seek_cur
 							)
 							temp_permutation_marker_name[p] = temp_marker_name
 							temp_permutation_marker_node_index[p] = temp_marker_node_index
@@ -576,13 +576,13 @@ rollout roll "GBX/XBOX Model Importer v5.0 by TheGhost/Moses" width:408 height:4
 						region_permutation_marker_translation[r] = temp_permutation_marker_translation
 					)
 					
-					print ("Geometry block offset: " + (ftell in_file) as string)
+					print ("Geometry block offset: " + (ftell gbx_in_file) as string)
 					
 					for g = 1 to geometry_blocks do
 					(
-						fseek in_file 36 #seek_cur
-						geometry_part_blocks[g] = readULongB ()
-						fseek in_file 8 #seek_cur
+						fseek gbx_in_file 36 #seek_cur
+						geometry_part_blocks[g] = gbxReadULongB ()
+						fseek gbx_in_file 8 #seek_cur
 					)
 
 					uncompressed_vert_sum = 0
@@ -597,36 +597,36 @@ rollout roll "GBX/XBOX Model Importer v5.0 by TheGhost/Moses" width:408 height:4
 						if local_nodes == true do temp_part_local_nodes = #()
 						for p = 1 to geometry_part_blocks[g] do
 						(
-							fseek in_file 4 #seek_cur
-							temp_part_shader_index[p] = readShortB ()
-							fseek in_file 26 #seek_cur
-							temp_part_uncompressed_vertex_blocks[p] = readULongB ()
-							fseek in_file 8 #seek_cur
-							temp_part_compressed_vertex_blocks[p] = readULongB ()
-							fseek in_file 8 #seek_cur
-							temp_part_triangle_blocks[p] = readULongB ()
+							fseek gbx_in_file 4 #seek_cur
+							temp_part_shader_index[p] = gbxReadShortB ()
+							fseek gbx_in_file 26 #seek_cur
+							temp_part_uncompressed_vertex_blocks[p] = gbxReadULongB ()
+							fseek gbx_in_file 8 #seek_cur
+							temp_part_compressed_vertex_blocks[p] = gbxReadULongB ()
+							fseek gbx_in_file 8 #seek_cur
+							temp_part_triangle_blocks[p] = gbxReadULongB ()
 							
 							uncompressed_vert_sum = uncompressed_vert_sum + temp_part_uncompressed_vertex_blocks[p]
 							compressed_vert_sum   = compressed_vert_sum   + temp_part_compressed_vertex_blocks[p]
 							if model_type == 0 then
 							(
-								fseek in_file 44 #seek_cur
+								fseek gbx_in_file 44 #seek_cur
 							)
 							else
 							(
-								offset = (ftell in_file)
+								offset = (ftell gbx_in_file)
 								if local_nodes == true then
 								(
-									fseek in_file 46 #seek_cur
-									number_local_nodes = readUShortB ()
+									fseek gbx_in_file 46 #seek_cur
+									number_local_nodes = gbxReadUShortB ()
 									the_local_nodes = #()
 									for n = 1 to number_local_nodes do
 									(
-										append the_local_nodes (readByte in_file #unsigned)
+										append the_local_nodes (readByte gbx_in_file #unsigned)
 									)
 									temp_part_local_nodes[p] = the_local_nodes
 								)
-								fseek in_file (offset + 72) #seek_set
+								fseek gbx_in_file (offset + 72) #seek_set
 							)
 						)
 						if model_type == 1 and uncompressed_vert_sum == 0 and compressed_vert_sum > 0 then
@@ -657,27 +657,27 @@ rollout roll "GBX/XBOX Model Importer v5.0 by TheGhost/Moses" width:408 height:4
 						(
 							if vertex_type == 1 then
 							(
-							    temp_part_vert_offset[p] = ftell in_file
+							    temp_part_vert_offset[p] = ftell gbx_in_file
 							)
-							fseek in_file (geometry_part_uncompressed_vertex_blocks[g][p] * 68) #seek_cur
+							fseek gbx_in_file (geometry_part_uncompressed_vertex_blocks[g][p] * 68) #seek_cur
 							if vertex_type == 0 then
 							(
-							    temp_part_vert_offset[p] = ftell in_file
+							    temp_part_vert_offset[p] = ftell gbx_in_file
 							)
-							fseek in_file (geometry_part_compressed_vertex_blocks[g][p] * 32) #seek_cur
-							temp_part_tri_offset[p] = ftell in_file
-							fseek in_file (geometry_part_triangle_blocks[g][p] * 6) #seek_cur
+							fseek gbx_in_file (geometry_part_compressed_vertex_blocks[g][p] * 32) #seek_cur
+							temp_part_tri_offset[p] = ftell gbx_in_file
+							fseek gbx_in_file (geometry_part_triangle_blocks[g][p] * 6) #seek_cur
 						)
 						geometry_part_vert_offset[g] = temp_part_vert_offset
 						geometry_part_tri_offset[g]  = temp_part_tri_offset
 					)
 					
-					print ("Shader block offset: " + (ftell in_file) as string)
+					print ("Shader block offset: " + (ftell gbx_in_file) as string)
 					
-					fseek in_file (shader_blocks * 32) #seek_cur
+					fseek gbx_in_file (shader_blocks * 32) #seek_cur
 					for s = 1 to shader_blocks do
 					(
-						shader_dir = readString in_file
+						shader_dir = readString gbx_in_file
 						ss = shader_dir as StringStream
 						d2 = 1
 						d1 = 0
@@ -845,41 +845,41 @@ rollout roll "GBX/XBOX Model Importer v5.0 by TheGhost/Moses" width:408 height:4
 		
 		if chk_node.checked == true or chk_marker.checked == true then
 		(
-			node_array = #()
+			gbx_node_array = #()
 			marker_array = #()
 			
-			for n = 1 to node_blocks do
+			for n = 1 to gbx_node_blocks do
 			(
-				node_array[n] = sphere radius:spn_node.value
-				node_array[n].wirecolor = color 6 134 6
-				node_array[n].name = node_name[n]
-				if node_parent_node_index[n] != -1 do
+				gbx_node_array[n] = sphere radius:spn_node.value
+				gbx_node_array[n].wirecolor = color 6 134 6
+				gbx_node_array[n].name = gbx_node_name[n]
+				if gbx_node_parent_node_index[n] != -1 do
 				(
-					node_array[n].parent = node_array[node_parent_node_index[n] + 1]
+					gbx_node_array[n].parent = gbx_node_array[gbx_node_parent_node_index[n] + 1]
 				)
-				rot = (quat -node_rotation[n].x -node_rotation[n].y -node_rotation[n].z node_rotation[n].w)
-				in coordsys parent node_array[n].rotation = rot
-				in coordsys parent node_array[n].pos = node_translation[n]
+				rot = (quat -gbx_node_rotation[n].x -gbx_node_rotation[n].y -gbx_node_rotation[n].z gbx_node_rotation[n].w)
+				in coordsys parent gbx_node_array[n].rotation = rot
+				in coordsys parent gbx_node_array[n].pos = gbx_node_translation[n]
 			)
 			
 			if chk_bone.checked == true or chk_bip.checked == true then
 			(
-				for n = 1 to node_array.count do
+				for n = 1 to gbx_node_array.count do
 				(
-					if chk_bip.checked == false or (substring node_name[n] 1 5 as name == "bip01" as name) then
+					if chk_bip.checked == false or (substring gbx_node_name[n] 1 5 as name == "bip01" as name) then
 					(
-						if node_first_child_node_index[n] == -1 then
+						if gbx_node_first_child_node_index[n] == -1 then
 						(
-							myBone = BoneSys.createBone node_array[n].pos [node_array[n].pos.x + spn_node.value, node_array[n].pos.y, node_array[n].pos.z] [0,0,1]
-							myBone.name = node_array[n].name
+							myBone = BoneSys.createBone gbx_node_array[n].pos [gbx_node_array[n].pos.x + spn_node.value, gbx_node_array[n].pos.y, gbx_node_array[n].pos.z] [0,0,1]
+							myBone.name = gbx_node_array[n].name
 							myBone.width = spn_node.value
 							myBone.height = spn_node.value
 							myBone.taper = 50
 						)
 						else
 						(
-							myBone = BoneSys.createBone node_array[n].pos node_array[node_first_child_node_index[n] + 1].pos [0,0,1]
-							myBone.name = node_array[n].name
+							myBone = BoneSys.createBone gbx_node_array[n].pos gbx_node_array[gbx_node_first_child_node_index[n] + 1].pos [0,0,1]
+							myBone.name = gbx_node_array[n].name
 							myBone.width = spn_node.value
 							myBone.height = spn_node.value
 							myBone.taper = 70
@@ -924,17 +924,17 @@ rollout roll "GBX/XBOX Model Importer v5.0 by TheGhost/Moses" width:408 height:4
 							
 						)
 						
-						delete node_array[n]
-						node_array[n] = myBone
+						delete gbx_node_array[n]
+						gbx_node_array[n] = myBone
 						
-						if node_parent_node_index[n] != -1 then
+						if gbx_node_parent_node_index[n] != -1 then
 						(
-							myBone.parent = node_array[node_parent_node_index[n] + 1]
+							myBone.parent = gbx_node_array[gbx_node_parent_node_index[n] + 1]
 						)
 						
-						rot = (quat -node_rotation[n].x -node_rotation[n].y -node_rotation[n].z node_rotation[n].w)
+						rot = (quat -gbx_node_rotation[n].x -gbx_node_rotation[n].y -gbx_node_rotation[n].z gbx_node_rotation[n].w)
 						in coordsys parent myBone.rotation = rot
-						in coordsys parent myBone.pos = node_translation[n]
+						in coordsys parent myBone.pos = gbx_node_translation[n]
 					)
 				)
 			)
@@ -954,7 +954,7 @@ rollout roll "GBX/XBOX Model Importer v5.0 by TheGhost/Moses" width:408 height:4
 								marker_array[m] = sphere radius:spn_marker.value
 								marker_array[m].wirecolor = color 28 89 177
 								marker_array[m].name = "#" + marker_name[b]
-								marker_array[m].parent = node_array[marker_instance_node_index[b][i] + 1]
+								marker_array[m].parent = gbx_node_array[marker_instance_node_index[b][i] + 1]
 								rot = (quat -marker_instance_rotation[b][i].x -marker_instance_rotation[b][i].y -marker_instance_rotation[b][i].z marker_instance_rotation[b][i].w)
 								in coordsys parent marker_array[m].rotation = rot
 								in coordsys parent marker_array[m].pos = marker_instance_translation[b][i]
@@ -976,7 +976,7 @@ rollout roll "GBX/XBOX Model Importer v5.0 by TheGhost/Moses" width:408 height:4
 									marker_array[m] = sphere radius:spn_marker.value
 									marker_array[m].wirecolor = color 28 89 177
 									marker_array[m].name = "#" + region_permutation_marker_name[r][p][b]
-									marker_array[m].parent = node_array[region_permutation_marker_node_index[r][p][b] + 1]
+									marker_array[m].parent = gbx_node_array[region_permutation_marker_node_index[r][p][b] + 1]
 									rot = (quat -region_permutation_marker_rotation[r][p][b].x -region_permutation_marker_rotation[r][p][b].y -region_permutation_marker_rotation[r][p][b].z region_permutation_marker_rotation[r][p][b].w)
 									in coordsys parent marker_array[m].rotation = rot
 									in coordsys parent marker_array[m].pos = region_permutation_marker_translation[r][p][b]
@@ -989,9 +989,9 @@ rollout roll "GBX/XBOX Model Importer v5.0 by TheGhost/Moses" width:408 height:4
 			
 			if chk_node.checked == false then
 			(
-				for n = 1 to node_blocks do
+				for n = 1 to gbx_node_blocks do
 				(
-					delete node_array[n]
+					delete gbx_node_array[n]
 				)
 			)
 		)
@@ -1042,37 +1042,37 @@ rollout roll "GBX/XBOX Model Importer v5.0 by TheGhost/Moses" width:408 height:4
 					vertex_xyz[geometry_part_vertex_blocks[g][p]] = 0
 					vertex_uvw[geometry_part_vertex_blocks[g][p]] = 0
 					
-					fseek in_file geometry_part_vert_offset[g][p] #seek_set
+					fseek gbx_in_file geometry_part_vert_offset[g][p] #seek_set
 						
 					if vertex_type == 0 then
 					(
 						for v = 1 to geometry_part_vertex_blocks[g][p] do
 						(
-							vertex_xyz[v] = readTrans()
+							vertex_xyz[v] = gbxReadTrans()
 
-							fseek in_file 12 #seek_cur
+							fseek gbx_in_file 12 #seek_cur
 						
 							if chk_uvw.checked == true then
 							(
-								u_coord = ((readShortB ()) / 32767.0) * u_scale
-								v_coord = 1.0 - (((readShortB ()) / 32767.0) * v_scale)
+								u_coord = ((gbxReadShortB ()) / 32767.0) * u_scale
+								v_coord = 1.0 - (((gbxReadShortB ()) / 32767.0) * v_scale)
 								vertex_uvw[v] = [u_coord,v_coord,0]
 							)
 							else
 							(
-								fseek in_file 4 #seek_cur
+								fseek gbx_in_file 4 #seek_cur
 							)
 
 							if chk_weight.checked == true then
 							(
-								node0_index = ((readByte in_file #signed) / 3) + 1
-								node1_index = ((readByte in_file #signed) / 3) + 1
+								node0_index = ((readByte gbx_in_file #signed) / 3) + 1
+								node1_index = ((readByte gbx_in_file #signed) / 3) + 1
 
 								vertex_node_index[v] = #(node0_index, node1_index)
 							
 								append part_vertex_node_index vertex_node_index[v]
 							
-								node0_weight = ((readShortB ()) / 32767.0) * 1.0
+								node0_weight = ((gbxReadShortB ()) / 32767.0) * 1.0
 								node1_weight = (1 - node0_weight ) * 1.0
 								vertex_node_weight[v] = #(node0_weight, node1_weight)
 							
@@ -1080,7 +1080,7 @@ rollout roll "GBX/XBOX Model Importer v5.0 by TheGhost/Moses" width:408 height:4
 							)
 							else
 							(
-								fseek in_file 4 #seek_cur
+								fseek gbx_in_file 4 #seek_cur
 							)
 						)
 					)
@@ -1088,25 +1088,25 @@ rollout roll "GBX/XBOX Model Importer v5.0 by TheGhost/Moses" width:408 height:4
 					(
 						for v = 1 to geometry_part_vertex_blocks[g][p] do
 						(
-							vertex_xyz[v] = readTrans()
+							vertex_xyz[v] = gbxReadTrans()
 
-							fseek in_file 36 #seek_cur
+							fseek gbx_in_file 36 #seek_cur
 						
 							if chk_uvw.checked == true then
 							(
-								u_coord = readFloatB() * u_scale
-								v_coord = 1 - (readFloatB() * v_scale)
+								u_coord = gbxReadFloatB() * u_scale
+								v_coord = 1 - (gbxReadFloatB() * v_scale)
 								vertex_uvw[v] = [u_coord,v_coord,0]
 							)
 							else
 							(
-								fseek in_file 8 #seek_cur
+								fseek gbx_in_file 8 #seek_cur
 							)
 
 							if chk_weight.checked == true then
 							(
-								node0_index = (readShortB ()) + 1
-								node1_index = (readShortB ()) + 1
+								node0_index = (gbxReadShortB ()) + 1
+								node1_index = (gbxReadShortB ()) + 1
 							
 								if local_nodes == true then
 								(
@@ -1135,25 +1135,25 @@ rollout roll "GBX/XBOX Model Importer v5.0 by TheGhost/Moses" width:408 height:4
 							
 								append part_vertex_node_index vertex_node_index[v]
 							
-								node0_weight = readFloatB()
-								node1_weight = readFloatB()
+								node0_weight = gbxReadFloatB()
+								node1_weight = gbxReadFloatB()
 								vertex_node_weight[v] = #(node0_weight, node1_weight)
 							
 								append part_vertex_node_weight vertex_node_weight[v]
 							)
 							else
 							(
-								fseek in_file 12 #seek_cur
+								fseek gbx_in_file 12 #seek_cur
 							)
 						)
 					)
 
-					fseek in_file geometry_part_tri_offset[g][p] #seek_set
+					fseek gbx_in_file geometry_part_tri_offset[g][p] #seek_set
 
 					triangle_vertices = (geometry_part_triangle_blocks[g][p] * 3)
 					for t = 1 to triangle_vertices do
 					(
-						append vertex_order ((readShortB ()) + 1)
+						append vertex_order ((gbxReadShortB ()) + 1)
 					)
 					
 					vo_count = vertex_order.count
@@ -1216,9 +1216,9 @@ rollout roll "GBX/XBOX Model Importer v5.0 by TheGhost/Moses" width:408 height:4
 							theSkin.bone_Limit = 2
 						)
 						
-						for n = 1 to node_array.count do
+						for n = 1 to gbx_node_array.count do
 						(
-							skinOps.addbone theSkin node_array[n] 1
+							skinOps.addbone theSkin gbx_node_array[n] 1
 						)
 						
 						subobjectLevel = 1
@@ -1281,9 +1281,9 @@ rollout roll "GBX/XBOX Model Importer v5.0 by TheGhost/Moses" width:408 height:4
 							theSkin.bone_Limit = 2
 						)
 						
-						for n = 1 to node_array.count do
+						for n = 1 to gbx_node_array.count do
 						(
-							skinOps.addbone theSkin node_array[n] 1
+							skinOps.addbone theSkin gbx_node_array[n] 1
 						)
 						
 						subobjectLevel = 1
@@ -1346,6 +1346,6 @@ rollout roll "GBX/XBOX Model Importer v5.0 by TheGhost/Moses" width:408 height:4
 )
 
 
-CreateDialog roll
+CreateDialog gbxImporter
 
 -- End of Script --
