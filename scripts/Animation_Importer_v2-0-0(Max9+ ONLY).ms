@@ -66,6 +66,7 @@ frame_data_offset = #()
 anim_node_count = 0
 node_list_checksum = 0
 anim_tmp_buffer = undefined
+file_to_read_from = undefined
 anim_in_file = undefined
 in_name = undefined
 ceRoot = ""
@@ -87,14 +88,14 @@ frame_info_dyaw = #()
 
 fn animReadUShortB =
 (
-	b1 = readByte anim_in_file #unsigned
-	b2 = readByte anim_in_file #unsigned
+	b1 = readByte file_to_read_from #unsigned
+	b2 = readByte file_to_read_from #unsigned
 	(b1 * 256) + b2
 )
 fn animReadShortB =
 (
-	b1 = readByte anim_in_file #unsigned
-	b2 = readByte anim_in_file #unsigned
+	b1 = readByte file_to_read_from #unsigned
+	b2 = readByte file_to_read_from #unsigned
 	if b1 > 127 then 
 	(
 		((b1 * 256) + b2) - 65536
@@ -107,19 +108,19 @@ fn animReadShortB =
 
 fn animReadULongB =
 (
-	b1 = readByte anim_in_file #unsigned
-	b2 = readByte anim_in_file #unsigned
-	b3 = readByte anim_in_file #unsigned
-	b4 = readByte anim_in_file #unsigned
+	b1 = readByte file_to_read_from #unsigned
+	b2 = readByte file_to_read_from #unsigned
+	b3 = readByte file_to_read_from #unsigned
+	b4 = readByte file_to_read_from #unsigned
 	(b1 * 16777216) + (b2 * 65536) + (b3 * 256) + (b4 * 1)
 )
 
 fn animReadLongB =
 (
-	b1 = readByte anim_in_file #unsigned
-	b2 = readByte anim_in_file #unsigned
-	b3 = readByte anim_in_file #unsigned
-	b4 = readByte anim_in_file #unsigned
+	b1 = readByte file_to_read_from #unsigned
+	b2 = readByte file_to_read_from #unsigned
+	b3 = readByte file_to_read_from #unsigned
+	b4 = readByte file_to_read_from #unsigned
 	if b1 > 127 then
 	(
 		((b1 * 16777216) + (b2 * 65536) + (b3 * 256) + b4) - 4294967296
@@ -133,10 +134,10 @@ fn animReadLongB =
 fn animReadFloatB =
 (
 	local myBitArray = #{}
-	b1 = readByte anim_in_file #unsigned
-	b2 = readByte anim_in_file #unsigned
-	b3 = readByte anim_in_file #unsigned
-	b4 = readByte anim_in_file #unsigned
+	b1 = readByte file_to_read_from #unsigned
+	b2 = readByte file_to_read_from #unsigned
+	b3 = readByte file_to_read_from #unsigned
+	b4 = readByte file_to_read_from #unsigned
 	fseek anim_tmp_buffer 0 #seek_set
 	WriteByte anim_tmp_buffer b4
 	WriteByte anim_tmp_buffer b3
@@ -409,7 +410,7 @@ fn moveBipedCoordParent theNode trans =
 	)
 )
 
-rollout animImporter "Animation Importer" width:230 height:505
+rollout animImporter "Animation Importer" width:230 height:485
 (
 	GroupBox grp_title "" pos:[9,2] width:205 height:47
 	label lbl_title "BlueStreak: Animation Importer" pos:[39,13] width:150 height:13
@@ -431,14 +432,13 @@ rollout animImporter "Animation Importer" width:230 height:505
 	checkbox chk_jma "Export Data to File" pos:[21,270] width:176 height:17 enabled:false checked:true
 	button save_button "Export Animation Data" pos:[40,310] width:140 height:31 enabled:false
 	
-	GroupBox grp_importoptions "Import Animation Data Options" pos:[9,359] width:205 height:121 enabled:false
+	GroupBox grp_importoptions "Import Animation Data Options" pos:[9,359] width:205 height:101 enabled:false
 	checkbox chk_finfo "Import Frame Info(dx/dy/dz/dyaw)" pos:[21,377] width:180 height:17 enabled:false
 	checkbox chk_fbase "Import Extra Base Frame" pos:[21,395] width:177 height:17 enabled:false
-	checkbox chk_fdefault "Import Overlay Default Frame" pos:[21,414] width:177 height:17 enabled:false
-	button import_button "Import Animation into Scene" pos:[29,437] width:163 height:31 enabled:false
+	button import_button "Import Animation into Scene" pos:[29,417] width:163 height:31 enabled:false
 	
-	label lbl_scriptby "Script by TheGhost/Moses" pos:[12,487] width:200 height:26 enabled:false
-	label lbl_version "v1.1.0" pos:[178,487] width:34 height:13 enabled:false
+	label lbl_scriptby "Script by TheGhost/Moses" pos:[12,467] width:200 height:26 enabled:false
+	label lbl_version "v1.1.0" pos:[178,467] width:34 height:13 enabled:false
 	
 	on animImporter open do
 	(
@@ -470,6 +470,7 @@ rollout animImporter "Animation Importer" width:230 height:505
 		if in_name != undefined then
 		(
 			anim_in_file = fopen in_name "rb"
+			file_to_read_from = anim_in_file
 			if anim_in_file == undefined then
 			(
 				messageBox "Error in opening file!" title:"File opening error"
@@ -737,12 +738,11 @@ rollout animImporter "Animation Importer" width:230 height:505
 						
 						if loadGBXmodel == true then
 						(
-							print ("Node data retrieved from model: " + gbx_name as string)
 							fseek gbx_file 36 #seek_set
 							tag_type = readLong gbx_file
 							print ("Model tag type check: " + tag_type as string)
 							
-							if tag_type != 845442925 or tag_type != 1701080941 then
+							if (tag_type != 845442925) and (tag_type != 1701080941) then
 							(
 								messageBox "Error: Incorrect file type! Animation loading terminated.  " \
 									title:"Incorrect file type error"
@@ -770,6 +770,8 @@ rollout animImporter "Animation Importer" width:230 height:505
 						)
 						else
 						(
+							print ("Retrieving node data from model: " + gbx_name as string)
+							file_to_read_from = gbx_file
 							fseek gbx_file 236 #seek_set
 							gbx_marker_blocks = animReadLongB ()
 							fseek gbx_file 248 #seek_set
@@ -798,6 +800,7 @@ rollout animImporter "Animation Importer" width:230 height:505
 								node_parent_index[n] = readByte gbx_file #signed
 								fseek gbx_file 118 #seek_cur
 							)
+							file_to_read_from = anim_in_file
 							fclose gbx_file
 						)
 						
@@ -881,8 +884,6 @@ rollout animImporter "Animation Importer" width:230 height:505
 							chk_finfo.enabled = false
 							chk_fbase.checked = false
 							chk_fbase.enabled = false
-							chk_fdefault.enabled = true
-							chk_fdefault.checked = true
 						)
 						else
 						(
@@ -896,8 +897,6 @@ rollout animImporter "Animation Importer" width:230 height:505
 								chk_finfo.enabled = false
 							)
 							chk_fbase.enabled = true
-							chk_fdefault.enabled = false
-							chk_fdefault.checked = false
 						)
 						
 						if animation_flags[1][1] == true and (hasNoData 1) == true then
@@ -933,7 +932,6 @@ rollout animImporter "Animation Importer" width:230 height:505
 		grp_importoptions.enabled = false
 		import_button.enabled = false
 		chk_finfo.enabled = false
-		chk_fdefault.enabled = false
 		chk_fbase.enabled = false
 		
 		fclose anim_in_file
@@ -951,8 +949,6 @@ rollout animImporter "Animation Importer" width:230 height:505
 			chk_finfo.enabled = false
 			chk_fbase.checked = false
 			chk_fbase.enabled = false
-			chk_fdefault.enabled = true
-			chk_fdefault.checked = true
 		)
 		else
 		(
@@ -966,8 +962,6 @@ rollout animImporter "Animation Importer" width:230 height:505
 				chk_finfo.enabled = false
 			)
 			chk_fbase.enabled = true
-			chk_fdefault.enabled = false
-			chk_fdefault.checked = false
 		)
 		if animation_flags[i][1] == true and (hasNoData i) == true then
 		(
@@ -1252,6 +1246,9 @@ rollout animImporter "Animation Importer" width:230 height:505
 		frame_info_type = animation_frame_info_type[animID]
 		
 		dontImportNode = #()
+		defOverlayTrans = #()
+		defOverlayRot = #()
+		defOverlayScale = #()
 		
 		for n = 1 to anim_node_count do
 		(
@@ -1310,7 +1307,7 @@ rollout animImporter "Animation Importer" width:230 height:505
 				start2 = timeStamp()
 				max create mode
 				
-				if chk_fbase.checked == true or chk_fdefault.checked == true then
+				if chk_fbase.checked == true then
 				(
 					animationRange = (interval 0 frame_count)
 				)
@@ -1325,6 +1322,9 @@ rollout animImporter "Animation Importer" width:230 height:505
 				(
 					if findItem dontImportNode n == 0 then
 					(
+						append defOverlayTrans (in coordsys parent anim_node_array[n].pos)
+						append defOverlayRot   (in coordsys parent anim_node_array[n].rotation)
+						append defOverlayScale (in coordsys parent anim_node_array[n].scale)
 						if classOf anim_node_array[n] == Biped_Object then
 						(
 							biped.deleteKeys anim_node_array[n].controller #allKeys
@@ -1335,79 +1335,6 @@ rollout animImporter "Animation Importer" width:230 height:505
 							deleteKeys anim_node_array[n].controller #allKeys
 						)
 					)
-				)
-				if (animation_type[animID] == 1) and chk_fdefault.checked == true then
-				(
-					for n = 1 to anim_node_count do
-					(
-						if findItem dontImportNode n == 0 then
-						(
-							select anim_node_array[n]
-							if node_rotation_flag_data[animID][n] == true then
-							(
-								if classOf anim_node_array[n] == Biped_Object then
-								(
-									rotateBipedCoordParent anim_node_array[n] (quat 0.0 0.0 0.0 1.0)
-								)
-								else
-								(
-									in coordsys parent anim_node_array[n].rotation = (quat 0.0 0.0 0.0 1.0)
-								)
-							)
-							else
-							(
-								rot = node_default_rotation[n]
-								mod_rot = (quat -rot.x -rot.y -rot.z rot.w)
-								if classOf anim_node_array[n] == Biped_Object then
-								(
-									rotateBipedCoordParent anim_node_array[n] rot
-								)
-								else
-								(
-									in coordsys parent anim_node_array[n].rotation = mod_rot
-								)
-							)
-							if node_trans_flag_data[animID][n] == true then
-							(
-								if classOf anim_node_array[n] == Biped_Object then
-								(
-									moveBipedCoordParent anim_node_array[n] [0.0,0.0,0.0]
-								)
-								else
-								(
-									in coordsys parent anim_node_array[n].pos = [0.0,0.0,0.0]
-								)
-							)
-							else
-							(
-								if classOf anim_node_array[n] == Biped_Object then
-								(
-									moveBipedCoordParent anim_node_array[n] node_default_translation[n]
-								)
-								else
-								(
-									in coordsys parent anim_node_array[n].pos = node_default_translation[n]
-								)
-							)
-							
-							if node_scale_flag_data[animID][n] == true then
-							(
-								if classOf anim_node_array[n] != Biped_Object then
-								(
-									in coordsys parent anim_node_array[n].scale = 1.0
-								)
-							)
-							else
-							(
-								if classOf anim_node_array[n] != Biped_Object then
-								(
-									in coordsys parent anim_node_array[n].scale = node_default_scale[n]
-								)
-							)
-							clearSelection()
-						)
-					)
-					sliderTime += 1
 				)
 				for f = 1 to frame_count do
 				(
@@ -1447,7 +1374,12 @@ rollout animImporter "Animation Importer" width:230 height:505
 								)
 								else
 								(
-									in coordsys parent anim_node_array[n].rotation = mod_rot
+									if (animation_type[animID] == 1) and (node_rotation_flag_data[animID][n] == true) then (
+										in coordsys parent anim_node_array[n].rotation = defOverlayRot[n]
+										in coordsys local rotate anim_node_array[n] rot
+									) else (
+										in coordsys parent anim_node_array[n].rotation = mod_rot
+									)
 								)
 							)
 							
@@ -1493,13 +1425,23 @@ rollout animImporter "Animation Importer" width:230 height:505
 								)
 								else
 								(
-									in coordsys parent anim_node_array[n].pos = frame_node_translation[f][n]
+									if (animation_type[animID] == 1) and (node_trans_flag_data[animID][n] == true) then (
+										in coordsys parent anim_node_array[n].pos = defOverlayTrans[n]
+										in coordsys local move anim_node_array[n] frame_node_translation[f][n]
+									) else (
+										in coordsys parent anim_node_array[n].pos = frame_node_translation[f][n]
+									)
 								)
 							)
 							
 							if classOf anim_node_array[n] != Biped_Object then
 							(
-								in coordsys parent anim_node_array[n].scale = frame_node_scale[f][n]
+								if (animation_type[animID] == 1) and (node_trans_flag_data[animID][n] == true) then (
+									in coordsys parent anim_node_array[n].scale = defOverlayScale[n]
+									in coordsys local move anim_node_array[n] frame_node_scale[f][n]
+								) else (
+									in coordsys parent anim_node_array[n].scale = frame_node_scale[f][n]
+								)
 							)
 							
 							clearSelection()
