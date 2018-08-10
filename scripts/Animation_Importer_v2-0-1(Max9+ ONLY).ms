@@ -438,7 +438,7 @@ rollout animImporter "Animation Importer" width:230 height:485
 	button import_button "Import Animation into Scene" pos:[29,417] width:163 height:31 enabled:false
 	
 	label lbl_scriptby "Script by TheGhost/Moses" pos:[12,467] width:200 height:26 enabled:false
-	label lbl_version "v1.1.0" pos:[178,467] width:34 height:13 enabled:false
+	label lbl_version "v1.1.1" pos:[178,467] width:34 height:13 enabled:false
 	
 	on animImporter open do
 	(
@@ -1376,7 +1376,7 @@ rollout animImporter "Animation Importer" width:230 height:485
 								(
 									if (animation_type[animID] == 1) and (node_rotation_flag_data[animID][n] == true) then (
 										in coordsys parent anim_node_array[n].rotation = defOverlayRot[n]
-										in coordsys local rotate anim_node_array[n] rot
+										in coordsys local rotate anim_node_array[n] mod_rot
 									) else (
 										in coordsys parent anim_node_array[n].rotation = mod_rot
 									)
