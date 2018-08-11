@@ -438,7 +438,7 @@ rollout animImporter "Animation Importer" width:230 height:485
 	button import_button "Import Animation into Scene" pos:[29,417] width:163 height:31 enabled:false
 	
 	label lbl_scriptby "Script by TheGhost/Moses" pos:[12,467] width:200 height:26 enabled:false
-	label lbl_version "v1.1.1" pos:[178,467] width:34 height:13 enabled:false
+	label lbl_version "v2.0.1" pos:[178,467] width:34 height:13 enabled:false
 	
 	on animImporter open do
 	(
