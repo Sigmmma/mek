@@ -438,7 +438,7 @@ rollout animImporter "Animation Importer" width:230 height:485
 	button import_button "Import Animation into Scene" pos:[29,417] width:163 height:31 enabled:false
 	
 	label lbl_scriptby "Script by TheGhost/Moses" pos:[12,467] width:200 height:26 enabled:false
-	label lbl_version "v2.0.1" pos:[178,467] width:34 height:13 enabled:false
+	label lbl_version "v2.0.2" pos:[178,467] width:34 height:13 enabled:false
 	
 	on animImporter open do
 	(
@@ -1307,7 +1307,7 @@ rollout animImporter "Animation Importer" width:230 height:485
 				start2 = timeStamp()
 				max create mode
 				
-				if chk_fbase.checked == true then
+				if chk_fbase.checked == true or frame_count == 1 then
 				(
 					animationRange = (interval 0 frame_count)
 				)
