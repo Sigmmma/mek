@@ -150,8 +150,7 @@ class Mod2SenvReplacer(Tk):
     def __init__(self, *args, **kwargs):
         Tk.__init__(self, *args, **kwargs)
 
-        self.title("Gbxmodel shader_environment Replacer v1.0")
-        self.geometry("500x250+0+0")
+        self.title("Gbxmodel environment replacer v1.0")
         self.resizable(0, 0)
 
         self.search_dir = StringVar(self)
@@ -213,6 +212,11 @@ class Mod2SenvReplacer(Tk):
         self.tags_dir_frame.pack(expand=True, fill='both')
         self.checkbox_frame.pack(fill='both', anchor='nw')
         self.convert_btn.pack(fill='both', padx=5, pady=5)
+
+        self.update()
+        w, h = self.winfo_reqwidth(), self.winfo_reqheight()
+        self.geometry("%sx%s" % (w, h))
+        self.minsize(width=w, height=h)
 
     def destroy(self):
         Tk.destroy(self)
