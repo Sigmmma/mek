@@ -442,8 +442,7 @@ class CollToMod2Convertor(Tk):
     def __init__(self, *args, **kwargs):
         Tk.__init__(self, *args, **kwargs)
 
-        self.title("Collision Geometry to Gbxmodel Convertor v1.6")
-        self.geometry("400x150+0+0")
+        self.title("Collision to gbxmodel convertor v1.6")
         self.resizable(0, 0)
 
         self.tags_dir = StringVar(self)
@@ -488,6 +487,11 @@ class CollToMod2Convertor(Tk):
         self.tags_dir_frame.pack(expand=True, fill='both')
         self.checkbox_frame.pack(fill='both', anchor='nw')
         self.convert_btn.pack(fill='both', padx=5, pady=5)
+
+        self.update()
+        w, h = self.winfo_reqwidth(), self.winfo_reqheight()
+        self.geometry("%sx%s" % (w, h))
+        self.minsize(width=w, height=h)
 
     def destroy(self):
         Tk.destroy(self)
