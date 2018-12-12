@@ -2,7 +2,7 @@
 Used for extracting tag definitions to a format that can be easily read.
 '''
 from reclaimer.field_types import Reflexive
-from reclaimer.h2.field_types import H2MetaReflexive, H2Reflexive
+from reclaimer.h2.field_types import H2Reflexive
 from traceback import format_exc
 from supyr_struct.tag import Tag
 
@@ -30,7 +30,7 @@ def find_enums(block, next_blocks):
 
 def find_next_blocks(block, next_blocks):
     typ = block.TYPE
-    if typ in (Reflexive, H2MetaReflexive, H2Reflexive):
+    if typ in (Reflexive, H2Reflexive):
         block.STEPTREE.append()
         next_blocks.append(block.STEPTREE[-1])
         return
@@ -108,7 +108,7 @@ def print_tag_def(tag_def):
             b = enum
             while hasattr(b, 'NAME') and hasattr(b, 'parent'):
                 if not (b.TYPE.is_array or b.NAME in ("tagdata", def_id) or
-                        b.TYPE in (Reflexive, H2MetaReflexive, H2Reflexive)):
+                        b.TYPE in (Reflexive, H2Reflexive)):
                     name = "%s.%s" % (b.NAME, name)
                 b = b.parent
             name = name.rstrip(".")
