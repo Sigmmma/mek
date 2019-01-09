@@ -38,7 +38,7 @@ def convert_soso_tag(soso_path):
     soso_attrs.self_illumination     = stubbs_soso_attrs.self_illumination
     soso_attrs.maps                  = stubbs_soso_attrs.maps
     soso_attrs.texture_scrolling     = stubbs_soso_attrs.texture_scrolling
-    soso_attrs.reflection_properties = stubbs_soso_attrs.reflection_properties
+    soso_attrs.reflection            = stubbs_soso_attrs.reflection
 
     # make a new shader extension for the bump map
     soso_ext = soso_attrs.os_shader_model_ext.STEPTREE
