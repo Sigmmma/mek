@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
 
-import os, struct, supyr_struct
+try: import mek_lib  # setup sys.path properly is portably installed
+except ImportError: pass
+
+import os
+import struct
+import supyr_struct
 
 from time import time
 from tkinter import *
 from tkinter.filedialog import askdirectory
 from traceback import format_exc
-
-try: import mek_lib  # setup sys.path properly is portably installed
-except ImportError: pass
 
 from supyr_struct.defs.util import fcc, FieldParseError
 from supyr_struct.defs.constants import PATHDIV
