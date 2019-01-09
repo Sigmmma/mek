@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 
-import os, supyr_struct
+try: import mek_lib  # setup sys.path properly is portably installed
+except ImportError: pass
+
+import os
+import supyr_struct
 
 from math import sqrt
 from struct import pack_into
@@ -8,9 +12,6 @@ from time import time
 from tkinter import *
 from tkinter.filedialog import askdirectory
 from traceback import format_exc
-
-try: import mek_lib  # setup sys.path properly is portably installed
-except ImportError: pass
 
 from supyr_struct.defs.constants import PATHDIV, MOST_SHOW
 from supyr_struct.defs.block_def import BlockDef

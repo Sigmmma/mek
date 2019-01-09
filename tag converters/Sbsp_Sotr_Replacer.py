@@ -1,16 +1,15 @@
 #!/usr/bin/env python3
 
+try: import mek_lib  # setup sys.path properly is portably installed
+except ImportError: pass
+
 import os
+import supyr_struct
 
 from time import time
 from tkinter import *
 from tkinter.filedialog import askdirectory
 from traceback import format_exc
-
-try: import mek_lib  # setup sys.path properly is portably installed
-except ImportError: pass
-
-import supyr_struct
 
 from supyr_struct.defs.constants import PATHDIV
 from reclaimer.hek.defs.sbsp import fast_sbsp_def as sbsp_def

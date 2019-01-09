@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 
+try: import mek_lib  # setup sys.path properly is portably installed
+except ImportError: pass
+
 import os
+import supyr_struct
 
 from array import array
 from math import acos, ceil, sqrt, sin
@@ -9,11 +13,6 @@ from time import time
 from tkinter import *
 from tkinter.filedialog import askdirectory
 from traceback import format_exc
-
-try: import mek_lib  # setup sys.path properly is portably installed
-except ImportError: pass
-
-import supyr_struct
 
 from supyr_struct.defs.block_def import BlockDef
 from reclaimer.hek.defs.antr import antr_def

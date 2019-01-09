@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 
+try: import mek_lib  # setup sys.path properly is portably installed
+except ImportError: pass
+
 from os.path import splitext
 from traceback import format_exc
 

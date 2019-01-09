@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 
-import os
-from traceback import format_exc
-
 try: import mek_lib  # setup sys.path properly is portably installed
 except ImportError: pass
+
+import os
 
 from reclaimer.hek.handler import HaloHandler
 from reclaimer.hek.defs.schi import schi_def
 from reclaimer.hek.defs.scex import scex_def
 from supyr_struct.field_types import Void
+from traceback import format_exc
 
 class ShaderRectifier(HaloHandler):
     # set this to "scex" to convert schi to scex, or "schi" for scex to schi
