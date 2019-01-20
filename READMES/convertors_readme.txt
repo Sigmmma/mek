@@ -21,11 +21,5 @@ Convertor-Mode_to_Mod2:
 Converts a directory of xbox models to gbxmodels.
 
 
-Convertor-Scex_to_Schi:
-Converts a folder of shader_transparent_chicago_extended tags into shader_transparent_chicago tags.
-Doesnt have the ability to choose the directory like all the other applications, but that's mainly
-because this was actually my first app I ever wrote for editing Halo tags.
-
-
 Convertor-Stubbs_XXXX_to_Halo_XXXX:
 Converts an extracted Stubbs the Zombie tag into an equivalent Halo Custom Edition one.
