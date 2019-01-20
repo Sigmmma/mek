@@ -23,11 +23,6 @@ That list specifies which frames of the animation are stored, so by doubling all
 space apart when each frame is played, effectively doubling the animation length. Cool huh?
 
 
-Halo_Meter_Extractor:
-This is capable of extracting the bitmaps from all meter images in the tags folder to tga files.
-This was a test, so dont even bother with it.
-
-
 Halo_Animation_Decompressor:
 Decompresses compressed animations found in model_animation tags.
 This one isnt completely finished, as the decompression is screwy and I haven't figured
