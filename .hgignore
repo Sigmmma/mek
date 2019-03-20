@@ -8,7 +8,6 @@ H2EK/
 compile test/
 *__pycache__*
 *.dll
-*.exe
 *.cfg
 shaders/
 maps/

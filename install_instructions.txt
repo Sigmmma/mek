@@ -19,13 +19,28 @@ Installation:
             Create shortcuts for installed applications
             Add Python to environment variables
 
-2. Run MEK_Installer.pyw
-3. Choose whether or not to install the MEK's libraries in a portable fashion
+2. Run VC++14.0_BuildTools.exe and when chosing what components to install,
+    make sure to select "Visual C++ build tools" on the left side. In the
+    list that appears on the right, make sure these are also selected:
+
+        Windows 8.1 SDK and UCRT SDK
+        ALL "Windows 10 SDK(X.X.X.X)" options
+
+    NOTE: If you have Visual Studio 2015 installed, the build tools will NOT
+        work properly, and you will have to either uninstall VS2015 and
+        install the build tools, build the extensions with your copy of
+        VS2015, or configure python to build against your existing pipeline.
+
+3. Run MEK_Installer.pyw
+
+4. Choose whether or not to install the MEK's libraries in a portable fashion
     (to a local directory) or to the machine you are running. Make sure that
     "install up-to-date MEK" is checked so it will download the rest of the
     MEK to the current directory.
-4. Click "Install/Update"
-5. If the installer fails because it says pip is not installed, close it and
+
+5. Click "Install/Update"
+
+6. If the installer fails because it says pip is not installed, close it and
     run get-pip.py to install pip. When it finishes, go back to step 2.
 
 
