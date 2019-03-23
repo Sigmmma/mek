@@ -336,7 +336,7 @@ def warn_msvc_compile():
 
             "If you have already done all of these things and you still receive this "
             "message, please private message me on Discord so I can fix the problem. "
-            "Our Discord server can be joined with this link: https://discord.gg/uusNQs8\n
+            "Our Discord server can be joined with this link:\n\thttps://discord.gg/uusNQs8\n"
             )
     elif sys.version_info[1] > 4:
         messagebox.showinfo(
@@ -355,7 +355,7 @@ def warn_msvc_compile():
 
             "If you have already done all of these things and you still receive this "
             "message, please private message me on Discord so I can fix the problem. "
-            "Our Discord server can be joined with this link: https://discord.gg/uusNQs8\n
+            "Our Discord server can be joined with this link:\n\thttps://discord.gg/uusNQs8\n"
             )
 
 
