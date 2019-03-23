@@ -13,7 +13,7 @@ if info[0] < 3:
 from datetime import datetime
 from traceback import format_exc
 
-try: import mek_lib  # setup sys.path properly is portably installed
+try: import mek_lib  # setup sys.path properly if portably installed
 except ImportError: pass
 
 try:
