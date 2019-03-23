@@ -326,16 +326,17 @@ def warn_msvc_compile():
             "from the link below(make sure to check Windows 8.1 SDK) and run the update "
             "function of this installer with 'force reinstall' checked.\n\n"
 
-            "http://landinghub.visualstudio.com/visual-cpp-build-tools\n\n"
+            "https://www.visualstudio.com/downloads/#build-tools-for-visual-studio-2017\n\n"
 
             "If you cannot change your python version, follow the directions from the "
             "link below to get your system configured to compile C extensions, then run "
             "the update function of this installer with 'force reinstall' checked.\n\n"
 
-            "https://blog.ionelmc.ro/2014/12/21/compiling-python-extensions-on-windows/#for-python-3-4\n\n"
+            "https://wiki.python.org/moin/WindowsCompilers#Compilers_Installation_and_configuration\n\n"
 
             "If you have already done all of these things and you still receive this "
-            "message, please private message me on Halomaps.org so I can fix the problem.\n"
+            "message, please private message me on Discord so I can fix the problem. "
+            "Our Discord server can be joined with this link:\n\thttps://discord.gg/uusNQs8\n"
             )
     elif sys.version_info[1] > 4:
         messagebox.showinfo(
@@ -350,10 +351,11 @@ def warn_msvc_compile():
             "below(make sure to check Windows 8.1 SDK) and run the update function "
             "of this installer with 'force reinstall' checked.\n\n"
 
-            "http://landinghub.visualstudio.com/visual-cpp-build-tools\n\n"
+            "https://www.visualstudio.com/downloads/#build-tools-for-visual-studio-2017\n\n"
 
-            "If you already have the build tools installed and you still receive this "
-            "message, please private message me on Halomaps.org so I can fix the problem.\n"
+            "If you have already done all of these things and you still receive this "
+            "message, please private message me on Discord so I can fix the problem. "
+            "Our Discord server can be joined with this link:\n\thttps://discord.gg/uusNQs8\n"
             )
 
 
@@ -367,7 +369,7 @@ class MekInstaller(tk.Tk):
 
     def __init__(self, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
-        self.title("MEK installer v2.1.6")
+        self.title("MEK installer v2.1.7")
         self.geometry("480x400+0+0")
         self.minsize(480, 300)
         
