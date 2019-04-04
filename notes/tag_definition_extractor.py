@@ -5,6 +5,7 @@ from reclaimer.field_types import Reflexive
 from reclaimer.h2.field_types import H2Reflexive
 from traceback import format_exc
 from supyr_struct.tag import Tag
+from supyr_struct.field_types import Union
 
 
 def find_enums(block, next_blocks):
@@ -18,10 +19,16 @@ def find_enums(block, next_blocks):
             if len(block) == 0:
                 block.append()
             find_enums(block[0], next_blocks)
+    elif typ == Union:
+        for case in block.CASE_MAP:
+            block.set_active(case)
+            find_enums(block.u_node, next_blocks)
+        block.set_active()
     elif typ.is_container or typ.is_struct:
         for i in range(len(block)):
             if block.get_desc('TYPE', i).is_block:
-                find_enums(block[i], next_blocks)
+                if hasattr(block[i], "TYPE"):
+                    find_enums(block[i], next_blocks)
 
     if (hasattr(block, "STEPTREE") and
             block.get_desc('TYPE', 'STEPTREE').is_block):
@@ -40,10 +47,16 @@ def find_next_blocks(block, next_blocks):
             if len(block) == 0:
                 block.append()
             find_next_blocks(block[0], next_blocks)
+    elif typ == Union:
+        for case in block.CASE_MAP:
+            block.set_active(case)
+            find_next_blocks(block.u_node, next_blocks)
+        block.set_active()
     elif typ.is_container or typ.is_struct:
         for i in range(len(block)):
             if block.get_desc('TYPE', i).is_block:
-                find_next_blocks(block[i], next_blocks)
+                if hasattr(block[i], "TYPE"):
+                    find_next_blocks(block[i], next_blocks)
 
     if (hasattr(block, "STEPTREE") and
             block.get_desc('TYPE', 'STEPTREE').is_block):
@@ -167,7 +180,7 @@ while not tag_defs:
             if "_meta" in cls:
                 def_name = cls.replace("_meta", "")
             exec("from reclaimer.%s.defs.%s import %s_def as tag_def" %
-                 (engine, def_name, cls))
+                 (engine, def_name, cls.lower()))
             tag_defs[cls] = tag_def
             classes.append(cls)
         except Exception:
