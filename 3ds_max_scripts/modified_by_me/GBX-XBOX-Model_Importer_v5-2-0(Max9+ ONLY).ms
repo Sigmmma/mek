@@ -1205,8 +1205,11 @@ rollout gbxImporter "GBX/XBOX Model Importer v5.2 by TheGhost/Moses" width:408 h
                     )
                     m.name = shader_name[geometry_part_shader_index[g][p] + 1]
                     part_meshes[p] = m
-                    
-                    if chk_weight.checked == true and chk_attach.checked == false then
+
+                    if gbx_node_array.count == 1 then (
+                        m.parent = gbx_node_array[1]
+                    )
+                    else if gbx_node_array.count > 0 and chk_weight.checked == true and chk_attach.checked == false then
                     (
 
                         theSkin = Skin()
@@ -1272,7 +1275,10 @@ rollout gbxImporter "GBX/XBOX Model Importer v5.2 by TheGhost/Moses" width:408 h
                         part_meshes[1].name = region_name[import_region_permutation[geometry_index][1]]
                     )
                     
-                    if chk_weight.checked == true then
+                    if gbx_node_array.count == 1 then (
+                        m.parent = gbx_node_array[1]
+                    )
+                    else if gbx_node_array.count > 0 and chk_weight.checked == true then
                     (
                         theSkin = Skin()
                         max modify mode
