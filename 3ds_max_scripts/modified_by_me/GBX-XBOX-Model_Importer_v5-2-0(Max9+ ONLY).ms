@@ -1276,7 +1276,7 @@ rollout gbxImporter "GBX/XBOX Model Importer v5.2 by TheGhost/Moses" width:408 h
                     )
                     
                     if gbx_node_array.count == 1 then (
-                        m.parent = gbx_node_array[1]
+                        part_meshes[1].parent = gbx_node_array[1]
                     )
                     else if gbx_node_array.count > 0 and chk_weight.checked == true then
                     (
