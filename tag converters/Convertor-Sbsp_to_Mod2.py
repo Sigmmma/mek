@@ -85,6 +85,16 @@ def planes_to_verts_and_tris(planes):
     return verts, tristrip
 
 
+'''
+sbsp_body.collision_materials.STEPTREE
+sbsp_body.collision_bsp.STEPTREE
+
+sbsp_body.lightmaps.STEPTREE
+
+sbsp_body.weather_polyhedras.STEPTREE
+'''
+
+
 def get_bsp_surface_edge_loops(bsp, ignore_flags=False):
     surfaces = bsp.surfaces.STEPTREE
     edges = bsp.edges.STEPTREE
@@ -94,7 +104,7 @@ def get_bsp_surface_edge_loops(bsp, ignore_flags=False):
     # NOTE: These are polygonal, not just triangular
     for s_i in range(len(surfaces)):
         surface = surfaces[s_i]
-        flags = flags.material
+        flags = surface.flags
         e_i = surface.first_edge
         if ignore_flags:
             key = (surface.material, )
@@ -121,18 +131,72 @@ def get_bsp_surface_edge_loops(bsp, ignore_flags=False):
     return edge_loops
 
 
-'''
-sbsp_body.collision_materials.STEPTREE
-sbsp_body.collision_bsp.STEPTREE
+def make_bsp_jms_verts(bsp, node_transform=None):
+    verts = []
+    if node_transform:
+        dx, dy, dz, _, rotation = transform[0], transform[1], transform[2]
+        for vert in bsp.vertices.STEPTREE:
+            trans = rotation * Matrix(vert[:3])
+            verts.append(JmsVertex(
+                0, (x + trans[0])*100, (y + trans[1])*100, (z + trans[2])*100))
+    else:
+        for vert in bsp.vertices.STEPTREE:
+            verts.append(JmsVertex(
+                0, vert[0]*100, vert[1]*100, vert[2]*100))
 
-sbsp_body.weather_polyhedras.STEPTREE
-'''
+    return verts
 
 
-def make_bsp_coll_jms_models(bsps, materials, nodes, ignore_flags=False):
+def make_bsp_coll_jms_models(bsps, materials, nodes,
+                             node_transforms=(), ignore_flags=False):
     coll_jms_models = []
+    bsp_index = 0
     for bsp in bsps:
-        coll_edge_loops = get_bsp_surface_edge_loops(bsps[i], ignore_flags)
+        coll_edge_loops = get_bsp_surface_edge_loops(bsp, ignore_flags)
+        node_transform = node_transforms[bsp_index] if node_transforms else None
+
+        coll_materials = []
+        mat_info_to_mat_id = {}
+        # create materials from the provided materials and the
+        # info on the collision properties of each surface.
+        for mat_info in coll_edge_loops:
+            src_material = materials[mat_info[0]]
+            material = JmsMaterial(src_material.name)
+            material.collision_only = True
+            if len(mat_info) > 1: material.double_sided = mat_info[1]
+            if len(mat_info) > 2: material.allow_transparency = mat_info[2]
+            if len(mat_info) > 3: material.ladder = mat_info[3]
+            if len(mat_info) > 4: material.breakable = mat_info[4]
+            material.shader_path = material.properties + material.shader_path
+            material.properties = ""
+
+            mat_info_to_mat_id[mat_info] = len(coll_materials)
+            coll_materials.append(material)
+
+        verts = make_bsp_jms_verts(bsp, node_transform)
+
+        # create triangles from the edge loops
+        tri_count = 0
+        for mat_info in coll_edge_loops:
+            for edge_loop in coll_edge_loops[mat_info]:
+                tri_count += len(edge_loop) - 2
+
+        tri_index = 0
+        tris = [None] * tri_count
+        for mat_info in coll_edge_loops:
+            mat_id = mat_info_to_mat_id[mat_info]
+            for edge_loop in coll_edge_loops[mat_info]:
+                v0, v1 = edge_loop[: 2]
+                for v2 in edge_loop[2: ]:
+                    tris[tri_index] = JmsTriangle(0, mat_id, v0, v1, v2)
+
+                    v1 = v2
+                    tri_index += 1
+
+        coll_jms_models.append(
+            JmsModel("bsp", 0, nodes, coll_materials, [],
+                     ("collision_%s" % bsp_index, ), verts, tris))
+        bsp_index += 1
 
     return coll_jms_models
 
@@ -219,7 +283,7 @@ def make_mirror_jms_models(clusters, nodes):
 def make_cluster_portal_jms_models(planes, clusters, cluster_portals, nodes):
     cluster_portal_jms_models = []
     materials = [
-        JmsMaterial("portal", "<none>", "+portal"),   # normal
+        JmsMaterial("portal", "<none>", "+portal"),
         JmsMaterial("ai_deaf_portal", "<none>", "+&ai_deaf_portal")
         ]
 
@@ -322,7 +386,7 @@ def sbsp_to_mod2(
             print(format_exc())
             print("Could not convert weather polyhedra")
 
-    if False and include_collision:
+    if include_collision:
         try:
             jms_models.extend(make_bsp_coll_jms_models(
                 sbsp_body.collision_bsp.STEPTREE, coll_mats, base_nodes))
