@@ -162,13 +162,15 @@ def make_bsp_coll_jms_models(bsps, materials, nodes,
         for mat_info in coll_edge_loops:
             src_material = materials[mat_info[0]]
             material = JmsMaterial(src_material.name)
-            material.large_collideable = True
-            if len(mat_info) > 1: material.double_sided = mat_info[1]
-            if len(mat_info) > 2: material.allow_transparency = mat_info[2]
-            if len(mat_info) > 3: material.ladder = mat_info[3]
-            if len(mat_info) > 4: material.breakable = mat_info[4]
-            material.shader_path = material.properties + material.shader_path
-            material.properties = ""
+            if not ignore_flags:
+                if len(mat_info) > 1: material.double_sided = mat_info[1]
+                if len(mat_info) > 2: material.large_collideable = mat_info[2]
+                if len(mat_info) > 3: material.ladder = mat_info[3]
+                if len(mat_info) > 4: material.breakable = mat_info[4]
+                material.collision_only = not material.large_collideable
+                material.name = material.properties + material.name
+                material.shader_path = material.properties + material.shader_path
+                material.properties = ""
 
             mat_info_to_mat_id[mat_info] = len(coll_materials)
             coll_materials.append(material)
