@@ -168,6 +168,7 @@ def make_bsp_coll_jms_models(bsps, materials, nodes,
                 if len(mat_info) > 3: material.ladder = mat_info[3]
                 if len(mat_info) > 4: material.breakable = mat_info[4]
                 material.collision_only = not material.large_collideable
+                material.double_sided &= not material.large_collideable
                 material.name = material.properties + material.name
                 material.shader_path = material.properties + material.shader_path
                 material.properties = ""
