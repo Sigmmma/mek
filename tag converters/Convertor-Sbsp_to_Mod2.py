@@ -14,9 +14,12 @@ from traceback import format_exc
 
 from reclaimer.model.jms import JmsNode, JmsMaterial, JmsMarker, JmsVertex,\
      JmsTriangle, JmsModel, GeometryMesh, PermutationMesh,\
-     MergedJmsRegion, MergedJmsModel
+     MergedJmsRegion, MergedJmsModel, edge_loop_to_tris
 from reclaimer.model.model_compilation import compile_gbxmodel
-from reclaimer.hek.defs.objs.matrices import euler_to_quaternion
+from reclaimer.hek.defs.objs.matrices import euler_to_quaternion, \
+     cross_product, dot_product, line_from_verts, \
+     is_point_on_forward_side_of_planes,\
+     find_intersect_point_of_planes, find_intersect_point_of_lines
 from reclaimer.hek.defs.sbsp import sbsp_def
 from reclaimer.hek.defs.mod2 import mod2_def
 from supyr_struct.defs.block_def import BlockDef
@@ -24,81 +27,115 @@ from supyr_struct.defs.block_def import BlockDef
 curr_dir = join(abspath(os.curdir), "")
 
 
-def edge_loop_to_strippable_tris(edge_loop, region=0, mat_id=0):
-    tris = [None] * (len(edge_loop) - 2)
-    vert_ct = len(edge_loop)
+def planes_to_verts_and_tris(planes, region=0, mat_id=0,
+                             make_fans=False, max_plane_ct=32):
+    # make a set out of the planes to remove duplicates
+    planes = list(set(tuple(plane) for plane in planes))
+    lines_by_planes = {}
 
-    even_face_ct = (vert_ct - 1) // 2
-    odd_face_ct = (vert_ct - 2) // 2
+    if len(planes) > max_plane_ct:
+        raise ValueError(
+            "Provided more planes(%s) than the max plane count(%s)" %
+            (len(planes), max_plane_ct))
 
-    # make the even faces
-    v0 = edge_loop[0]
-    for i in range(even_face_ct):
-        v1 = edge_loop[i + 1]
-        v2 = edge_loop[vert_ct - 1 - i]
-        tris[i << 1] = JmsTriangle(region, mat_id, v0, v1, v2)
+    # Get the edge lines for each plane by crossing the plane with
+    # each other plane. If they are parallel, their cross product
+    # will be the zero vector and should be ignored.
+    for i in range(len(planes)):
+        p0 = planes[i]
+        for j in range(len(planes)):
+            if i == j: continue
 
-        v0 = v2
+            p1 = planes[j]
+            line_dir = cross_product(p0[:3], p1[:3])
+            if not (line_dir[0] or line_dir[1] or line_dir[2]):
+                # parallel planes. ignore
+                continue
 
-    # make the odd faces
-    v0 = edge_loop[1]
-    for i in range(odd_face_ct):
-        v1 = edge_loop[i + 2]
-        v2 = edge_loop[vert_ct - 1 - i]
-        tris[(i << 1) + 1] = JmsTriangle(region, mat_id, v0, v1, v2)
-
-        v0 = v1
-
-    return tris
-
-
-def edge_loop_to_fannable_tris(edge_loop, region=0, mat_id=0):
-    vert_index_count = len(edge_loop)
-    v0 = edge_loop[0]
-    return [JmsTriangle(region, mat_id, v0,
-                        edge_loop[((i + 1) % vert_index_count)],
-                        edge_loop[((i + 2) % vert_index_count)])
-            for i in range(len(edge_loop) - 2)]
+            lines = (find_plane_intersect_point(p0, p1), line_dir)
+            lines_by_planes.setdefault(p0, []).append(lines)
 
 
-def edge_loop_to_tris(verts, edge_loop=None, region=0, mat_id=0,
-                      base=0, make_fan=False):
-    if edge_loop is None:
-        edge_loop = list(range(base, base + len(verts)))
+    raw_verts = []
+    vert_indices_by_raw_verts = {}
+    edges_by_planes = {plane: [] for plane in planes}
+    edges_by_verts_by_planes = {plane: [] for plane in planes}
+    # Calculate the points of intersection for each planes edges
+    # to determine their vertices, skipping any vertices that are
+    # on the forward-facing side of any of the planes.
+    for plane, lines in lines_by_planes.items():
+        # loop over each line in the plane and find
+        # two vertices where two lines intersect
+        for i in range(len(lines)):
+            v0_i = v1_i = None
+            line = lines[i]
+            for j in range(i + 1, len(lines)):
+                intersect = tuple(find_intersect_point_of_lines(
+                    line, lines[j]))
 
-    vert_index_count = len(edge_loop)
-    if make_fan:
-        return edge_loop_to_fannable_tris(edge_loop, region, mat_id)
+                if intersect in vert_indices_by_raw_verts:
+                    vert_index = vert_indices_by_raw_verts[intersect]
+                elif intersect is not None:
+                    # make sure the point is not outside the polyhedra
+                    if is_point_on_forward_side_of_planes(planes, intersect):
+                        continue
+                    vert_index = len(raw_verts)
+                    raw_verts.append(intersect)
+                    vert_indices_by_raw_verts[intersect] = vert_index
+                else:
+                    continue
 
-    return edge_loop_to_strippable_tris(edge_loop, region, mat_id)
+                if   v0_i is None: v0_i = vert_index
+                elif v1_i is None: v1_i = vert_index
+                else: break
+
+            if v0_i is None or v1_i is None:
+                #print("FUCK! We couldn't find an intersection point.")
+                continue
+
+            # add the edge to this planes list of vert edges
+            edge = (v0_i, v1_i)
+            edges_by_planes[plane].append(edge)
+            edges_by_verts_by_planes[plane].setdefault(v0_i, []).append(edge)
+            edges_by_verts_by_planes[plane].setdefault(v1_i, []).append(edge)
 
 
-def planes_to_verts_and_tris(planes):
-    # There are a few steps to calculating verts and faces from a
-    # set of intersecting planes that create a closed convex form.
-    #
-    # 1: Get the edge lines for each plane by crossing the plane with
-    #    each other plane. If they are parallel, their cross product
-    #    will be the zero vector and should be ignored.
-    # 2: Calculate the points of intersection for each planes edges
-    #    to determine their vertices, skipping any vertices that are
-    #    on the forward-facing side of any of the planes.
-    # 3: Once 2 valid vertices have been determined for an edge, remove
-    #    that edge from being used to calculate vertices(optimization).
-    #    Also, create a line from the vertices and cross it with the
-    #    edge to determine what order the vertices need to be traversed
-    #    to make that edge. Use the one whose cross-product is positive.
-    # 4: Sort the edges by picking a starting edge and going to the
-    #    edge that starts with the vert the first edge ends with.
-    #    Repeat this until all edges are seen.
-    # 5: Loop over the sorted edges and create a list of vertices and
-    #    a triangle strip list from them.
-    #
-    # There are some other optimizations that can be made, but this
-    # is the basic method I have come up for doing this.
-    verts = []
-    tristrip = []
-    return verts, tristrip
+    edge_loops = []
+    # loop over each edge and put together an edge loop list
+    # by visiting the edges shared by each vert index
+    for plane, edges in edges_by_planes.items():
+        edge_loop = []
+        edge_loops.append(edge_loop)
+        edges_by_verts = edges_by_verts_by_planes[plane]
+
+        curr_edge = edges[0]
+        edge_loop.append(curr_edge[0])
+        edges_by_verts.pop(curr_edge[0])
+        v_i = curr_edge[1]
+        while edges_by_verts:
+            vert_edges = edges_by_verts.pop(v_i, None)
+            if vert_edges is None:
+                break
+
+            curr_edge = vert_edges[not vert_edges.index(curr_edge)]
+            edge_loop.append(v_i)
+            v_i = curr_edge[not curr_edge.index(v_i)]
+
+        # if the edge loop would construct triangles facing the
+        # wrong direction, we need to reverse the edge loop
+        v0 = raw_verts[edge_loop[0]]
+        v1 = raw_verts[edge_loop[1]]
+        v2 = raw_verts[edge_loop[2]]
+        if dot_product(vertex_cross_product(v0, v1, v2), plane[: 3]) < 0:
+            edge_loop[:] = edge_loop[::-1]
+
+    verts = [JmsVertex(0, *vert) for vert in raw_verts]
+    tris = []
+    # Calculate verts and triangles from the raw vert positions and edge loops
+    for edge_loop in edge_loops:
+        tris.extend(edge_loop_to_tris(edge_loop, region, mat_id, 0, make_fans))
+
+    return verts, tris
 
 
 def get_bsp_surface_edge_loops(bsp, ignore_flags=False):
@@ -190,7 +227,7 @@ def make_mirror_jms_models(clusters, nodes, make_fans=True):
     mirror_index = 0
     for mirror in mirrors:
         tris = edge_loop_to_tris(
-            mirror.vertices.STEPTREE, make_fan=make_fans)
+            len(mirror.vertices.STEPTREE), make_fan=make_fans)
         verts = [
             JmsVertex(0, vert[0] * 100, vert[1] * 100, vert[2] * 100)
             for vert in mirror.vertices.STEPTREE
@@ -213,7 +250,7 @@ def make_fog_plane_jms_models(fog_planes, nodes, make_fans=True, optimize=False)
     plane_index = 0
     for fog_plane in fog_planes:
         tris = edge_loop_to_tris(
-            fog_plane.vertices.STEPTREE, make_fan=make_fans)
+            len(fog_plane.vertices.STEPTREE), make_fan=make_fans)
         verts = [
             JmsVertex(0, vert[0] * 100, vert[1] * 100, vert[2] * 100)
             for vert in fog_plane.vertices.STEPTREE
@@ -256,7 +293,7 @@ def make_cluster_portal_jms_models(planes, clusters, cluster_portals, nodes,
             portal_plane = planes[portal.plane_index]
 
             tris.extend(edge_loop_to_tris(
-                portal.vertices.STEPTREE, mat_id=shader,
+                len(portal.vertices.STEPTREE), mat_id=shader,
                 base=len(verts), make_fan=make_fans)
                                 )
             verts.extend(
@@ -277,8 +314,20 @@ def make_cluster_portal_jms_models(planes, clusters, cluster_portals, nodes,
     return jms_models
 
 
-def make_weather_polyhedra_jms_models(weather_polyhedras, nodes, make_fans=True):
+def make_weather_polyhedra_jms_models(polyhedras, nodes, make_fans=True):
     jms_models = []
+    materials = [JmsMaterial("+weatherpoly", "<none>", "+weatherpoly")]
+
+    polyhedra_index = 0
+    for polyhedra in polyhedras:
+        verts, tris = planes_to_verts_and_tris(
+            polyhedra.planes.STEPTREE, make_fans)
+        
+        jms_models.append(JmsModel(
+            "bsp", 0, nodes, materials, (),
+            ("weather_polyhedra_%s" % polyhedra_index, ), verts, tris))
+
+        polyhedra_index += 1
 
     return jms_models
 
@@ -327,8 +376,7 @@ def make_bsp_coll_jms_models(bsps, materials, nodes, node_transforms=(),
             mat_id = mat_info_to_mat_id[mat_info]
             for edge_loop in coll_edge_loops[mat_info]:
                 loop_tris = edge_loop_to_tris(
-                    bsp.vertices.STEPTREE, edge_loop,
-                    mat_id=mat_id, make_fan=make_fans)
+                    edge_loop, mat_id=mat_id, make_fan=make_fans)
                 tris[tri_index: tri_index + len(loop_tris)] = loop_tris
                 tri_index += len(loop_tris)
 
@@ -496,7 +544,8 @@ class SbspToMod2Convertor(Tk):
             "Mirrors": self.include_mirrors, "Lightmaps": self.include_lightmaps,
             "Markers": self.include_markers, "Lens flares": self.include_lens_flares}
         important_buttons = []
-        for text in ("Collidable", "Renderable", "Portals",
+
+        for text in ("Collidable", "Portals",# "Renderable",
                      "Weather polyhedra", "Fog planes", "Markers"):
             important_buttons.append(Checkbutton(
                 self.important_frame, variable=include_vars[text], text=text))
@@ -504,7 +553,7 @@ class SbspToMod2Convertor(Tk):
 
         # Generate the additional frame and its contents
         additional_buttons = []
-        for text in ("Lens flares", "Mirrors", "Lightmaps"):
+        for text in ("Lens flares", "Mirrors", ):#"Lightmaps"):
             additional_buttons.append(Checkbutton(
                 self.additional_frame, variable=include_vars[text], text=text))
 
