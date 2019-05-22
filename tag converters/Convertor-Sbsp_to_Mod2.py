@@ -6,10 +6,10 @@ except ImportError: pass
 import os
 
 from copy import deepcopy
-from os.path import abspath, dirname, exists, splitext
+from os.path import abspath, join, isfile, splitext
 from time import time
 from tkinter import *
-from tkinter.filedialog import askdirectory
+from tkinter.filedialog import askdirectory, askopenfilename
 from traceback import format_exc
 
 from reclaimer.model.jms import JmsNode, JmsMaterial, JmsMarker, JmsVertex,\
@@ -20,41 +20,57 @@ from reclaimer.hek.defs.objs.matrices import euler_to_quaternion
 from reclaimer.hek.defs.sbsp import sbsp_def
 from reclaimer.hek.defs.mod2 import mod2_def
 from supyr_struct.defs.block_def import BlockDef
-from supyr_struct.defs.constants import PATHDIV
 
-PATHDIV = PATHDIV
-curr_dir = abspath(os.curdir) + PATHDIV
+curr_dir = join(abspath(os.curdir), "")
 
 
-def plane_verts_to_tris(plane, verts, base=0):
-    ct = len(verts)
-    reverse = False
-    # use the cross product of the rays to the first 2 vertices to
-    # get a vector we can cross with the plane vector to determine
-    # if the triangles need to be facing the opposite direction.
-    ray_a = [verts[1][0] - verts[0][0],
-             verts[1][1] - verts[0][1],
-             verts[1][2] - verts[0][2]
-             ]
-    ray_b = [verts[2][0] - verts[0][0],
-             verts[2][1] - verts[0][1],
-             verts[2][2] - verts[0][2]
-             ]
-    ray_c = [ray_a[1]*ray_b[2] - ray_a[2]*ray_b[1],
-             ray_a[2]*ray_b[0] - ray_a[0]*ray_b[2],
-             ray_a[0]*ray_b[1] - ray_a[1]*ray_b[0]
-             ]
-    reverse = (plane[0]*ray_c[0] +
-               plane[1]*ray_c[1] +
-               plane[2]*ray_c[2]) < 0
+def edge_loop_to_strippable_tris(edge_loop, region=0, mat_id=0):
+    tris = [None] * (len(edge_loop) - 2)
+    vert_ct = len(edge_loop)
 
-    # making a triangle fan, so first vert is always zero
-    if reverse:
-        return [(base, base + (i + 2) % ct, base + (i + 1) % ct)
-                for i in range(ct - 2)]
-    else:
-        return [(base, base + (i + 1) % ct, base + (i + 2) % ct)
-                for i in range(ct - 2)]
+    even_face_ct = (vert_ct - 1) // 2
+    odd_face_ct = (vert_ct - 2) // 2
+
+    # make the even faces
+    v0 = edge_loop[0]
+    for i in range(even_face_ct):
+        v1 = edge_loop[i + 1]
+        v2 = edge_loop[vert_ct - 1 - i]
+        tris[i << 1] = JmsTriangle(region, mat_id, v0, v1, v2)
+
+        v0 = v2
+
+    # make the odd faces
+    v0 = edge_loop[1]
+    for i in range(odd_face_ct):
+        v1 = edge_loop[i + 2]
+        v2 = edge_loop[vert_ct - 1 - i]
+        tris[(i << 1) + 1] = JmsTriangle(region, mat_id, v0, v1, v2)
+
+        v0 = v1
+
+    return tris
+
+
+def edge_loop_to_fannable_tris(edge_loop, region=0, mat_id=0):
+    vert_index_count = len(edge_loop)
+    v0 = edge_loop[0]
+    return [JmsTriangle(region, mat_id, v0,
+                        edge_loop[((i + 1) % vert_index_count)],
+                        edge_loop[((i + 2) % vert_index_count)])
+            for i in range(len(edge_loop) - 2)]
+
+
+def edge_loop_to_tris(verts, edge_loop=None, region=0, mat_id=0,
+                      base=0, make_fan=False):
+    if edge_loop is None:
+        edge_loop = list(range(base, base + len(verts)))
+
+    vert_index_count = len(edge_loop)
+    if make_fan:
+        return edge_loop_to_fannable_tris(edge_loop, region, mat_id)
+
+    return edge_loop_to_strippable_tris(edge_loop, region, mat_id)
 
 
 def planes_to_verts_and_tris(planes):
@@ -83,16 +99,6 @@ def planes_to_verts_and_tris(planes):
     verts = []
     tristrip = []
     return verts, tristrip
-
-
-'''
-sbsp_body.collision_materials.STEPTREE
-sbsp_body.collision_bsp.STEPTREE
-
-sbsp_body.lightmaps.STEPTREE
-
-sbsp_body.weather_polyhedras.STEPTREE
-'''
 
 
 def get_bsp_surface_edge_loops(bsp, ignore_flags=False):
@@ -147,9 +153,139 @@ def make_bsp_jms_verts(bsp, node_transform=None):
     return verts
 
 
-def make_bsp_coll_jms_models(bsps, materials, nodes,
-                             node_transforms=(), ignore_flags=False):
-    coll_jms_models = []
+def make_marker_jms_model(sbsp_markers, nodes):
+    markers = []
+    for m in sbsp_markers:
+        markers.append(
+            JmsMarker(m.name, "bsp", 0, 0, m.rotation.i,
+                      m.rotation.j, m.rotation.k, m.rotation.w,
+                      m.position.x*100, m.position.y*100, m.position.z*100)
+            )
+
+    return JmsModel("bsp", 0, nodes, [], markers, ("markers", ))
+
+
+def make_lens_flare_jms_model(lens_flare_markers, lens_flares, nodes):
+    markers = []
+    for m in lens_flare_markers:
+        i, j, k, w = euler_to_quaternion(
+            m.direction.i/128, m.direction.j/128, m.direction.k/128)
+        lens_flare_name = lens_flares[m.lens_flare_index].shader.filepath
+
+        markers.append(
+            JmsMarker(lens_flare_name.split("\\")[-1], "bsp", 0, 0, i, j, k, w,
+                      m.position.x*100, m.position.y*100, m.position.z*100)
+            )
+
+    return JmsModel("bsp", 0, nodes, [], markers, ("lens_flares", ))
+
+
+def make_mirror_jms_models(clusters, nodes, make_fans=True):
+    jms_models = []
+    mirrors = []
+
+    for cluster in clusters:
+        mirrors.extend(cluster.mirrors.STEPTREE)
+
+    mirror_index = 0
+    for mirror in mirrors:
+        tris = edge_loop_to_tris(
+            mirror.vertices.STEPTREE, make_fan=make_fans)
+        verts = [
+            JmsVertex(0, vert[0] * 100, vert[1] * 100, vert[2] * 100)
+            for vert in mirror.vertices.STEPTREE
+            ]
+
+        jms_models.append(
+            JmsModel("bsp", 0, nodes,
+                     [JmsMaterial(mirror.shader.filepath.split("\\")[-1])],
+                     (), ("mirror_%s" % mirror_index, ), verts, tris))
+
+        mirror_index += 1
+
+    return jms_models
+
+
+def make_fog_plane_jms_models(fog_planes, nodes, make_fans=True, optimize=False):
+    jms_models = []
+    materials = [JmsMaterial("fog_plane", "<none>", "$fog_plane")]
+
+    plane_index = 0
+    for fog_plane in fog_planes:
+        tris = edge_loop_to_tris(
+            fog_plane.vertices.STEPTREE, make_fan=make_fans)
+        verts = [
+            JmsVertex(0, vert[0] * 100, vert[1] * 100, vert[2] * 100)
+            for vert in fog_plane.vertices.STEPTREE
+            ]
+
+        
+        jms_model = JmsModel(
+            "bsp", 0, nodes, materials, (),
+            ("fog_plane_%s" % plane_index, ), verts, tris)
+
+        if optimize:
+            jms_model.optimize_geometry(True)
+
+        jms_models.append(jms_model)
+        plane_index += 1
+
+    return jms_models
+
+
+def make_cluster_portal_jms_models(planes, clusters, cluster_portals, nodes,
+                                   make_fans=True, optimize=False):
+    jms_models = []
+    materials = [
+        JmsMaterial("+portal", "<none>", "+portal"),
+        JmsMaterial("+&ai_deaf_portal", "<none>", "+&ai_deaf_portal")
+        ]
+
+    cluster_index = 0
+    portals_seen = set()
+    for cluster in clusters:
+        verts = []
+        tris = []
+        for portal_index in cluster.portals.STEPTREE:
+            if portal_index[0] in portals_seen:
+                continue
+
+            portals_seen.add(portal_index[0])
+            portal = cluster_portals[portal_index[0]]
+            shader = 1 if portal.flags.ai_cant_hear_through_this else 0
+            portal_plane = planes[portal.plane_index]
+
+            tris.extend(edge_loop_to_tris(
+                portal.vertices.STEPTREE, mat_id=shader,
+                base=len(verts), make_fan=make_fans)
+                                )
+            verts.extend(
+                JmsVertex(0, vert[0] * 100, vert[1] * 100, vert[2] * 100)
+                for vert in portal.vertices.STEPTREE
+                )
+        
+        jms_model = JmsModel(
+            "bsp", 0, nodes, materials, (),
+            ("cluster_%s_portals" % cluster_index, ), verts, tris)
+
+        if optimize:
+            jms_model.optimize_geometry(True)
+
+        jms_models.append(jms_model)
+        cluster_index += 1
+
+    return jms_models
+
+
+def make_weather_polyhedra_jms_models(weather_polyhedras, nodes, make_fans=True):
+    jms_models = []
+
+    return jms_models
+
+
+def make_bsp_coll_jms_models(bsps, materials, nodes, node_transforms=(),
+                             ignore_flags=False, make_fans=True):
+    jms_models = []
     bsp_index = 0
     for bsp in bsps:
         coll_edge_loops = get_bsp_surface_edge_loops(bsp, ignore_flags)
@@ -178,160 +314,44 @@ def make_bsp_coll_jms_models(bsps, materials, nodes,
 
         verts = make_bsp_jms_verts(bsp, node_transform)
 
-        # create triangles from the edge loops
         tri_count = 0
+        # figure out how many triangles we'll be creating
         for mat_info in coll_edge_loops:
             for edge_loop in coll_edge_loops[mat_info]:
                 tri_count += len(edge_loop) - 2
 
         tri_index = 0
         tris = [None] * tri_count
+        # create triangles from the edge loops
         for mat_info in coll_edge_loops:
             mat_id = mat_info_to_mat_id[mat_info]
             for edge_loop in coll_edge_loops[mat_info]:
-                v0, v1 = edge_loop[: 2]
-                for v2 in edge_loop[2: ]:
-                    tris[tri_index] = JmsTriangle(0, mat_id, v0, v1, v2)
+                loop_tris = edge_loop_to_tris(
+                    bsp.vertices.STEPTREE, edge_loop,
+                    mat_id=mat_id, make_fan=make_fans)
+                tris[tri_index: tri_index + len(loop_tris)] = loop_tris
+                tri_index += len(loop_tris)
 
-                    v1 = v2
-                    tri_index += 1
-
-        coll_jms_models.append(
+        jms_models.append(
             JmsModel("bsp", 0, nodes, coll_materials, [],
                      ("collision_%s" % bsp_index, ), verts, tris))
         bsp_index += 1
 
-    return coll_jms_models
-
-
-def make_marker_jms_model(sbsp_markers, nodes):
-    markers = []
-    for m in sbsp_markers:
-        markers.append(
-            JmsMarker(m.name, "bsp", 0, 0, m.rotation.i,
-                      m.rotation.j, m.rotation.k, m.rotation.w,
-                      m.position.x*100, m.position.y*100, m.position.z*100)
-            )
-
-    return JmsModel("bsp", 0, nodes, [], markers, ("markers", ))
-
-
-def make_lens_flare_jms_model(lens_flare_markers, lens_flares, nodes):
-    markers = []
-    for m in lens_flare_markers:
-        i, j, k, w = euler_to_quaternion(
-            m.direction.i/128, m.direction.j/128, m.direction.k/128)
-        lens_flare_name = lens_flares[m.lens_flare_index].shader.filepath
-
-        markers.append(
-            JmsMarker(lens_flare_name.split("\\")[-1], "bsp", 0, 0, i, j, k, w,
-                      m.position.x*100, m.position.y*100, m.position.z*100)
-            )
-
-    return JmsModel("bsp", 0, nodes, [], markers, ("lens_flares", ))
-
-
-def make_fog_plane_jms_models(fog_planes, nodes):
-    fog_plane_jms_models = []
-    materials = [JmsMaterial("fog_plane", "<none>", "$fog_plane")]
-
-    plane_index = 0
-    for fog_plane in fog_planes:
-        tris = [
-            JmsTriangle(0, 0, *raw_tri) for raw_tri in
-            plane_verts_to_tris(fog_plane.plane, fog_plane.vertices.STEPTREE)
-            ]
-        verts = [
-            JmsVertex(0, vert[0] * 100, vert[1] * 100, vert[2] * 100)
-            for vert in fog_plane.vertices.STEPTREE
-            ]
-
-        fog_plane_jms_models.append(
-            JmsModel("bsp", 0, nodes, materials, (),
-                     ("fog_plane_%s" % plane_index, ), verts, tris))
-
-        plane_index += 1
-
-    return fog_plane_jms_models
-
-
-def make_mirror_jms_models(clusters, nodes):
-    mirror_jms_models = []
-    mirrors = []
-
-    for cluster in clusters:
-        mirrors.extend(cluster.mirrors.STEPTREE)
-
-    mirror_index = 0
-    for mirror in mirrors:
-        tris = [
-            JmsTriangle(0, 0, *raw_tri) for raw_tri in
-            plane_verts_to_tris(mirror.plane, mirror.vertices.STEPTREE)
-            ]
-        verts = [
-            JmsVertex(0, vert[0] * 100, vert[1] * 100, vert[2] * 100)
-            for vert in mirror.vertices.STEPTREE
-            ]
-
-        mirror_jms_models.append(
-            JmsModel("bsp", 0, nodes,
-                     [JmsMaterial(mirror.shader.filepath.split("\\")[-1])],
-                     (), ("mirror_%s" % mirror_index, ), verts, tris))
-
-        mirror_index += 1
-
-    return mirror_jms_models
-
-
-def make_cluster_portal_jms_models(planes, clusters, cluster_portals, nodes):
-    cluster_portal_jms_models = []
-    materials = [
-        JmsMaterial("portal", "<none>", "+portal"),
-        JmsMaterial("ai_deaf_portal", "<none>", "+&ai_deaf_portal")
-        ]
-
-    cluster_index = 0
-    for cluster in clusters:
-        cluster_verts = []
-        cluster_tris = []
-        for portal_index in cluster.portals.STEPTREE:
-            portal = cluster_portals[portal_index[0]]
-            shader = 1 if portal.flags.ai_cant_hear_through_this else 0
-            portal_plane = planes[portal.plane_index]
-
-            cluster_tris.extend([
-                JmsTriangle(0, shader, *raw_tri) for raw_tri in
-                plane_verts_to_tris(
-                    portal_plane, portal.vertices.STEPTREE,
-                    len(cluster_verts))
-                ])
-            cluster_verts.extend([
-                JmsVertex(0, vert[0] * 100, vert[1] * 100, vert[2] * 100)
-                for vert in portal.vertices.STEPTREE
-                ])
-
-        cluster_portal_jms_models.append(
-            JmsModel("bsp", 0, nodes, materials, (),
-                     ("cluster_%s_portals" % cluster_index, ),
-                     cluster_verts, cluster_tris))
-        # cluster_portal_jms_models[-1].optimize_geometry(True)
-
-        cluster_index += 1
-
-    return cluster_portal_jms_models
+    return jms_models
 
 
 def sbsp_to_mod2(
         sbsp_path, include_lens_flares=True, include_markers=True,
         include_weather_polyhedra=True, include_fog_planes=True,
-        include_mirrors=True, include_portals=True, include_collision=True,
-        include_renderable=True, include_lightmaps=True):
+        include_portals=True, include_collision=True, include_renderable=True,
+        include_mirrors=True, include_lightmaps=True, fan_weather_polyhedra=True,
+        fan_fog_planes=True,  fan_portals=True, fan_collision=True,
+        fan_mirrors=True, optimize_fog_planes=False, optimize_portals=False,):
 
-    print("   Loading tags...")
+    print("    Loading...")
     sbsp_tag = sbsp_def.build(filepath=sbsp_path)
     mod2_tag = mod2_def.build()
 
-    print("   Converting...")
     sbsp_body = sbsp_tag.data.tagdata
     coll_mats = [JmsMaterial(mat.shader.filepath.split("\\")[-1])
                  for mat in sbsp_body.collision_materials.STEPTREE]
@@ -340,77 +360,91 @@ def sbsp_to_mod2(
     jms_models = []
 
     if include_markers:
+        print("    Converting markers...")
         try:
             jms_models.append(make_marker_jms_model(
                 sbsp_body.markers.STEPTREE, base_nodes))
         except Exception:
             print(format_exc())
-            print("Could not convert markers")
+            print("    Could not convert markers")
 
     if include_lens_flares:
+        print("    Converting lens flares...")
         try:
             jms_models.append(make_lens_flare_jms_model(
                 sbsp_body.lens_flare_markers.STEPTREE,
                 sbsp_body.lens_flares.STEPTREE, base_nodes))
         except Exception:
             print(format_exc())
-            print("Could not convert lens flares")
+            print("    Could not convert lens flares")
 
     if include_fog_planes:
+        print("    Converting fog planes...")
         try:
             jms_models.extend(make_fog_plane_jms_models(
-                sbsp_body.fog_planes.STEPTREE, base_nodes))
+                sbsp_body.fog_planes.STEPTREE, base_nodes,
+                fan_fog_planes, optimize_fog_planes))
         except Exception:
             print(format_exc())
-            print("Could not convert fog planes")
+            print("    Could not convert fog planes")
 
     if include_mirrors:
+        print("    Converting mirrors...")
         try:
             jms_models.extend(make_mirror_jms_models(
-                sbsp_body.clusters.STEPTREE, base_nodes))
+                sbsp_body.clusters.STEPTREE, base_nodes, fan_mirrors))
         except Exception:
             print(format_exc())
-            print("Could not convert mirrors")
+            print("    Could not convert mirrors")
 
     if include_portals:
+        print("    Converting portals...")
         try:
             jms_models.extend(make_cluster_portal_jms_models(
                 sbsp_body.collision_bsp.STEPTREE[0].planes.STEPTREE,
                 sbsp_body.clusters.STEPTREE, sbsp_body.cluster_portals.STEPTREE,
-                base_nodes))
+                base_nodes, fan_portals, optimize_portals))
         except Exception:
             print(format_exc())
-            print("Could not convert portals")
+            print("    Could not convert portals")
 
     if include_weather_polyhedra:
+        print("    Converting weather polyhedra...")
         try:
-            pass
+            jms_models.extend(make_weather_polyhedra_jms_models(
+                sbsp_body.weather_polyhedras.STEPTREE, base_nodes,
+                fan_weather_polyhedra))
         except Exception:
             print(format_exc())
-            print("Could not convert weather polyhedra")
+            print("    Could not convert weather polyhedra")
 
     if include_collision:
+        print("    Converting collision...")
         try:
             jms_models.extend(make_bsp_coll_jms_models(
-                sbsp_body.collision_bsp.STEPTREE, coll_mats, base_nodes))
+                sbsp_body.collision_bsp.STEPTREE, coll_mats, base_nodes,
+                None, False, fan_collision))
         except Exception:
             print(format_exc())
-            print("Could not convert collision")
+            print("    Could not convert collision")
 
     if include_renderable:
+        print("    Converting renderable...")
         try:
             pass
         except Exception:
             print(format_exc())
-            print("Could not convert renderable")
+            print("    Could not convert renderable")
 
     if include_lightmaps:
+        print("    Converting lightmaps...")
         try:
             pass
         except Exception:
             print(format_exc())
-            print("Could not convert lightmaps")
+            print("    Could not convert lightmaps")
 
+    print("    Compiling gbxmodel...")
     mod2_tag.filepath = splitext(sbsp_path)[0] + "_SBSP.gbxmodel"
     compile_gbxmodel(mod2_tag, MergedJmsModel(*jms_models), True)
     return mod2_tag
@@ -420,34 +454,143 @@ class SbspToMod2Convertor(Tk):
     def __init__(self, *args, **kwargs):
         Tk.__init__(self, *args, **kwargs)
 
-        self.title("Structure bsp to gbxmodel convertor v1.6")
+        self.title("Structure bsp to gbxmodel convertor v1.0")
         self.resizable(0, 0)
 
-        self.tags_dir = StringVar(self)
-        self.tags_dir.set(curr_dir + 'tags' + PATHDIV)
+        self.tags_dir = StringVar(self, curr_dir)
+        self.tag_path = StringVar(self)
+
+        self.include_weather_polyhedra = IntVar(self, 1)
+        self.include_fog_planes = IntVar(self, 1)
+        self.include_portals = IntVar(self, 1)
+        self.include_collision = IntVar(self, 1)
+        self.include_renderable = IntVar(self, 1)
+        self.include_mirrors = IntVar(self, 0)
+        self.include_lightmaps = IntVar(self, 0)
+
+        self.include_markers = IntVar(self, 1)
+        self.include_lens_flares = IntVar(self, 0)
+
+        self.fan_portals = IntVar(self, 1)
+        self.fan_weather_polyhedra = IntVar(self, 1)
+        self.fan_fog_planes = IntVar(self, 1)
+        self.fan_mirrors = IntVar(self, 1)
+        self.fan_collision = IntVar(self, 1)
+
+        self.optimize_portals = IntVar(self, 0)
+        self.optimize_fog_planes = IntVar(self, 0)
 
         # make the frames
-        self.tags_dir_frame = LabelFrame(self, text="Tags directory")
-        self.checkbox_frame = LabelFrame(self, text="Conversion settings")
+        self.tags_dir_frame = LabelFrame(self, text="Directory of tags")
+        self.tag_path_frame = LabelFrame(self, text="Single tag")
+        self.important_frame = LabelFrame(self, text="Important geometry/markers to include")
+        self.additional_frame = LabelFrame(self, text="Additional geometry/markers to include")
+        self.topology_frame = LabelFrame(self, text="Topology generation")
+
+
+        # Generate the important frame and its contents
+        include_vars = {
+            "Weather polyhedra": self.include_weather_polyhedra,
+            "Fog planes": self.include_fog_planes, "Portals": self.include_portals,
+            "Collidable": self.include_collision, "Renderable": self.include_renderable,
+            "Mirrors": self.include_mirrors, "Lightmaps": self.include_lightmaps,
+            "Markers": self.include_markers, "Lens flares": self.include_lens_flares}
+        important_buttons = []
+        for text in ("Collidable", "Renderable", "Portals",
+                     "Weather polyhedra", "Fog planes", "Markers"):
+            important_buttons.append(Checkbutton(
+                self.important_frame, variable=include_vars[text], text=text))
+
+
+        # Generate the additional frame and its contents
+        additional_buttons = []
+        for text in ("Lens flares", "Mirrors", "Lightmaps"):
+            additional_buttons.append(Checkbutton(
+                self.additional_frame, variable=include_vars[text], text=text))
+
+
+        # Generate the topology frame and its contents
+        topology_vars = {
+            "Weather polyhedra": self.fan_weather_polyhedra,
+            "Fog planes": self.fan_fog_planes, "Mirrors": self.fan_mirrors,
+            "Portals": self.fan_portals, "Collision": self.fan_collision}
+        topology_frames = []
+        topology_labels = []
+        topology_buttons = []
+        for text in ("Portals", "Fog planes", "Weather polyhedra", "Mirrors", "Collision"):
+            var = topology_vars[text]
+            f = Frame(self.topology_frame)
+            name_lbl = Label(f, text=text, width=15, anchor="w")
+            fan_cbtn = Checkbutton(
+                f, variable=var, text="Tri-fan")
+            strip_cbtn = Checkbutton(
+                f, variable=var, text="Tri-strip", onvalue=0, offvalue=1)
+            topology_frames.append(f)
+            topology_labels.append(name_lbl)
+            topology_buttons.extend((fan_cbtn, strip_cbtn))
+            if text == "Portals":
+                topology_buttons.append(Checkbutton(
+                    f, variable=self.optimize_portals, text="Optimize"))
+            elif text == "Fog planes":
+                topology_buttons.append(Checkbutton(
+                    f, variable=self.optimize_fog_planes, text="Optimize"))
+
 
         # add the filepath boxes
         self.tags_dir_entry = Entry(
             self.tags_dir_frame, textvariable=self.tags_dir)
         self.tags_dir_entry.config(width=55, state=DISABLED)
+        self.tag_path_entry = Entry(
+            self.tag_path_frame, textvariable=self.tag_path)
+        self.tag_path_entry.config(width=55, state=DISABLED)
 
         # add the buttons
-        self.convert_btn = Button(
-            self, text="Convert models", width=15, command=self.convert_models)
+        self.convert_dir_btn = Button(
+            self, text="Convert directory",
+            width=15, command=self.convert_dir)
+        self.convert_file_btn = Button(
+            self, text="Convert tag", width=15,
+            command=self.convert_bsp)
         self.tags_dir_browse_btn = Button(
             self.tags_dir_frame, text="Browse",
             width=6, command=self.tags_dir_browse)
+        self.tag_path_browse_btn = Button(
+            self.tag_path_frame, text="Browse",
+            width=6, command=self.tag_path_browse)
 
         # pack everything
         self.tags_dir_entry.pack(expand=True, fill='x', side='left')
         self.tags_dir_browse_btn.pack(fill='x', side='left')
 
+        self.tag_path_entry.pack(expand=True, fill='x', side='left')
+        self.tag_path_browse_btn.pack(fill='x', side='left')
+
+        for frame in topology_frames:
+            frame.pack(expand=True, fill='both')
+
+        for label in topology_labels:
+            label.pack(anchor='w', padx=10, side='left')
+
+        for button_list in (important_buttons, additional_buttons):
+            x = y = 0
+            for button in button_list:
+                button.grid(row=y, column=x, padx=5, pady=5, sticky="w")
+                x += 1
+                if x == 3:
+                    x = 0
+                    y += 1
+
+        for button in topology_buttons:
+            button.pack(anchor='w', padx=5, side='left')
+
         self.tags_dir_frame.pack(expand=True, fill='both')
-        self.convert_btn.pack(fill='both', padx=5, pady=5)
+        self.convert_dir_btn.pack(fill='both', padx=5, pady=5)
+        self.tag_path_frame.pack(expand=True, fill='both')
+        self.convert_file_btn.pack(fill='both', padx=5, pady=5)
+
+        self.important_frame.pack(expand=True, fill='both')
+        self.additional_frame.pack(expand=True, fill='both')
+        self.topology_frame.pack(expand=True, fill='both')
 
         self.update()
         w, h = self.winfo_reqwidth(), self.winfo_reqheight()
@@ -463,17 +606,49 @@ class SbspToMod2Convertor(Tk):
         if dirpath:
             self.tags_dir.set(dirpath)
 
-    def convert_models(self):
-        print('Converting scenario_structure_bsps\n')
+    def tag_path_browse(self):
+        initialdir = self.tag_path.get()
+        if not initialdir:
+            initialdir = self.tags_dir.get()
+
+        tag_path = askopenfilename(initialdir=initialdir)
+        if tag_path:
+            self.tag_path.set(tag_path)
+
+    def convert_bsp(self, bsp_path=None):
         start = time()
-        tags_dir = self.tags_dir.get()
+        if bsp_path is None:
+            bsp_path = self.tag_path.get()
 
-        if not tags_dir.endswith(PATHDIV):
-            tags_dir += PATHDIV
+        if not isfile(bsp_path):
+            return
 
+        print(bsp_path)
+
+        try:
+            mod2_tag = sbsp_to_mod2(
+                bsp_path, self.include_lens_flares.get(),
+                self.include_markers.get(), self.include_weather_polyhedra.get(),
+                self.include_fog_planes.get(), self.include_portals.get(),
+                self.include_collision.get(), self.include_renderable.get(),
+                self.include_mirrors.get(), self.include_lightmaps.get(),
+                self.fan_weather_polyhedra.get(), self.fan_fog_planes.get(),
+                self.fan_portals.get(), self.fan_collision.get(), self.fan_mirrors.get(),
+                self.optimize_fog_planes.get(), self.optimize_portals.get())
+            if mod2_tag:
+                print("    Saving to %s" % mod2_tag.filepath)
+                mod2_tag.serialize(
+                    temp=False, backup=False, int_test=False)
+        except Exception:
+            print(format_exc())
+
+        print('    Finished. Took %s seconds.\n' % round(time() - start, 1))
+
+    def convert_dir(self):
+        start = time()
+        tags_dir = join(self.tags_dir.get(), "")
         for root, dirs, files in os.walk(tags_dir):
-            if not root.endswith(PATHDIV):
-                root += PATHDIV
+            root = join(root, "")
 
             for filename in files:
                 filepath = root + filename
@@ -481,17 +656,9 @@ class SbspToMod2Convertor(Tk):
                     '.scenario_structure_bsp'):
                     continue
 
-                print('Converting: %s' % filepath.split(tags_dir)[-1])
+                self.convert_bsp(filepath)
 
-                try:
-                    mod2_tag = sbsp_to_mod2(filepath)
-                    if mod2_tag:
-                        mod2_tag.serialize(
-                            temp=False, backup=False, int_test=False)
-                except Exception:
-                    print(format_exc())
-                print()
-        print('\nFinished. Took %s seconds' % (time() - start))
+        print('Finished. Took %s seconds.\n' % round(time() - start, 1))
 
 try:
     converter = SbspToMod2Convertor()
