@@ -13,13 +13,10 @@ from tkinter.filedialog import askdirectory, askopenfilename
 from traceback import format_exc
 
 from reclaimer.model.jms import JmsNode, JmsMaterial, JmsMarker, JmsVertex,\
-     JmsTriangle, JmsModel, GeometryMesh, PermutationMesh,\
-     MergedJmsRegion, MergedJmsModel, edge_loop_to_tris
+     JmsModel, MergedJmsModel, edge_loop_to_tris
 from reclaimer.model.model_compilation import compile_gbxmodel
 from reclaimer.hek.defs.objs.matrices import euler_to_quaternion, \
-     cross_product, dot_product, line_from_verts, \
-     is_point_on_forward_side_of_planes,\
-     find_intersect_point_of_planes, find_intersect_point_of_lines
+     planes_to_verts_and_edge_loops
 from reclaimer.hek.defs.sbsp import sbsp_def
 from reclaimer.hek.defs.mod2 import mod2_def
 from supyr_struct.defs.block_def import BlockDef
@@ -27,109 +24,10 @@ from supyr_struct.defs.block_def import BlockDef
 curr_dir = join(abspath(os.curdir), "")
 
 
-def planes_to_verts_and_tris(planes, region=0, mat_id=0,
-                             make_fans=False, max_plane_ct=32):
-    # make a set out of the planes to remove duplicates
-    planes = list(set(tuple(plane) for plane in planes))
-    lines_by_planes = {}
+def planes_to_verts_and_tris(planes, region=0, mat_id=0, make_fans=False):
+    raw_verts, edge_loops = planes_to_verts_and_edge_loops(planes)
 
-    if len(planes) > max_plane_ct:
-        raise ValueError(
-            "Provided more planes(%s) than the max plane count(%s)" %
-            (len(planes), max_plane_ct))
-
-    # Get the edge lines for each plane by crossing the plane with
-    # each other plane. If they are parallel, their cross product
-    # will be the zero vector and should be ignored.
-    for i in range(len(planes)):
-        p0 = planes[i]
-        for j in range(len(planes)):
-            if i == j: continue
-
-            p1 = planes[j]
-            line_dir = cross_product(p0[:3], p1[:3])
-            if not (line_dir[0] or line_dir[1] or line_dir[2]):
-                # parallel planes. ignore
-                continue
-
-            lines = (find_plane_intersect_point(p0, p1), line_dir)
-            lines_by_planes.setdefault(p0, []).append(lines)
-
-
-    raw_verts = []
-    vert_indices_by_raw_verts = {}
-    edges_by_planes = {plane: [] for plane in planes}
-    edges_by_verts_by_planes = {plane: [] for plane in planes}
-    # Calculate the points of intersection for each planes edges
-    # to determine their vertices, skipping any vertices that are
-    # on the forward-facing side of any of the planes.
-    for plane, lines in lines_by_planes.items():
-        # loop over each line in the plane and find
-        # two vertices where two lines intersect
-        for i in range(len(lines)):
-            v0_i = v1_i = None
-            line = lines[i]
-            for j in range(i + 1, len(lines)):
-                intersect = tuple(find_intersect_point_of_lines(
-                    line, lines[j]))
-
-                if intersect in vert_indices_by_raw_verts:
-                    vert_index = vert_indices_by_raw_verts[intersect]
-                elif intersect is not None:
-                    # make sure the point is not outside the polyhedra
-                    if is_point_on_forward_side_of_planes(planes, intersect):
-                        continue
-                    vert_index = len(raw_verts)
-                    raw_verts.append(intersect)
-                    vert_indices_by_raw_verts[intersect] = vert_index
-                else:
-                    continue
-
-                if   v0_i is None: v0_i = vert_index
-                elif v1_i is None: v1_i = vert_index
-                else: break
-
-            if v0_i is None or v1_i is None:
-                #print("FUCK! We couldn't find an intersection point.")
-                continue
-
-            # add the edge to this planes list of vert edges
-            edge = (v0_i, v1_i)
-            edges_by_planes[plane].append(edge)
-            edges_by_verts_by_planes[plane].setdefault(v0_i, []).append(edge)
-            edges_by_verts_by_planes[plane].setdefault(v1_i, []).append(edge)
-
-
-    edge_loops = []
-    # loop over each edge and put together an edge loop list
-    # by visiting the edges shared by each vert index
-    for plane, edges in edges_by_planes.items():
-        edge_loop = []
-        edge_loops.append(edge_loop)
-        edges_by_verts = edges_by_verts_by_planes[plane]
-
-        curr_edge = edges[0]
-        edge_loop.append(curr_edge[0])
-        edges_by_verts.pop(curr_edge[0])
-        v_i = curr_edge[1]
-        while edges_by_verts:
-            vert_edges = edges_by_verts.pop(v_i, None)
-            if vert_edges is None:
-                break
-
-            curr_edge = vert_edges[not vert_edges.index(curr_edge)]
-            edge_loop.append(v_i)
-            v_i = curr_edge[not curr_edge.index(v_i)]
-
-        # if the edge loop would construct triangles facing the
-        # wrong direction, we need to reverse the edge loop
-        v0 = raw_verts[edge_loop[0]]
-        v1 = raw_verts[edge_loop[1]]
-        v2 = raw_verts[edge_loop[2]]
-        if dot_product(vertex_cross_product(v0, v1, v2), plane[: 3]) < 0:
-            edge_loop[:] = edge_loop[::-1]
-
-    verts = [JmsVertex(0, *vert) for vert in raw_verts]
+    verts = [JmsVertex(0, v[0]*100, v[1]*100, v[2]*100) for v in raw_verts]
     tris = []
     # Calculate verts and triangles from the raw vert positions and edge loops
     for edge_loop in edge_loops:
