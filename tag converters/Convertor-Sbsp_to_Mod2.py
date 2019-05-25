@@ -219,7 +219,7 @@ def make_weather_polyhedra_jms_models(polyhedras, nodes, make_fans=True):
     polyhedra_index = 0
     for polyhedra in polyhedras:
         verts, tris = planes_to_verts_and_tris(
-            polyhedra.planes.STEPTREE, make_fans)
+            polyhedra.planes.STEPTREE, make_fans=make_fans)
         
         jms_models.append(JmsModel(
             "bsp", 0, nodes, materials, (),
@@ -403,7 +403,7 @@ class SbspToMod2Convertor(Tk):
         self.title("Structure bsp to gbxmodel convertor v1.0")
         self.resizable(0, 0)
 
-        self.tags_dir = StringVar(self, curr_dir)
+        self.tags_dir = StringVar(self)
         self.tag_path = StringVar(self)
 
         self.include_weather_polyhedra = IntVar(self, 1)
