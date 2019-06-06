@@ -183,40 +183,40 @@ fn getFlagArray num =
     myBitArray
 )
 
-rollout gbxImporter "GBX/XBOX Model Importer v5.2 by TheGhost/Moses" width:408 height:450
+rollout gbxImporter "GBX/XBOX Model Importer v5.2 by TheGhost/Moses" width:443 height:450
 (
-    GroupBox grp_load "Load File" pos:[8,8] width:392 height:77
-    button unload_button "Unload GBX/XBOX Model" pos:[211,22] width:127 height:29 enabled:false
-    button load_button "Load GBX/XBOX Model" pos:[77,22] width:122 height:29
+    GroupBox grp_load "Load File" pos:[8,8] width:427 height:77
+    button load_button "Load GBX/XBOX Model" pos:[83,22] width:140 height:29
+    button unload_button "Unload GBX/XBOX Model" pos:[237,22] width:140 height:29 enabled:false
     label lbl_model "Model:" pos:[19,61] width:38 height:16 enabled:false
-    edittext edt_model "" pos:[52,59] width:335 height:16 enabled:false
+    edittext edt_model "" pos:[52,59] width:370 height:16 enabled:false
     
-    GroupBox grp_select "LOD / Region / Permutation Selection" pos:[8,89] width:392 height:120 enabled:false
+    GroupBox grp_select "LOD / Region / Permutation Selection" pos:[8,89] width:427 height:120 enabled:false
     radiobuttons radio_LOD "Select LOD" pos:[18,105] width:72 height:94 enabled:false labels:#("super high", "high", "medium", "low", "super low") default:1 columns:1
-    listbox listbox_permutation "Select Model Permutation" pos:[232,111] width:156 height:5 enabled:false
-    listbox listbox_region "Select Model Region" pos:[97,111] width:125 height:5 enabled:false
+    listbox listbox_permutation "Select Model Permutation" pos:[267,111] width:156 height:5 enabled:false
+    listbox listbox_region "Select Model Region" pos:[97,111] width:160 height:5 enabled:false
     
-    GroupBox grp_import_selection "Import Geometry Selection" pos:[8,214] width:392 height:72 enabled:false
+    GroupBox grp_import_selection "Import Geometry Selection" pos:[8,214] width:427 height:72 enabled:false
     radiobuttons radio_geometry "" pos:[16,231] width:206 height:48 enabled:false labels:#("Selected Permutation from All Regions", "All Permutations of Selected Region", "Selected Region and Permutation Only")
     checkbox chk_model "Import Model Geometry" pos:[240,228] width:128 height:17 enabled:false checked:true
     checkbox chk_node "Import All Nodes" pos:[240,245] width:96 height:17 enabled:false checked:true
     checkbox chk_marker "Import Markers" pos:[240,262] width:88 height:17 enabled:false checked:true
     
-    GroupBox grp_model_options "Model Geometry Options" pos:[8,291] width:216 height:94 enabled:false
+    GroupBox grp_model_options "Model Geometry Options" pos:[8,291] width:232 height:94 enabled:false
     checkbox chk_attach "Attach Parts of Mesh Within Region" pos:[16,309] width:192 height:17 enabled:false checked:true
     checkbox chk_uvw "Import UVW Coordinates and MatID's" pos:[16,326] width:197 height:17 enabled:false checked:true
     checkbox chk_matlib "Setup 3ds Material Library Shaders" pos:[16,343] width:184 height:17 enabled:false checked:true
     checkbox chk_weight "Import Vertex Weights (Rigged Model)" pos:[16,360] width:200 height:17 enabled:false checked:true
     
-    GroupBox grp_node_marker_options "Node/Marker Options" pos:[231,291] width:169 height:94 enabled:false
-    checkbox chk_bone "Import All Nodes as Bones" pos:[240,307] width:144 height:15 enabled:false
-    checkbox chk_bip "Only Biped Nodes as Bones" pos:[240,324] width:150 height:15 enabled:false
-    label lbl_node "Node Radius" pos:[264,346] width:64 height:13 enabled:false
-    label lbl_marker "Marker Radius" pos:[256,364] width:71 height:13 enabled:false
-    spinner spn_node "" pos:[330,344] width:42 height:16 enabled:false range:[0.01,30,2]
-    spinner spn_marker "" pos:[330,363] width:42 height:16 enabled:false range:[0.01,30,1]
+    GroupBox grp_node_marker_options "Node/Marker Options" pos:[247,291] width:185 height:94 enabled:false
+    checkbox chk_bone "Import All Nodes as Bones" pos:[256,307] width:144 height:15 enabled:false
+    checkbox chk_bip "Only Biped Nodes as Bones" pos:[256,324] width:150 height:15 enabled:false
+    label lbl_node "Node Radius" pos:[280,346] width:64 height:13 enabled:false
+    label lbl_marker "Marker Radius" pos:[280,364] width:71 height:13 enabled:false
+    spinner spn_node "" pos:[346,344] width:42 height:16 enabled:false range:[0.01,30,2]
+    spinner spn_marker "" pos:[346,363] width:42 height:16 enabled:false range:[0.01,30,1]
     
-    GroupBox grp_import "Import Button" pos:[8,388] width:392 height:54 enabled:false
+    GroupBox grp_import "Import Button" pos:[8,388] width:427 height:54 enabled:false
     button import_button "Import GBX/XBOX Model" pos:[150,403] width:141 height:29 enabled:false
     label lbl_by "Script by TheGhost/Moses." pos:[16,423] width:130 height:15 enabled:false
     label lbl_version "v5.2.0" pos:[357,423] width:37 height:15 enabled:false
