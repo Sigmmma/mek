@@ -291,7 +291,6 @@ rollout gbxImporter "GBX/XBOX Model Importer v5.2 by TheGhost/Moses" width:448 h
                 print ("Tag type check: " + tag_type as string)
                 model_type  = -1
                 vertex_type = -1
-                print (tag_type)
                 --*vertex_type: 0 == compressed   1 == uncompressed*
                 if tag_type == 1836016741 then
                 (
@@ -828,6 +827,11 @@ rollout gbxImporter "GBX/XBOX Model Importer v5.2 by TheGhost/Moses" width:448 h
         LOD_switch = #(5, 4, 3, 2, 1)
         reuse_nodes = chk_reuse.checked and (gbx_node_array.count == gbx_node_blocks)
         import_nodes = chk_node.checked
+
+        if region_index == 0 or permutation_index == 0 then (
+            messageBox "Error: Nothing to import!" title:"Nothing to import error"
+            return undefined
+        ) 
         
         if chk_detect.checked == true then (
             detected_count = 0
@@ -868,7 +872,7 @@ rollout gbxImporter "GBX/XBOX Model Importer v5.2 by TheGhost/Moses" width:448 h
             import_nodes = false
         )
 
-		import_weights = chk_weight.checked and (reuse_nodes or import_nodes)
+        import_weights = chk_weight.checked and (reuse_nodes or import_nodes)
 
         if import_nodes == false and chk_marker.checked == false and chk_model.checked == false then
         (
@@ -876,9 +880,7 @@ rollout gbxImporter "GBX/XBOX Model Importer v5.2 by TheGhost/Moses" width:448 h
         )
         
         global import_region_permutation = #()
-        if region_index == 0 or permutation_index == 0 then (
-            return undefined
-        ) else if radio_geometry.state == 1 then
+        if radio_geometry.state == 1 then
         (
             permutation_name = region_permutation_name[region_index][permutation_index]
             for r = 1 to region_blocks do
@@ -1092,7 +1094,7 @@ rollout gbxImporter "GBX/XBOX Model Importer v5.2 by TheGhost/Moses" width:448 h
             for geometry_index = 1 to import_geometry_indices.count do
             (
                 g = import_geometry_indices[geometry_index]
-                if g <= 0 then (
+                if g <= 0 or g > geometry_part_blocks.count then (
                     continue
                 )
                 has_meshes = false
@@ -1406,7 +1408,7 @@ rollout gbxImporter "GBX/XBOX Model Importer v5.2 by TheGhost/Moses" width:448 h
                 for geometry_index = 1 to import_geometry_indices.count do
                 (
                     g = import_geometry_indices[geometry_index]
-                    if g <= 0 then (
+                    if g <= 0 or g > geometry_part_blocks.count then (
                         continue
                     )
 
