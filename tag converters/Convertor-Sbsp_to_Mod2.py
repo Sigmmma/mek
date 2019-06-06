@@ -415,14 +415,14 @@ class SbspToMod2Convertor(Tk):
         self.tag_path = StringVar(self)
 
         self.include_weather_polyhedra = IntVar(self, 1)
-        self.include_fog_planes = IntVar(self, 0)#1)
-        self.include_portals = IntVar(self, 0)#1)
-        self.include_collision = IntVar(self, 0)#1)
-        self.include_renderable = IntVar(self, 0)#1)
+        self.include_fog_planes = IntVar(self, 1)
+        self.include_portals = IntVar(self, 1)
+        self.include_collision = IntVar(self, 1)
+        self.include_renderable = IntVar(self, 1)
         self.include_mirrors = IntVar(self, 0)
         self.include_lightmaps = IntVar(self, 0)
 
-        self.include_markers = IntVar(self, 0)#1)
+        self.include_markers = IntVar(self, 1)
         self.include_lens_flares = IntVar(self, 0)
 
         self.fan_portals = IntVar(self, 1)
