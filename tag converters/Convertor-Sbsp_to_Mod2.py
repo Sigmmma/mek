@@ -16,7 +16,7 @@ from reclaimer.model.jms import JmsNode, JmsMaterial, JmsMarker, JmsVertex,\
      JmsModel, MergedJmsModel, edge_loop_to_tris
 from reclaimer.model.model_compilation import compile_gbxmodel
 from reclaimer.hek.defs.objs.matrices import euler_to_quaternion, \
-     planes_to_verts_and_edge_loops
+     planes_to_verts_and_edge_loops, Ray
 from reclaimer.hek.defs.sbsp import sbsp_def
 from reclaimer.hek.defs.mod2 import mod2_def
 from supyr_struct.defs.block_def import BlockDef
@@ -24,8 +24,10 @@ from supyr_struct.defs.block_def import BlockDef
 curr_dir = join(abspath(os.curdir), "")
 
 
-def planes_to_verts_and_tris(planes, region=0, mat_id=0, make_fans=False):
-    raw_verts, edge_loops = planes_to_verts_and_edge_loops(planes)
+def planes_to_verts_and_tris(planes, center, region=0, mat_id=0,
+                             make_fans=False, round_adjust=0.000001):
+    raw_verts, edge_loops = planes_to_verts_and_edge_loops(
+        planes, center, round_adjust=round_adjust)
 
     verts = [JmsVertex(0, v[0]*100, v[1]*100, v[2]*100) for v in raw_verts]
     tris = []
@@ -212,14 +214,17 @@ def make_cluster_portal_jms_models(planes, clusters, cluster_portals, nodes,
     return jms_models
 
 
-def make_weather_polyhedra_jms_models(polyhedras, nodes, make_fans=True):
+def make_weather_polyhedra_jms_models(polyhedras, nodes, make_fans=True,
+                                      tolerance=0.0000001):
     jms_models = []
     materials = [JmsMaterial("+weatherpoly", "<none>", "+weatherpoly")]
 
     polyhedra_index = 0
     for polyhedra in polyhedras:
         verts, tris = planes_to_verts_and_tris(
-            polyhedra.planes.STEPTREE, make_fans=make_fans)
+            polyhedra.planes.STEPTREE, polyhedra.bounding_sphere_center,
+            make_fans=make_fans,
+            round_adjust=Ray(polyhedra.bounding_sphere_center).mag * tolerance)
         
         jms_models.append(JmsModel(
             "bsp", 0, nodes, materials, (),
@@ -292,7 +297,8 @@ def sbsp_to_mod2(
         include_portals=True, include_collision=True, include_renderable=True,
         include_mirrors=True, include_lightmaps=True, fan_weather_polyhedra=True,
         fan_fog_planes=True,  fan_portals=True, fan_collision=True,
-        fan_mirrors=True, optimize_fog_planes=False, optimize_portals=False,):
+        fan_mirrors=True, optimize_fog_planes=False, optimize_portals=False,
+        weather_polyhedra_tolerance=0.0000001):
 
     print("    Loading...")
     sbsp_tag = sbsp_def.build(filepath=sbsp_path)
@@ -359,7 +365,7 @@ def sbsp_to_mod2(
         try:
             jms_models.extend(make_weather_polyhedra_jms_models(
                 sbsp_body.weather_polyhedras.STEPTREE, base_nodes,
-                fan_weather_polyhedra))
+                fan_weather_polyhedra, weather_polyhedra_tolerance))
         except Exception:
             print(format_exc())
             print("    Could not convert weather polyhedra")
@@ -397,6 +403,8 @@ def sbsp_to_mod2(
 
 
 class SbspToMod2Convertor(Tk):
+    weather_tolerance = 0.0000001
+    min_weather_tolerance = 0.000000000000001
     def __init__(self, *args, **kwargs):
         Tk.__init__(self, *args, **kwargs)
 
@@ -407,14 +415,14 @@ class SbspToMod2Convertor(Tk):
         self.tag_path = StringVar(self)
 
         self.include_weather_polyhedra = IntVar(self, 1)
-        self.include_fog_planes = IntVar(self, 1)
-        self.include_portals = IntVar(self, 1)
-        self.include_collision = IntVar(self, 1)
-        self.include_renderable = IntVar(self, 1)
+        self.include_fog_planes = IntVar(self, 0)#1)
+        self.include_portals = IntVar(self, 0)#1)
+        self.include_collision = IntVar(self, 0)#1)
+        self.include_renderable = IntVar(self, 0)#1)
         self.include_mirrors = IntVar(self, 0)
         self.include_lightmaps = IntVar(self, 0)
 
-        self.include_markers = IntVar(self, 1)
+        self.include_markers = IntVar(self, 0)#1)
         self.include_lens_flares = IntVar(self, 0)
 
         self.fan_portals = IntVar(self, 1)
@@ -425,12 +433,16 @@ class SbspToMod2Convertor(Tk):
 
         self.optimize_portals = IntVar(self, 0)
         self.optimize_fog_planes = IntVar(self, 0)
+        self.weather_tolerance_string = StringVar(self, str(self.weather_tolerance))
+        self.weather_tolerance_string.trace(
+            "w", lambda *a, s=self: s.set_weather_tolerance())
 
         # make the frames
         self.tags_dir_frame = LabelFrame(self, text="Directory of tags")
         self.tag_path_frame = LabelFrame(self, text="Single tag")
         self.important_frame = LabelFrame(self, text="Important geometry/markers to include")
         self.additional_frame = LabelFrame(self, text="Additional geometry/markers to include")
+        self.weather_tolerance_frame = LabelFrame(self, text="Weather polyhedron tolerance")
         self.topology_frame = LabelFrame(self, text="Topology generation")
 
 
@@ -505,6 +517,21 @@ class SbspToMod2Convertor(Tk):
             self.tag_path_frame, text="Browse",
             width=6, command=self.tag_path_browse)
 
+        self.weather_tolerance_info = Label(
+            self.weather_tolerance_frame, justify='left', anchor="w",
+            text=("Due to how weather polyhedrons work, there is no\n"
+                  "geometry to extract, so it must be generated. My\n"
+                  "method for doing this isn't perfect, so sometimes\n"
+                  "geometry will be missing faces. Adjust this value\n"
+                  "up or down to find the sweet spot. NEVER set to 0,\n"
+                  "and be wary of setting to 0.0001 or higher.\n\n"
+                  "NOTE:\tYou will probably need to clean up the\n"
+                  "\tgenerated geometry by hand a little bit."))
+        self.weather_tolerance_spinbox = Spinbox(
+            self.weather_tolerance_frame, from_=self.min_weather_tolerance,
+            to=100, width=18, increment=self.weather_tolerance,
+            textvariable=self.weather_tolerance_string)
+
         # pack everything
         self.tags_dir_entry.pack(expand=True, fill='x', side='left')
         self.tags_dir_browse_btn.pack(fill='x', side='left')
@@ -534,10 +561,15 @@ class SbspToMod2Convertor(Tk):
         self.convert_dir_btn.pack(fill='both', padx=5, pady=5)
         self.tag_path_frame.pack(expand=True, fill='both')
         self.convert_file_btn.pack(fill='both', padx=5, pady=5)
+        self.weather_tolerance_info.pack(side='left', fill='both',
+                                         expand=True, padx=5, pady=5)
+        self.weather_tolerance_spinbox.pack(side='left', fill='x',
+                                            expand=True, padx=5, pady=5)
 
         self.important_frame.pack(expand=True, fill='both')
         self.additional_frame.pack(expand=True, fill='both')
         self.topology_frame.pack(expand=True, fill='both')
+        self.weather_tolerance_frame.pack(expand=True, fill='both')
 
         self.update()
         w, h = self.winfo_reqwidth(), self.winfo_reqheight()
@@ -547,6 +579,20 @@ class SbspToMod2Convertor(Tk):
     def destroy(self):
         Tk.destroy(self)
         raise SystemExit(0)
+
+    def set_weather_tolerance(self):
+        try:
+            new_tolerance = float(self.weather_tolerance_string.get())
+            if new_tolerance >= self.min_weather_tolerance:
+                self.weather_tolerance = new_tolerance
+                return
+            else:
+                self.weather_tolerance = self.min_weather_tolerance
+        except Exception:
+            pass
+
+        self.weather_tolerance_string.set(
+            str(("%.20f" % self.weather_tolerance)).rstrip("0").rstrip("."))
 
     def tags_dir_browse(self):
         dirpath = askdirectory(initialdir=self.tags_dir.get())
@@ -558,7 +604,10 @@ class SbspToMod2Convertor(Tk):
         if not initialdir:
             initialdir = self.tags_dir.get()
 
-        tag_path = askopenfilename(initialdir=initialdir)
+        tag_path = askopenfilename(
+            initialdir=initialdir,
+            filetypes=(("sbsp tag", "*.scenario_structure_bsp"),
+                       ('All', '*')))
         if tag_path:
             self.tag_path.set(tag_path)
 
@@ -581,7 +630,8 @@ class SbspToMod2Convertor(Tk):
                 self.include_mirrors.get(), self.include_lightmaps.get(),
                 self.fan_weather_polyhedra.get(), self.fan_fog_planes.get(),
                 self.fan_portals.get(), self.fan_collision.get(), self.fan_mirrors.get(),
-                self.optimize_fog_planes.get(), self.optimize_portals.get())
+                self.optimize_fog_planes.get(), self.optimize_portals.get(),
+                self.weather_tolerance)
             if mod2_tag:
                 print("    Saving to %s" % mod2_tag.filepath)
                 mod2_tag.serialize(

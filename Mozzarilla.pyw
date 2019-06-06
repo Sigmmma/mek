@@ -24,7 +24,7 @@ try:
         input("Mozzarilla is not installed. Install it with the MEK installer to fix this.")
 
     if Mozzarilla:
-        main_window = Mozzarilla(debug=3)
+        main_window = Mozzarilla(debug=1)
         main_window.mainloop()
 except SystemExit:
     pass
