@@ -183,43 +183,45 @@ fn getFlagArray num =
     myBitArray
 )
 
-rollout gbxImporter "GBX/XBOX Model Importer v5.2 by TheGhost/Moses" width:443 height:450
+rollout gbxImporter "GBX/XBOX Model Importer v5.2 by TheGhost/Moses" width:448 height:482
 (
-    GroupBox grp_load "Load File" pos:[8,8] width:427 height:77
-    button load_button "Load GBX/XBOX Model" pos:[83,22] width:140 height:29
-    button unload_button "Unload GBX/XBOX Model" pos:[237,22] width:140 height:29 enabled:false
+    GroupBox grp_load "Load File" pos:[8,8] width:432 height:77
+    button load_button "Load GBX/XBOX Model" pos:[85,22] width:140 height:29
+    button unload_button "Unload GBX/XBOX Model" pos:[240,22] width:140 height:29 enabled:false
     label lbl_model "Model:" pos:[19,61] width:38 height:16 enabled:false
     edittext edt_model "" pos:[52,59] width:370 height:16 enabled:false
     
-    GroupBox grp_select "LOD / Region / Permutation Selection" pos:[8,89] width:427 height:120 enabled:false
+    GroupBox grp_select "LOD / Region / Permutation Selection" pos:[8,89] width:432 height:120 enabled:false
     radiobuttons radio_LOD "Select LOD" pos:[18,105] width:72 height:94 enabled:false labels:#("super high", "high", "medium", "low", "super low") default:1 columns:1
     listbox listbox_permutation "Select Model Permutation" pos:[267,111] width:156 height:5 enabled:false
     listbox listbox_region "Select Model Region" pos:[97,111] width:160 height:5 enabled:false
     
-    GroupBox grp_import_selection "Import Geometry Selection" pos:[8,214] width:427 height:72 enabled:false
+    GroupBox grp_import_selection "Import Geometry Selection" pos:[8,214] width:432 height:72 enabled:false
     radiobuttons radio_geometry "" pos:[16,231] width:206 height:48 enabled:false labels:#("Selected Permutation from All Regions", "All Permutations of Selected Region", "Selected Region and Permutation Only")
-    checkbox chk_model "Import Model Geometry" pos:[240,228] width:128 height:17 enabled:false checked:true
-    checkbox chk_node "Import All Nodes" pos:[240,245] width:96 height:17 enabled:false checked:true
-    checkbox chk_marker "Import Markers" pos:[240,262] width:88 height:17 enabled:false checked:true
+    checkbox chk_model "Import Model Geometry" pos:[250,228] width:128 height:17 enabled:false checked:true
+    checkbox chk_node "Import All Nodes" pos:[250,245] width:96 height:17 enabled:false checked:true
+    checkbox chk_marker "Import Markers" pos:[250,262] width:88 height:17 enabled:false checked:true
     
-    GroupBox grp_model_options "Model Geometry Options" pos:[8,291] width:232 height:94 enabled:false
+    GroupBox grp_model_options "Model Geometry Options" pos:[8,291] width:232 height:128 enabled:false
     checkbox chk_attach "Attach Parts of Mesh Within Region" pos:[16,309] width:192 height:17 enabled:false checked:true
     checkbox chk_uvw "Import UVW Coordinates and MatID's" pos:[16,326] width:197 height:17 enabled:false checked:true
     checkbox chk_matlib "Setup 3ds Material Library Shaders" pos:[16,343] width:184 height:17 enabled:false checked:true
     checkbox chk_weight "Import Vertex Weights (Rigged Model)" pos:[16,360] width:200 height:17 enabled:false checked:true
     
-    GroupBox grp_node_marker_options "Node/Marker Options" pos:[247,291] width:185 height:94 enabled:false
+    GroupBox grp_node_marker_options "Node/Marker Options" pos:[247,291] width:193 height:128 enabled:false
     checkbox chk_bone "Import All Nodes as Bones" pos:[256,307] width:144 height:15 enabled:false
     checkbox chk_bip "Only Biped Nodes as Bones" pos:[256,324] width:150 height:15 enabled:false
-    label lbl_node "Node Radius" pos:[280,346] width:64 height:13 enabled:false
-    label lbl_marker "Marker Radius" pos:[280,364] width:71 height:13 enabled:false
-    spinner spn_node "" pos:[346,344] width:42 height:16 enabled:false range:[0.01,30,2]
-    spinner spn_marker "" pos:[346,363] width:42 height:16 enabled:false range:[0.01,30,1]
+    checkbox chk_reuse "Reuse Previously Imported Nodes" pos:[256,341] width:180 height:15 enabled:false checked:true
+    checkbox chk_detect "Detect Existing Nodes in Scene" pos:[256,358] width:180 height:15 enabled:false checked:false
+    label lbl_node "Node Radius" pos:[280,380] width:64 height:13 enabled:false
+    label lbl_marker "Marker Radius" pos:[273,398] width:71 height:13 enabled:false
+    spinner spn_node "" pos:[346,378] width:42 height:16 enabled:false range:[0.01,30,2]
+    spinner spn_marker "" pos:[346,397] width:42 height:16 enabled:false range:[0.01,30,1]
     
-    GroupBox grp_import "Import Button" pos:[8,388] width:427 height:54 enabled:false
-    button import_button "Import GBX/XBOX Model" pos:[150,403] width:141 height:29 enabled:false
-    label lbl_by "Script by TheGhost/Moses." pos:[16,423] width:130 height:15 enabled:false
-    label lbl_version "v5.2.0" pos:[357,423] width:37 height:15 enabled:false
+    GroupBox grp_import "Import Button" pos:[8,422] width:432 height:54 enabled:false
+    button import_button "Import GBX/XBOX Model" pos:[160,437] width:141 height:29 enabled:false
+    label lbl_by "Script by TheGhost/Moses." pos:[16,457] width:130 height:15 enabled:false
+    label lbl_version "v5.2.0" pos:[400,457] width:37 height:15 enabled:false
     
     on gbxImporter open do
     (
@@ -259,6 +261,8 @@ rollout gbxImporter "GBX/XBOX Model Importer v5.2 by TheGhost/Moses" width:443 h
         grp_node_marker_options.enabled = false
         chk_bone.enabled = false
         chk_bip.enabled = false
+        chk_reuse.enabled = false
+        chk_detect.enabled = false
         lbl_node.enabled = false
         lbl_marker.enabled = false
         spn_node.enabled = false
@@ -329,6 +333,8 @@ rollout gbxImporter "GBX/XBOX Model Importer v5.2 by TheGhost/Moses" width:443 h
                     grp_node_marker_options.enabled = true
                     chk_bone.enabled = true
                     chk_bip.enabled = true
+                    chk_reuse.enabled = true
+                    chk_detect.enabled = true
                     lbl_node.enabled = true
                     lbl_marker.enabled = true
                     spn_node.enabled = true
@@ -700,10 +706,15 @@ rollout gbxImporter "GBX/XBOX Model Importer v5.2 by TheGhost/Moses" width:443 h
                     print ("Model indexing took " + ((end1 - start1) as float / 1000.0) as string + " seconds")
                     
                     listbox_region.items = region_name
-                    listbox_permutation.items = region_permutation_name[1]
-                    listbox_region.selection = 1
-                    listbox_permutation.selection = 1
-                    
+                    if region_name.count > 0 then (
+                        listbox_permutation.items = region_permutation_name[1]
+                        listbox_region.selection = 1
+                        listbox_permutation.selection = 1
+                    ) else (
+                        listbox_permutation.items = region_name
+                        listbox_region.selection = 0
+                        listbox_permutation.selection = 0
+                    )
                 )
             )
         )
@@ -722,11 +733,8 @@ rollout gbxImporter "GBX/XBOX Model Importer v5.2 by TheGhost/Moses" width:443 h
             chk_uvw.enabled = true
             chk_matlib.checked = true
             chk_matlib.enabled = true
-            if chk_node.checked == true then
-            (
-                chk_weight.enabled = true
-                chk_weight.checked = true
-            )
+            chk_weight.enabled = true
+            chk_weight.checked = true
             grp_model_options.enabled = true
         )
         else
@@ -746,7 +754,6 @@ rollout gbxImporter "GBX/XBOX Model Importer v5.2 by TheGhost/Moses" width:443 h
     (
         if theState == true then
         (
-            if chk_model.checked == true do chk_weight.enabled = true
             chk_bone.enabled = true
             chk_bip.enabled = true
             lbl_node.enabled = true
@@ -755,8 +762,6 @@ rollout gbxImporter "GBX/XBOX Model Importer v5.2 by TheGhost/Moses" width:443 h
         )
         else
         (
-            chk_weight.checked = false
-            chk_weight.enabled = false
             chk_bone.checked = false
             chk_bone.enabled = false
             chk_bip.checked = false
@@ -801,20 +806,79 @@ rollout gbxImporter "GBX/XBOX Model Importer v5.2 by TheGhost/Moses" width:443 h
             chk_bone.checked = false
         )
     )
+    on chk_detect changed theState do
+    (
+        if theState == true then
+        (
+            chk_reuse.checked = false
+        )
+    )
+    on chk_reuse changed theState do
+    (
+        if theState == true then
+        (
+            chk_detect.checked = false
+        )
+    )
     on import_button pressed do
     (
         region_index = listbox_region.selection
         permutation_index = listbox_permutation.selection
         LOD_index = radio_LOD.state
         LOD_switch = #(5, 4, 3, 2, 1)
+        reuse_nodes = chk_reuse.checked and (gbx_node_array.count == gbx_node_blocks)
+        import_nodes = chk_node.checked
         
-        if chk_node.checked == false and chk_marker.checked == false and chk_model.checked == false then
+        if chk_detect.checked == true then (
+            detected_count = 0
+            scene_objects = objects as array
+            detected_nodes = #()
+            
+            for i = 1 to scene_objects.count do (
+                for j = 1 to gbx_node_name.count do (
+                    if (detected_nodes[j] == undefined) and (stricmp scene_objects[i].name gbx_node_name[j] == 0) then (
+                        detected_nodes[j] = scene_objects[i]
+                        detected_count += 1
+                    )
+                )
+            )
+
+            reuse_nodes = detected_count == gbx_node_blocks
+            if reuse_nodes == true then (
+                gbx_node_array = detected_nodes
+            )
+        ) else (
+            --* make sure nodes are valid. erase them if not
+            for n = 1 to gbx_node_array.count do (
+                if not isValidNode gbx_node_array[n] then (
+                    reuse_nodes = false
+                )
+            )
+        )
+
+        if reuse_nodes == false and chk_detect.checked then (
+            messageBox "Error: Could not detect objects in the scene with the same name as this models nodes!" title:"Node detect error"
+        ) else if gbx_node_array.count != 0 and reuse_nodes == false and chk_reuse.checked then (
+            messageBox "Error: Number of reusable nodes is invalid, or some of the nodes were deleted!" title:"Node reuse error"
+        )
+
+        if reuse_nodes == false then (
+            gbx_node_array = #()
+        ) else (
+            import_nodes = false
+        )
+
+		import_weights = chk_weight.checked and (reuse_nodes or import_nodes)
+
+        if import_nodes == false and chk_marker.checked == false and chk_model.checked == false then
         (
             messageBox "Error: You selected nothing to import!" title:"Import selection error"
         )
         
         global import_region_permutation = #()
-        if radio_geometry.state == 1 then
+        if region_index == 0 or permutation_index == 0 then (
+            return undefined
+        ) else if radio_geometry.state == 1 then
         (
             permutation_name = region_permutation_name[region_index][permutation_index]
             for r = 1 to region_blocks do
@@ -843,43 +907,49 @@ rollout gbxImporter "GBX/XBOX Model Importer v5.2 by TheGhost/Moses" width:443 h
             )
         )
         
-        if chk_node.checked == true or chk_marker.checked == true then
+        if import_nodes == true or chk_marker.checked == true then
         (
-            gbx_node_array = #()
             marker_array = #()
+            delete_imported_nodes = false
             
-            for n = 1 to gbx_node_blocks do
-            (
-                gbx_node_array[n] = sphere radius:spn_node.value
-                gbx_node_array[n].wirecolor = color 6 134 6
-                gbx_node_array[n].name = gbx_node_name[n]
-                if gbx_node_parent_node_index[n] != -1 do
+            if reuse_nodes == false then (
+                tmp_node_array = #()
+                for n = 1 to gbx_node_blocks do
                 (
-                    gbx_node_array[n].parent = gbx_node_array[gbx_node_parent_node_index[n] + 1]
+                    tmp_node_array[n] = sphere radius:spn_node.value
+                    tmp_node_array[n].wirecolor = color 6 134 6
+                    tmp_node_array[n].name = gbx_node_name[n]
+                    if gbx_node_parent_node_index[n] != -1 do
+                    (
+                        tmp_node_array[n].parent = tmp_node_array[gbx_node_parent_node_index[n] + 1]
+                    )
+                    rot = (quat -gbx_node_rotation[n].x -gbx_node_rotation[n].y -gbx_node_rotation[n].z gbx_node_rotation[n].w)
+                    in coordsys parent tmp_node_array[n].rotation = rot
+                    in coordsys parent tmp_node_array[n].pos = gbx_node_translation[n]
                 )
-                rot = (quat -gbx_node_rotation[n].x -gbx_node_rotation[n].y -gbx_node_rotation[n].z gbx_node_rotation[n].w)
-                in coordsys parent gbx_node_array[n].rotation = rot
-                in coordsys parent gbx_node_array[n].pos = gbx_node_translation[n]
+                delete_imported_nodes = not import_nodes
+            ) else (
+                tmp_node_array = gbx_node_array
             )
             
             if chk_bone.checked == true or chk_bip.checked == true then
             (
-                for n = 1 to gbx_node_array.count do
+                for n = 1 to tmp_node_array.count do
                 (
                     if chk_bip.checked == false or (substring gbx_node_name[n] 1 5 as name == "bip01" as name) then
                     (
                         if gbx_node_first_child_node_index[n] == -1 then
                         (
-                            myBone = BoneSys.createBone gbx_node_array[n].pos [gbx_node_array[n].pos.x + spn_node.value, gbx_node_array[n].pos.y, gbx_node_array[n].pos.z] [0,0,1]
-                            myBone.name = gbx_node_array[n].name
+                            myBone = BoneSys.createBone tmp_node_array[n].pos [tmp_node_array[n].pos.x + spn_node.value, gbx_node_array[n].pos.y, gbx_node_array[n].pos.z] [0,0,1]
+                            myBone.name = tmp_node_array[n].name
                             myBone.width = spn_node.value
                             myBone.height = spn_node.value
                             myBone.taper = 50
                         )
                         else
                         (
-                            myBone = BoneSys.createBone gbx_node_array[n].pos gbx_node_array[gbx_node_first_child_node_index[n] + 1].pos [0,0,1]
-                            myBone.name = gbx_node_array[n].name
+                            myBone = BoneSys.createBone tmp_node_array[n].pos tmp_node_array[gbx_node_first_child_node_index[n] + 1].pos [0,0,1]
+                            myBone.name = tmp_node_array[n].name
                             myBone.width = spn_node.value
                             myBone.height = spn_node.value
                             myBone.taper = 70
@@ -924,12 +994,12 @@ rollout gbxImporter "GBX/XBOX Model Importer v5.2 by TheGhost/Moses" width:443 h
                             
                         )
                         
-                        delete gbx_node_array[n]
-                        gbx_node_array[n] = myBone
+                        delete tmp_node_array[n]
+                        tmp_node_array[n] = myBone
                         
                         if gbx_node_parent_node_index[n] != -1 then
                         (
-                            myBone.parent = gbx_node_array[gbx_node_parent_node_index[n] + 1]
+                            myBone.parent = tmp_node_array[gbx_node_parent_node_index[n] + 1]
                         )
                         
                         rot = (quat -gbx_node_rotation[n].x -gbx_node_rotation[n].y -gbx_node_rotation[n].z gbx_node_rotation[n].w)
@@ -954,7 +1024,7 @@ rollout gbxImporter "GBX/XBOX Model Importer v5.2 by TheGhost/Moses" width:443 h
                                 marker_array[m] = sphere radius:spn_marker.value
                                 marker_array[m].wirecolor = color 28 89 177
                                 marker_array[m].name = "#" + marker_name[b]
-                                marker_array[m].parent = gbx_node_array[marker_instance_node_index[b][i] + 1]
+                                marker_array[m].parent = tmp_node_array[marker_instance_node_index[b][i] + 1]
                                 rot = (quat -marker_instance_rotation[b][i].x -marker_instance_rotation[b][i].y -marker_instance_rotation[b][i].z marker_instance_rotation[b][i].w)
                                 in coordsys parent marker_array[m].rotation = rot
                                 in coordsys parent marker_array[m].pos = marker_instance_translation[b][i]
@@ -976,7 +1046,7 @@ rollout gbxImporter "GBX/XBOX Model Importer v5.2 by TheGhost/Moses" width:443 h
                                     marker_array[m] = sphere radius:spn_marker.value
                                     marker_array[m].wirecolor = color 28 89 177
                                     marker_array[m].name = "#" + region_permutation_marker_name[r][p][b]
-                                    marker_array[m].parent = gbx_node_array[region_permutation_marker_node_index[r][p][b] + 1]
+                                    marker_array[m].parent = tmp_node_array[region_permutation_marker_node_index[r][p][b] + 1]
                                     rot = (quat -region_permutation_marker_rotation[r][p][b].x -region_permutation_marker_rotation[r][p][b].y -region_permutation_marker_rotation[r][p][b].z region_permutation_marker_rotation[r][p][b].w)
                                     in coordsys parent marker_array[m].rotation = rot
                                     in coordsys parent marker_array[m].pos = region_permutation_marker_translation[r][p][b]
@@ -987,12 +1057,13 @@ rollout gbxImporter "GBX/XBOX Model Importer v5.2 by TheGhost/Moses" width:443 h
                 )
             )
             
-            if chk_node.checked == false then
-            (
-                for n = 1 to gbx_node_blocks do
-                (
-                    delete gbx_node_array[n]
+            if delete_imported_nodes then (
+                for n = 1 to tmp_node_array.count do (
+                    delete tmp_node_array[n]
                 )
+            )
+            if import_nodes == true then (
+                gbx_node_array = tmp_node_array
             )
         )
         
@@ -1024,7 +1095,6 @@ rollout gbxImporter "GBX/XBOX Model Importer v5.2 by TheGhost/Moses" width:443 h
                 if g <= 0 then (
                     continue
                 )
-
                 has_meshes = false
                 part_meshes = #()
                 geometry_meshes[geometry_index] = (part_meshes)
@@ -1066,7 +1136,7 @@ rollout gbxImporter "GBX/XBOX Model Importer v5.2 by TheGhost/Moses" width:443 h
                                 fseek gbx_in_file 4 #seek_cur
                             )
 
-                            if chk_weight.checked == true then
+                            if import_weights then
                             (
                                 node0_index = ((readByte gbx_in_file #signed) / 3) + 1
                                 node1_index = ((readByte gbx_in_file #signed) / 3) + 1
@@ -1106,7 +1176,7 @@ rollout gbxImporter "GBX/XBOX Model Importer v5.2 by TheGhost/Moses" width:443 h
                                 fseek gbx_in_file 8 #seek_cur
                             )
 
-                            if chk_weight.checked == true then
+                            if import_weights then
                             (
                                 node0_index = (gbxReadShortB ()) + 1
                                 node1_index = (gbxReadShortB ()) + 1
@@ -1207,9 +1277,11 @@ rollout gbxImporter "GBX/XBOX Model Importer v5.2 by TheGhost/Moses" width:443 h
                     part_meshes[p] = m
 
                     if gbx_node_array.count == 1 then (
-                        m.parent = gbx_node_array[1]
+                        if isValidNode gbx_node_array[1] then (
+                            m.parent = gbx_node_array[1]
+                        )
                     )
-                    else if gbx_node_array.count > 0 and chk_weight.checked == true and chk_attach.checked == false then
+                    else if gbx_node_array.count > 0 and import_weights and chk_attach.checked == false then
                     (
 
                         theSkin = Skin()
@@ -1278,7 +1350,7 @@ rollout gbxImporter "GBX/XBOX Model Importer v5.2 by TheGhost/Moses" width:443 h
                     if gbx_node_array.count == 1 then (
                         part_meshes[1].parent = gbx_node_array[1]
                     )
-                    else if gbx_node_array.count > 0 and chk_weight.checked == true then
+                    else if gbx_node_array.count > 0 and import_weights then
                     (
                         theSkin = Skin()
                         max modify mode
@@ -1342,7 +1414,7 @@ rollout gbxImporter "GBX/XBOX Model Importer v5.2 by TheGhost/Moses" width:443 h
 
                     for p = 1 to geometry_part_blocks[g] do
                     (
-                        if part_meshes[p] != undefined then
+                        if isValidNode part_meshes[p] then
                         (
                             part_meshes[p].material = meditMaterials[1]
                         )
