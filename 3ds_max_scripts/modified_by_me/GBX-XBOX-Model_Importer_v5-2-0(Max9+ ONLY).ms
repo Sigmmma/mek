@@ -840,7 +840,8 @@ rollout gbxImporter "GBX/XBOX Model Importer v5.2 by TheGhost/Moses" width:448 h
             
             for i = 1 to scene_objects.count do (
                 for j = 1 to gbx_node_name.count do (
-                    if (detected_nodes[j] == undefined) and (stricmp scene_objects[i].name gbx_node_name[j] == 0) then (
+                    if (detected_nodes[j] == undefined) and scene_objects[i].ishidden == false and
+					    (stricmp scene_objects[i].name gbx_node_name[j] == 0) then (
                         detected_nodes[j] = scene_objects[i]
                         detected_count += 1
                     )
@@ -861,7 +862,7 @@ rollout gbxImporter "GBX/XBOX Model Importer v5.2 by TheGhost/Moses" width:448 h
         )
 
         if reuse_nodes == false and chk_detect.checked then (
-            messageBox "Error: Could not detect objects in the scene with the same name as this models nodes!" title:"Node detect error"
+            messageBox "Error: Could not detect non-hidden objects in the scene with the same name as this models nodes!" title:"Node detect error"
         ) else if gbx_node_array.count != 0 and reuse_nodes == false and chk_reuse.checked then (
             messageBox "Error: Number of reusable nodes is invalid, or some of the nodes were deleted!" title:"Node reuse error"
         )
