@@ -10,15 +10,72 @@ from math import sqrt
 from struct import pack_into
 from time import time
 from tkinter import *
-from tkinter.filedialog import askdirectory
+from tkinter.filedialog import askdirectory, askopenfilename
 from traceback import format_exc
 
 from supyr_struct.defs.constants import PATHDIV, MOST_SHOW
 from supyr_struct.defs.block_def import BlockDef
 from reclaimer.hek.defs.antr import antr_def
+from reclaimer.hek.defs.mod2 import mod2_def
 
 PATHDIV = PATHDIV
 curr_dir = os.path.abspath(os.curdir) + PATHDIV
+
+
+def decompress_animation_tag(filepath):
+    antr_tag = antr_def.build(filepath=filepath)
+
+    # rename the tag to the decompressed filepath
+    dirpath, filename = os.path.split(filepath)
+    antr_tag.filepath = dirpath + PATHDIV + "DECOMP_" + filename
+
+    anims = antr_tag.data.tagdata.animations.STEPTREE
+    decomp_count = 0
+    needs_mod2_nodes = False
+    node_count = 0
+    for i in range(len(anims)):
+        node_count = anims[i].node_count
+        if not sum(anims[i].default_data.STEPTREE):
+            needs_mod2_nodes = True
+
+    if needs_mod2_nodes:
+        print("This animation is missing its default_data, " +
+              "which will prevent it from being imported properly.\n" +
+              "Select the gbxmodel that it animates to extract it.\n")
+        print("WARNING!: If multiple model are animated by this " +
+              "animation(such as with first person weapon anims) " +
+              "then this will not work.\n    I think you can export " +
+              "a gbxmodel with all the pieces to animate parented " +
+              "together in their default positions and use that.\n" +
+              "That might work, but honestly I don't know...")
+
+        if mod2_tag is not None:
+            print("Gbxmodel node count did not match " +
+                  "the node count in this animation.")
+        mod2_path = askopenfilename(
+            initialdir=dirname(filepath), filetypes=(
+                ('Gbxmodel', '*.gbxmodel'), ('All', '*')),
+            title="Select a Gbxmodel tag")
+        try:
+            mod2_tag = mod2_def.build(filepath=mod2_path)
+            antr_tag.model_nodes = mod2_tag.data.tagdata.nodes.STEPTREE
+        except Exception:
+            print(format_exc())
+
+    for i in range(len(anims)):
+        if not anims[i].flags.compressed_data:
+            continue
+
+        try:
+            decomp_count += antr_tag.decompress_anim(i)
+        except Exception:
+            anims[i].flags.compressed_data = False
+            print(format_exc())
+            print("    Could not decompress %s" % anims[i].name)
+            anims[i].name = ('CORRUPT_' + anims[i].name)[:31]
+
+    if decomp_count:
+        antr_tag.serialize(temp=False, backup=False)
 
 
 class AnimationDecompressor(Tk):
@@ -26,7 +83,7 @@ class AnimationDecompressor(Tk):
         Tk.__init__(self, *args, **kwargs)
 
         self.title("Animation Decompressor v1.0")
-        self.geometry("400x70+0+0")
+        self.geometry("400x90+0+0")
         self.resizable(0, 0)
 
         self.tags_dir = StringVar(self)
@@ -85,30 +142,8 @@ class AnimationDecompressor(Tk):
                     continue
 
                 print('Decompressing %s' % filepath.split(tags_dir)[-1])
+                decompress_animation_tag(filepath)
 
-                antr_tag = antr_def.build(filepath=filepath)
-
-                # rename the tag to the decompressed filepath
-                dirpath, filename = os.path.split(filepath)
-                antr_tag.filepath = dirpath + PATHDIV + "DECOMP_" + filename
-
-                anims = antr_tag.data.tagdata.animations.STEPTREE
-                decomp_count = 0
-                for i in range(len(anims)):
-                    if not anims[i].flags.compressed_data:
-                        continue
-                    try:
-                        decomp_count += antr_tag.decompress_anim(i)
-                    except Exception:
-                        anims[i].flags.compressed_data = False
-                        print(format_exc())
-                        print("    Could not decompress %s" % anims[i].name)
-                        anims[i].name = ('CORRUPT_' + anims[i].name)[:31]
-
-                if decomp_count:
-                    antr_tag.serialize(temp=False, backup=False)
-
-                del antr_tag
         print('\nFinished. Took %s seconds' % (time() - start))
 
 try:
