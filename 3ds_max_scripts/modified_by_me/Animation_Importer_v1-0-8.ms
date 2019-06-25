@@ -1,6 +1,6 @@
 --***************************************************************************
 --*                       Animation Importer by TheGhost                    *
---*                       for 3ds Max v9+                                   *
+--*                       for 3ds Max v5+ and gmax v1.2                     *
 --***************************************************************************
 --*    Features:                                                            *
 --*        - Load a Halo animation tag directly from 3ds max or gmax        *
@@ -40,11 +40,11 @@
 --* license is available at http://www.gnu.org/licenses/gpl.txt.            *
 --*-------------------------------------------------------------------------*
 
-anim_node_name = #()
-anim_node_array = #()
+node_name = #()
 node_next_sib_index = #()
 node_first_child_index = #()
 node_parent_index = #()
+node_array = #()
 
 animation_name = #()
 animation_type = #()
@@ -63,11 +63,10 @@ frame_info_offset = #()
 default_data_offset = #()
 frame_data_offset = #()
 
-anim_node_count = 0
+node_count = 0
 node_list_checksum = 0
 is_stubbs = 0
 tag_ver = 0
-anim_tmp_buffer = undefined
 file_to_read_from = undefined
 anim_in_file = undefined
 in_name = undefined
@@ -88,68 +87,54 @@ frame_info_dy = #()
 frame_info_dz = #()
 frame_info_dyaw = #()
 
-fn animReadUShortB =
-(
-    b1 = readByte file_to_read_from #unsigned
-    b2 = readByte file_to_read_from #unsigned
-    (b1 * 256) + b2
-)
-fn animReadShortB =
-(
-    b1 = readByte file_to_read_from #unsigned
-    b2 = readByte file_to_read_from #unsigned
-    if b1 > 127 then 
-    (
-        ((b1 * 256) + b2) - 65536
-    )
-     else 
-     (
-        (b1 * 256) + b2
-    )
-)
 
-fn animReadULongB =
+fn readShortB strType =
 (
     b1 = readByte file_to_read_from #unsigned
     b2 = readByte file_to_read_from #unsigned
-    b3 = readByte file_to_read_from #unsigned
-    b4 = readByte file_to_read_from #unsigned
-    (b1 * 16777216) + (b2 * 65536) + (b3 * 256) + (b4 * 1)
-)
-
-fn animReadLongB =
-(
-    b1 = readByte file_to_read_from #unsigned
-    b2 = readByte file_to_read_from #unsigned
-    b3 = readByte file_to_read_from #unsigned
-    b4 = readByte file_to_read_from #unsigned
-    if b1 > 127 then
+    bigEndianShort = (b1 * 256) + (b2 * 1)
+    if strType == "#signed" then
     (
-        ((b1 * 16777216) + (b2 * 65536) + (b3 * 256) + b4) - 4294967296
+        if bigEndianShort > 32768 then
+        (
+            (65536 - bigEndianShort) * -1
+        )
+        else
+        (
+            bigEndianShort
+        )
     )
     else
     (
-        (b1 * 16777216) + (b2 * 65536) + (b3 * 256) + b4
+        bigEndianShort
     )
 )
 
-fn animReadFloatB =
+fn readLongB strType =
 (
-    local myBitArray = #{}
     b1 = readByte file_to_read_from #unsigned
     b2 = readByte file_to_read_from #unsigned
     b3 = readByte file_to_read_from #unsigned
     b4 = readByte file_to_read_from #unsigned
-    fseek anim_tmp_buffer 0 #seek_set
-    WriteByte anim_tmp_buffer b4
-    WriteByte anim_tmp_buffer b3
-    WriteByte anim_tmp_buffer b2
-    WriteByte anim_tmp_buffer b1
-    fseek anim_tmp_buffer 0 #seek_set
-    readFloat anim_tmp_buffer
+    bigEndianLong = (b1 * 16777216) + (b2 * 65536) + (b3 * 256) + (b4 * 1)
+    if strType == "#signed" then
+    (
+        if bigEndianLong > 8388608 then
+        (
+            (16777216 - bigEndianLong) * -1
+        )
+        else
+        (
+            bigEndianLong
+        )
+    )
+    else
+    (
+        bigEndianLong
+    )
 )
 
-fn animReadFlagData =
+fn readFlagData =
 (
     local mybitarray = #{}
     local byte_array = #()
@@ -185,7 +170,7 @@ fn animReadFlagData =
             )
         )
     )
-    for i = 1 to anim_node_count do
+    for i = 1 to node_count do
     (
         if bitString[i] == "1" then
         (
@@ -199,18 +184,77 @@ fn animReadFlagData =
     mybitarray
 )
 
-fn animReadQuat =
+fn readFloatB =
 (
-    q1 = (animReadShortB ()) as float / 32767.0
-    q2 = (animReadShortB ()) as float / 32767.0
-    q3 = (animReadShortB ()) as float / 32767.0
-    q4 = (animReadShortB ()) as float / 32767.0
+    local mybitarray = #{}
+    local exp = 0.0
+    local mantissaString = "1"
+    local myFloat = 0.0
+    b1 = readByte file_to_read_from #unsigned
+    b2 = readByte file_to_read_from #unsigned
+    b3 = readByte file_to_read_from #unsigned
+    b4 = readByte file_to_read_from #unsigned
+    for i = 8 to 1 by -1 do
+    (
+        mybitarray[i] = (mod b1 2 > .5)
+        b1 /= 2
+    )
+    for i = 16 to 9 by -1 do
+    (
+        mybitarray[i] = (mod b2 2 > .5)
+        b2 /= 2
+    )
+    for i = 24 to 17 by -1 do
+    (
+        mybitarray[i] = (mod b3 2 > .5)
+        b3 /= 2
+    )
+    for i = 32 to 25 by -1 do
+    (
+        mybitarray[i] = (mod b4 2 > .5)
+        b4 /= 2
+    )
+    if mybitarray[1] == true do isNegative = true
+    for i = 9 to 2 by -1 do
+    (
+        if mybitarray[i] == true do exp += 1.0 * 2.0^(9-i)
+    )
+    exp -= 127.0
+    for i = 10 to 32 by 1 do
+    (
+        if mybitarray[i] == true then
+        (
+            mantissaString += "1"
+        )
+        else
+        (
+            mantissaString += "0"
+        )
+    )
+    for i = 1 to mantissaString.count do
+    (
+        myFloat += (mantissaString[i] as float) * 2.0^exp
+        exp -= 1
+    )
+    if mybitarray[1] == true do myFloat = myFloat * -1.0
+    myFloat
+)
+
+fn readQuat =
+(
+    q1 = (readShortB "#signed") as float / 32767.0
+    q2 = (readShortB "#signed") as float / 32767.0
+    q3 = (readShortB "#signed") as float / 32767.0
+    q4 = (readShortB "#signed") as float / 32767.0
     normalize (quat q1 q2 q3 q4)
 )
 
-fn animReadTrans =
+fn readTrans =
 (
-    [animReadFloatB(), animReadFloatB(), animReadFloatB()]
+    f1 = readFloatB()
+    f2 = readFloatB()
+    f3 = readFloatB()
+    [f1,f2,f3]
 )
 
 fn getFlagArray num =
@@ -226,9 +270,9 @@ fn getFlagArray num =
 
 fn parseAnimationData animID =
 (
-    node_default_rotation[anim_node_count] = 0
-    node_default_translation[anim_node_count] = 0
-    node_default_scale[anim_node_count] = 0
+    node_default_rotation[node_count] = 0
+    node_default_translation[node_count] = 0
+    node_default_scale[node_count] = 0
     
     frame_count = animation_frame_count[animID]
     frame_info_type = animation_frame_info_type[animID]
@@ -239,37 +283,37 @@ fn parseAnimationData animID =
     (
         if frame_info_type >= 1 then
         (
-            frame_info_dx[f] = animReadFloatB() * 100.0
-            frame_info_dy[f] = animReadFloatB() * 100.0
+            frame_info_dx[f] = readFloatB() * 100.0
+            frame_info_dy[f] = readFloatB() * 100.0
             
             if frame_info_type == 2 then
             (
-                frame_info_dyaw[f] = radToDeg (animReadFloatB())
+                frame_info_dyaw[f] = radToDeg (readFloatB())
             )
             else
             (
                 if frame_info_type == 3 then
                 (
-                    frame_info_dz[f] = animReadFloatB() * 100.0
-                    frame_info_dyaw[f] = radToDeg (animReadFloatB())
+                    frame_info_dz[f] = readFloatB() * 100.0
+                    frame_info_dyaw[f] = radToDeg (readFloatB())
                 )
             )
         )
     )
     
-    for n = 1 to anim_node_count do
+    for n = 1 to node_count do
     (
         if node_rotation_flag_data[animID][n] == false then
         (
-            node_default_rotation[n] = animReadQuat()
+            node_default_rotation[n] = readQuat()
         )
         if node_trans_flag_data[animID][n] == false then
         (
-            node_default_translation[n] = animReadTrans() * 100.0
+            node_default_translation[n] = readTrans() * 100.0
         )
         if node_scale_flag_data[animID][n] == false then
         (
-            theScale = animReadFloatB()
+            theScale = readFloatB()
             node_default_scale[n] = [theScale,theScale,theScale]
         )
     )
@@ -284,15 +328,15 @@ fn parseAnimationData animID =
         node_translation = #()
         node_scale = #()
         
-        node_rotation[anim_node_count] = 0
-        node_translation[anim_node_count] = 0
-        node_scale[anim_node_count] = 0
+        node_rotation[node_count] = 0
+        node_translation[node_count] = 0
+        node_scale[node_count] = 0
         
-        for n = 1 to anim_node_count do
+        for n = 1 to node_count do
         (
             if node_rotation_flag_data[animID][n] == true then
             (
-                node_rotation[n] = animReadQuat()
+                node_rotation[n] = readQuat()
             )
             else
             (
@@ -301,7 +345,7 @@ fn parseAnimationData animID =
             
             if node_trans_flag_data[animID][n] == true then
             (
-                node_translation[n] = animReadTrans() * 100.0
+                node_translation[n] = readTrans() * 100.0
             )
             else
             (
@@ -310,7 +354,7 @@ fn parseAnimationData animID =
             
             if node_scale_flag_data[animID][n] == true then
             (
-                theScale = animReadFloatB()
+                theScale = readFloatB()
                 node_scale[n] = [theScale,theScale,theScale]
             )
             else
@@ -412,11 +456,11 @@ fn moveBipedCoordParent theNode trans =
     )
 )
 
-rollout animImporter "Animation Importer" width:230 height:485
+rollout roll "Animation Importer" width:230 height:540
 (
     GroupBox grp_title "" pos:[9,2] width:205 height:47
     label lbl_title "BlueStreak: Animation Importer" pos:[39,13] width:150 height:13
-    label lbl_title2 "for 3ds max v9+" pos:[40,28] width:148 height:13
+    label lbl_title2 "for 3ds max v5+ and gmax 1.2" pos:[40,28] width:148 height:13
     
     GroupBox grp_load "Load an Animation Tag" pos:[9,53] width:205 height:85
     button load_button "Load Animation File" pos:[44,72] width:130 height:31
@@ -429,38 +473,39 @@ rollout animImporter "Animation Importer" width:230 height:485
     edittext edt_frame_count "" pos:[127,224] width:50 height:15 enabled:false
     edittext edt_type "" pos:[127,204] width:50 height:15 enabled:false
     
-    GroupBox grp_exportoptions "Export Animation Data Options" pos:[9,252] width:205 height:100 enabled:false
+    GroupBox grp_exportoptions "Export Animation Data Options" pos:[9,252] width:205 height:120 enabled:false
     checkbox chk_all "Export All Animations from Tag" pos:[21,288] width:168 height:17 enabled:false checked:false
-    checkbox chk_jma "Export Data to File" pos:[21,270] width:176 height:17 enabled:false checked:true
-    button save_button "Export Animation Data" pos:[40,310] width:140 height:31 enabled:false
+    checkbox chk_jma "Export Data to File (3ds max only)" pos:[21,270] width:176 height:17 enabled:false checked:true
+    checkbox chk_stream "Stream Data with Listener (gmax)" pos:[21,307] width:179 height:17 enabled:false
+    button save_button "Export Animation Data" pos:[40,330] width:140 height:31 enabled:false
     
-    GroupBox grp_importoptions "Import Animation Data Options" pos:[9,359] width:205 height:101 enabled:false
-    checkbox chk_finfo "Import Frame Info(dx/dy/dz/dyaw)" pos:[21,377] width:180 height:17 enabled:false
-    checkbox chk_fbase "Import Extra Base Frame" pos:[21,395] width:177 height:17 enabled:false
-    button import_button "Import Animation into Scene" pos:[29,417] width:163 height:31 enabled:false
+    GroupBox grp_importoptions "Import Animation Data Options" pos:[9,379] width:205 height:121 enabled:false
+    checkbox chk_finfo "Import Frame Info(dx/dy/dz/dyaw)" pos:[21,397] width:180 height:17 enabled:false
+    checkbox chk_fbase "Import Extra Base Frame" pos:[21,415] width:177 height:17 enabled:false
+    checkbox chk_fdefault "Import Overlay Default Frame" pos:[21,434] width:177 height:17 enabled:false
+    button import_button "Import Animation into Scene" pos:[29,457] width:163 height:31 enabled:false
     
-    label lbl_scriptby "Script by TheGhost/Moses" pos:[12,467] width:200 height:26 enabled:false
-    label lbl_version "v2.0.2" pos:[178,467] width:34 height:13 enabled:false
-    
-    on animImporter open do
+    label lbl_scriptby "Script by TheGhost\nFixes by MosesofEgypt" pos:[12,507] width:200 height:26 enabled:false
+    label lbl_version "v1.0.7" pos:[178,521] width:34 height:13 enabled:false
+   
+    on roll open do
     (
         clearListener()
-        anim_tmp_buffer = fopen (sysInfo.tempdir + "\\animations_conv_buf.bin") "wbD+"
         if maxver[1] <= 4200 then
         (
             format ("Max version " + (maxver[1] / 1000.0) as string + " (gmax) detected.\n")
             chk_all.enabled = false
             chk_jma.checked = false
             chk_jma.enabled = false
+            chk_stream.checked = true
         )
         else
         (
             format ("3ds Max version " + (maxver[1] / 1000.0) as string + " detected.\n")
         )
     )
-    on animImporter close do
+    on roll close do
     (
-        fclose anim_tmp_buffer
         fclose anim_in_file
     )
     on load_button pressed do
@@ -479,7 +524,7 @@ rollout animImporter "Animation Importer" width:230 height:485
             )
             else
             (
-                anim_node_name = #()
+                node_name = #()
                 node_next_sib_index = #()
                 node_first_child_index = #()
                 node_parent_index = #()
@@ -498,14 +543,14 @@ rollout animImporter "Animation Importer" width:230 height:485
                 frame_info_offset = #()
                 default_data_offset = #()
                 frame_data_offset = #()
-                anim_node_count = 0
+                node_count = 0
                 node_list_checksum = 0
                 ClearListener()
                 
-                print ("Opened File: " + in_name)    
+                print ("Opened File: " + in_name)
             
                 fseek anim_in_file 56 #seek_set
-                tag_ver = animReadShortB ()
+                tag_ver = ReadShortB ""
                 if tag_ver == 5 then (
                     is_stubbs = 1
                 ) else (
@@ -542,43 +587,43 @@ rollout animImporter "Animation Importer" width:230 height:485
                     print ("-------------------------------------------------------")
                     
                     fseek anim_in_file 64 #seek_set
-                    object_blocks = animReadLongB ()
+                    object_blocks = readLongB ""
                     print ("Object Blocks: " + object_blocks as string)
                     
                     fseek anim_in_file 76 #seek_set
-                    unit_blocks = animReadLongB ()
+                    unit_blocks = readLongB ""
                     print ("Unit Blocks: " + unit_blocks as string)
                     
                     fseek anim_in_file 88 #seek_set
-                    weapon_blocks = animReadLongB ()
+                    weapon_blocks = readLongB ""
                     print ("Weapon Blocks: " + weapon_blocks as string)
                     
                     fseek anim_in_file 100 #seek_set
-                    vehicle_blocks = animReadLongB ()
+                    vehicle_blocks = readLongB ""
                     print ("Vehicle Blocks: " + vehicle_blocks as string)
                     
                     fseek anim_in_file 112 #seek_set
-                    device_blocks = animReadLongB ()
+                    device_blocks = readLongB ""
                     print ("Device Blocks: " + device_blocks as string)
                     
                     fseek anim_in_file 124 #seek_set
-                    unit_damage_blocks = animReadLongB ()
+                    unit_damage_blocks = readLongB ""
                     print ("Unit Damage Blocks: " + unit_damage_blocks as string)
                     
                     fseek anim_in_file 136 #seek_set
-                    fp_weapon_blocks = animReadLongB ()
+                    fp_weapon_blocks = readLongB ""
                     print ("FP Weapon Blocks: " + fp_weapon_blocks as string)
                     
                     fseek anim_in_file 148 #seek_set
-                    sound_reference_blocks = animReadLongB ()
+                    sound_reference_blocks = readLongB ""
                     print ("Sound Refernce Blocks: " + sound_reference_blocks as string)
                     
                     fseek anim_in_file 168 #seek_set
-                    node_blocks = animReadLongB ()
+                    node_blocks = readLongB ""
                     print ("Node Blocks: " + node_blocks as string)
                                         
                     fseek anim_in_file 180 #seek_set
-                    animation_blocks = animReadLongB ()
+                    animation_blocks = readLongB ""
                     print ("Animation Blocks: " + animation_blocks as string)
                     
                     print ("-------------------------------------------------------")
@@ -605,14 +650,14 @@ rollout animImporter "Animation Importer" width:230 height:485
                     for i = 1 to unit_blocks do
                     (
                         fseek anim_in_file 64 #seek_cur
-                        unit_animations[i] = animReadLongB ()
+                        unit_animations[i] = readLongB ""
                         fseek anim_in_file 8 #seek_cur
-                        unit_ikpoints[i] = animReadLongB ()
+                        unit_ikpoints[i] = readLongB ""
                         fseek anim_in_file 8 #seek_cur
-                        unit_weapons[i] = animReadLongB ()
+                        unit_weapons[i] = readLongB ""
                         fseek anim_in_file 8 #seek_cur
                         if is_stubbs == 1 then (
-                            unit_unknowns[i] = animReadLongB ()
+                            unit_unknowns[i] = ReadLongB ""
                             fseek anim_in_file 24 #seek_cur
                         ) else (
                             unit_unknowns[i] = 0
@@ -631,21 +676,21 @@ rollout animImporter "Animation Importer" width:230 height:485
                         for w = 1 to unit_weapons[i] do
                         (
                             fseek anim_in_file 152 #seek_cur
-                            unit_weapon_animations[w] = animReadLongB ()
+                            unit_weapon_animations[w] = readLongB ""
                             fseek anim_in_file 8 #seek_cur
-                            unit_weapon_ikpoints[w] = animReadLongB ()
+                            unit_weapon_ikpoints[w] = readLongB ""
                             fseek anim_in_file 8 #seek_cur
-                            unit_weapon_weapontypes[w] = animReadLongB ()
+                            unit_weapon_weapontypes[w] = readLongB ""
                             fseek anim_in_file 8 #seek_cur
                         )
-
+                        
                         unit_unknown_labels = #()
                         unit_unknown_animations = #()
                         for u = 1 to unit_unknowns[i] do (
                             fseek anim_in_file 40 #seek_cur
-                            unit_unknown_labels[u] = animReadLongB ()
+                            unit_unknown_labels[u] = ReadLongB ""
                             fseek anim_in_file 8 #seek_cur
-                            unit_unknown_animations[u] = animReadLongB ()
+                            unit_unknown_animations[u] = ReadLongB ""
                             fseek anim_in_file 8 #seek_cur
                         )
 
@@ -662,7 +707,7 @@ rollout animImporter "Animation Importer" width:230 height:485
                                 for a = 1 to unit_weapon_animations[w] do
                                 (
                                     fseek anim_in_file 16 #seek_cur
-                                    unit_weapon_animations_extended[a] = animReadLongB ()
+                                    unit_weapon_animations_extended[a] = ReadLongB ""
                                     fseek anim_in_file 8 #seek_cur
                                 )
                             ) else (
@@ -673,12 +718,12 @@ rollout animImporter "Animation Importer" width:230 height:485
                             (
                                 fseek anim_in_file (unit_weapon_weapontypes_animations[a] * 2) #seek_cur
                             )
-        
+
                             fseek anim_in_file (unit_weapon_ikpoints[w] * 64) #seek_cur
                             for t = 1 to unit_weapon_weapontypes[w] do
                             (
                                 fseek anim_in_file 48 #seek_cur
-                                unit_weapon_weapontypes_animations[t] = animReadLongB ()
+                                unit_weapon_weapontypes_animations[t] = readLongB ""
                                 fseek anim_in_file 8 #seek_cur
                             )
                             
@@ -694,32 +739,32 @@ rollout animImporter "Animation Importer" width:230 height:485
                     for w = 1 to weapon_blocks do
                     (
                         fseek anim_in_file 16 #seek_cur
-                        weapon_animations = animReadLongB ()
+                        weapon_animations = readLongB ""
                         fseek anim_in_file 8 #seek_cur
                         fseek anim_in_file (weapon_animations * 2) #seek_cur
                     )
                     
                     print ("Vehicle block offset: " + (ftell anim_in_file) as string)
-
+                    
                     vehicle_seat_animations = #()
                     for v = 1 to vehicle_blocks do
                     (
                         fseek anim_in_file 80 #seek_cur
                         if is_stubbs == 1 then (
-                            vehicle_seats = animReadLongB ()
+                            vehicle_seats = ReadLongB ""
                             fseek anim_in_file 8 #seek_cur
                         ) else (
                             vehicle_seats = 0
                             fseek anim_in_file 12 #seek_cur
                         )
-                        vehicle_animations = animReadLongB ()
+                        vehicle_animations = readLongB ""
                         fseek anim_in_file 8 #seek_cur
-                        vehicle_suspension_animations = animReadLongB ()
+                        vehicle_suspension_animations = readLongB ""
                         fseek anim_in_file 8 #seek_cur
-
+                        
                         for s = 1 to vehicle_seats do (
                             fseek anim_in_file 48 #seek_cur
-                            vehicle_seat_animations[s] = animReadLongB ()
+                            vehicle_seat_animations[s] = ReadLongB ""
                             fseek anim_in_file 8 #seek_cur
                         )
                         fseek anim_in_file (vehicle_animations * 2) #seek_cur
@@ -735,7 +780,7 @@ rollout animImporter "Animation Importer" width:230 height:485
                     for d = 1 to device_blocks do
                     (
                         fseek anim_in_file 84 #seek_cur
-                        device_animations = animReadLongB ()
+                        device_animations = readLongB ""
                         fseek anim_in_file 8 #seek_cur
                         fseek anim_in_file (device_animations * 2) #seek_cur
                     )
@@ -749,7 +794,7 @@ rollout animImporter "Animation Importer" width:230 height:485
                     for f = 1 to fp_weapon_blocks do
                     (
                         fseek anim_in_file 16 #seek_cur
-                        fp_weapon_animations = animReadLongB ()
+                        fp_weapon_animations = readLongB ""
                         fseek anim_in_file 8 #seek_cur
                         fseek anim_in_file (fp_weapon_animations * 2) #seek_cur
                     )
@@ -800,7 +845,7 @@ rollout animImporter "Animation Importer" width:230 height:485
                         (
                             fseek gbx_file 56 #seek_set
                             file_to_read_from = gbx_file
-                            tag_ver = animReadShortB ()
+                            tag_ver = readShortB ""
                             file_to_read_from = anim_in_file
                             if tag_ver == 6 then (
                                 is_stubbs_model = 1
@@ -830,11 +875,11 @@ rollout animImporter "Animation Importer" width:230 height:485
                             for n = 1 to node_blocks do
                             (
                                 offset = (ftell anim_in_file)
-                                anim_node_name[n] = readString anim_in_file
+                                node_name[n] = readString anim_in_file
                                 fseek anim_in_file (offset + 32) #seek_set
-                                node_next_sib_index[n] = animReadShortB ()
-                                node_first_child_index[n] = animReadShortB ()
-                                node_parent_index[n] = animReadShortB ()
+                                node_next_sib_index[n] = readShortB "#signed"
+                                node_first_child_index[n] = readShortB "#signed"
+                                node_parent_index[n] = readShortB "#signed"
                                 fseek anim_in_file 26 #seek_cur
                             )
                         )
@@ -844,31 +889,32 @@ rollout animImporter "Animation Importer" width:230 height:485
                             file_to_read_from = gbx_file
                             if is_stubbs_model == 1 then (
                                 fseek gbx_file 224 #seek_set
-                                gbx_stubbs_unknown_blocks = animReadLongB ()
+                                gbx_stubbs_unknown_blocks = ReadLongB ""
                             ) else (
                                 gbx_stubbs_unknown_blocks = 0
                             )
                             fseek gbx_file 236 #seek_set
-                            gbx_marker_blocks = animReadLongB ()
+                            gbx_marker_blocks = readLongB ""
                             fseek gbx_file 248 #seek_set
-                            gbx_node_blocks = animReadLongB ()
+                            gbx_node_blocks = readLongB ""
                             fseek gbx_file 296 #seek_set
-
+                            
                             fseek gbx_file (gbx_stubbs_unknown_blocks * 64) #seek_cur
 
                             gbx_marker_instance_blocks = 0
                             for m = 1 to gbx_marker_blocks do
                             (
                                 fseek gbx_file 52 #seek_cur
-                                gbx_marker_instance_blocks += animReadLongB ()
+                                gbx_marker_instance_blocks += readLongB ""
                                 fseek gbx_file 8 #seek_cur
                             )
                             
                             fseek gbx_file (gbx_marker_instance_blocks * 32) #seek_cur
+                            
                             for n = 1 to gbx_node_blocks do
                             (
                                 offset = (ftell gbx_file)
-                                anim_node_name[n] = readString gbx_file
+                                node_name[n] = readString gbx_file
                                 fseek gbx_file (offset + 33) #seek_set
                                 node_next_sib_index[n] = readByte gbx_file #signed
                                 fseek gbx_file 1 #seek_cur
@@ -888,14 +934,14 @@ rollout animImporter "Animation Importer" width:230 height:485
                             offset = (ftell anim_in_file)
                             animation_name[a] = readString anim_in_file
                             fseek anim_in_file (offset + 32) #seek_set
-                            animation_type[a] = animReadUShortB ()
-                            animation_frame_count[a] = animReadUShortB ()
-                            animation_frame_size[a] = animReadUShortB ()
-                            animation_frame_info_type[a] = animReadUShortB ()
+                            animation_type[a] = readShortB "#unsigned"
+                            animation_frame_count[a] = readShortB "#unsigned"
+                            animation_frame_size[a] = readShortB "#unsigned"
+                            animation_frame_info_type[a] = readShortB "#unsigned"
                             if a == 1 then
                             (
-                                node_list_checksum = animReadULongB ()
-                                anim_node_count = animReadUShortB ()
+                                node_list_checksum = readLongB "#unsigned"
+                                node_count = readShortB "#unsigned"
                             )
                             else
                             (
@@ -905,21 +951,21 @@ rollout animImporter "Animation Importer" width:230 height:485
                                 fseek anim_in_file 8 #seek_cur
                             )
                             fseek anim_in_file 12 #seek_cur
-                            flags = animReadUShortB ()
+                            flags = readShortB "#unsigned"
                             animation_flags[a] = getFlagArray flags
                             fseek anim_in_file 12 #seek_cur
-                            animation_frame_info_size[a] = animReadULongB ()
+                            animation_frame_info_size[a] = readLongB "#unsigned"
                             fseek anim_in_file 16 #seek_cur
-                            node_trans_flag_data[a] = animReadFlagData()
+                            node_trans_flag_data[a] = readFlagData()
                             fseek anim_in_file 8 #seek_cur
-                            node_rotation_flag_data[a] = animReadFlagData()
+                            node_rotation_flag_data[a] = readFlagData()
                             fseek anim_in_file 8 #seek_cur
-                            node_scale_flag_data[a] = animReadFlagData()
+                            node_scale_flag_data[a] = readFlagData()
                             fseek anim_in_file 4 #seek_cur
-                            offset_to_compressed_data = animReadULongB ()
-                            animation_default_data_size[a] = animReadULongB ()
+                            offset_to_compressed_data = readLongB "#unsigned"
+                            animation_default_data_size[a] = readLongB "#unsigned"
                             fseek anim_in_file 16 #seek_cur
-                            animation_frame_data_size[a] = animReadULongB ()
+                            animation_frame_data_size[a] = readLongB "#unsigned"
                             fseek anim_in_file 16 #seek_cur
                         )
                         
@@ -952,6 +998,7 @@ rollout animImporter "Animation Importer" width:230 height:485
                         )
                         
                         grp_exportoptions.enabled = true
+                        chk_stream.enabled = true
                         save_button.enabled = true
                             
                         grp_importoptions.enabled = true
@@ -964,6 +1011,8 @@ rollout animImporter "Animation Importer" width:230 height:485
                             chk_finfo.enabled = false
                             chk_fbase.checked = false
                             chk_fbase.enabled = false
+                            chk_fdefault.enabled = true
+                            chk_fdefault.checked = true
                         )
                         else
                         (
@@ -977,6 +1026,8 @@ rollout animImporter "Animation Importer" width:230 height:485
                                 chk_finfo.enabled = false
                             )
                             chk_fbase.enabled = true
+                            chk_fdefault.enabled = false
+                            chk_fdefault.checked = false
                         )
                         
                         if animation_flags[1][1] == true and (hasNoData 1) == true then
@@ -1007,11 +1058,13 @@ rollout animImporter "Animation Importer" width:230 height:485
         grp_exportoptions.enabled = false
         chk_all.enabled = false
         chk_jma.enabled = false
+        chk_stream.enabled = false
         save_button.enabled = false
         
         grp_importoptions.enabled = false
         import_button.enabled = false
         chk_finfo.enabled = false
+        chk_fdefault.enabled = false
         chk_fbase.enabled = false
         
         fclose anim_in_file
@@ -1029,6 +1082,8 @@ rollout animImporter "Animation Importer" width:230 height:485
             chk_finfo.enabled = false
             chk_fbase.checked = false
             chk_fbase.enabled = false
+            chk_fdefault.enabled = true
+            chk_fdefault.checked = true
         )
         else
         (
@@ -1042,6 +1097,8 @@ rollout animImporter "Animation Importer" width:230 height:485
                 chk_finfo.enabled = false
             )
             chk_fbase.enabled = true
+            chk_fdefault.enabled = false
+            chk_fdefault.checked = false
         )
         if animation_flags[i][1] == true and (hasNoData i) == true then
         (
@@ -1056,12 +1113,35 @@ rollout animImporter "Animation Importer" width:230 height:485
     (
         if theState == true then
         (
+            chk_stream.checked = false
             chk_all.enabled = true
         )
         else
         (
+            chk_stream.checked = true
             chk_all.checked = false
             chk_all.enabled = false
+        )
+    )
+    on chk_stream changed theState do
+    (
+        if theState == true then
+        (
+            chk_jma.checked = false
+            chk_all.checked = false
+            chk_all.enabled = false
+        )
+        else
+        (
+            if chk_jma.enabled == true then
+            (
+                chk_jma.checked = true
+                chk_all.enabled = true
+            )
+            else
+            (
+                chk_stream.checked = true
+            )
         )
     )
     on save_button pressed do
@@ -1139,18 +1219,18 @@ rollout animImporter "Animation Importer" width:230 height:485
                 format "%\n" 30 to:jma
                 format "%\n" 1 to:jma
                 format "%\n" "unnamedActor" to:jma
-                format "%\n" anim_node_count to:jma
+                format "%\n" node_count to:jma
                 format "%\n" node_list_checksum to:jma
                 
-                for n = 1 to anim_node_count do
+                for n = 1 to node_count do
                 (
-                    format "%\n" anim_node_name[n] to:jma
+                    format "%\n" node_name[n] to:jma
                     format "%\n" node_first_child_index[n] to:jma
                     format "%\n" node_next_sib_index[n] to:jma
                 )
                 if animation_type[animID] == 1 then
                 (
-                    for n = 1 to anim_node_count do
+                    for n = 1 to node_count do
                     (
                         if node_trans_flag_data[animID][n] == true then
                         (
@@ -1180,7 +1260,7 @@ rollout animImporter "Animation Importer" width:230 height:485
                 )
                 for f = 1 to frame_count do
                 (
-                    for n = 1 to anim_node_count do
+                    for n = 1 to node_count do
                     (
                         if n == 1 and frame_info_type >= 1 then
                         (
@@ -1233,7 +1313,7 @@ rollout animImporter "Animation Importer" width:230 height:485
                 )
                 if animation_type[animID] == 0 or animation_type[animID] == 2 then
                 (
-                    for n = 1 to anim_node_count do
+                    for n = 1 to node_count do
                     (
                         if n == 1 and frame_info_type >= 1 then
                         (
@@ -1326,36 +1406,33 @@ rollout animImporter "Animation Importer" width:230 height:485
         frame_info_type = animation_frame_info_type[animID]
         
         dontImportNode = #()
-        defOverlayTrans = #()
-        defOverlayRot = #()
-        defOverlayScale = #()
         
-        for n = 1 to anim_node_count do
+        for n = 1 to node_count do
         (
             if maxver[1] > 4200 then
             (
-                if (getNodeByName anim_node_name[n] all:true).count > 1 then
+                if (getNodeByName node_name[n] all:true).count > 1 then
                 (
-                    messageBox ("Warning: Found multiple nodes with the name '" + anim_node_name[n] + "'. The first will be used for animating.") \
+                    messageBox ("Warning: Found multiple nodes with the name '" + node_name[n] + "'. The first will be used for animating.") \
                         title:"Multiple node error"
                 )
             )
-            theNode = getNodeByName anim_node_name[n]
+            theNode = getNodeByName node_name[n]
             if theNode != undefined then
             (
-                anim_node_array[n] = theNode
+                node_array[n] = theNode
                 if theNode.parent != undefined then
                 (
-                    if (theNode.parent != getNodeByName anim_node_name[node_parent_index[n]+1]) and (anim_node_name[n] as name != anim_node_name[node_parent_index[n]+1] as name) then
+                    if (theNode.parent != getNodeByName node_name[node_parent_index[n]+1]) and (node_name[n] as name != node_name[node_parent_index[n]+1] as name) then
                     (
-                        warningString += "Node '" + anim_node_name[n] + "' should be a child of node '" + anim_node_name[node_parent_index[n]+1] + "'.  \n"
+                        warningString += "Node '" + node_name[n] + "' should be a child of node '" + node_name[node_parent_index[n]+1] + "'.  \n"
                         show_warning = true
                     )
                 )
             )
             else
             (
-                warningString += "Couldn't find node '" + anim_node_name[n] + "' in scene.  \n"
+                warningString += "Couldn't find node '" + node_name[n] + "' in scene.  \n"
                 append dontImportNode n
                 show_warning = true
             )
@@ -1387,7 +1464,7 @@ rollout animImporter "Animation Importer" width:230 height:485
                 start2 = timeStamp()
                 max create mode
                 
-                if chk_fbase.checked == true or frame_count == 1 then
+                if chk_fbase.checked == true or frame_count == 1 or chk_fdefault.checked == true then
                 (
                     animationRange = (interval 0 frame_count)
                 )
@@ -1398,31 +1475,101 @@ rollout animImporter "Animation Importer" width:230 height:485
                 animButtonState = true
                 sliderTime = 0
                 
-                for n = 1 to anim_node_count do
+                for n = 1 to node_count do
                 (
                     if findItem dontImportNode n == 0 then
                     (
-                        append defOverlayTrans (in coordsys parent anim_node_array[n].pos)
-                        append defOverlayRot   (in coordsys parent anim_node_array[n].rotation)
-                        append defOverlayScale (in coordsys parent anim_node_array[n].scale)
-                        if classOf anim_node_array[n] == Biped_Object then
+                        if classOf node_array[n] == Biped_Object then
                         (
-                            biped.deleteKeys anim_node_array[n].controller #allKeys
-                            anim_node_array[n].controller.rootNode.controller.figureMode = false
+                            biped.deleteKeys node_array[n].controller #allKeys
+                            node_array[n].controller.rootNode.controller.figureMode = false
                         )
                         else
                         (
-                            deleteKeys anim_node_array[n].controller #allKeys
+                            deleteKeys node_array[n].controller #allKeys
                         )
                     )
                 )
-                for f = 1 to frame_count do
+                if (animation_type[animID] == 1) and chk_fdefault.checked == true then
                 (
-                    for n = 1 to anim_node_count do
+                    for n = 1 to node_count do
                     (
                         if findItem dontImportNode n == 0 then
                         (
-                            select anim_node_array[n]
+                            select node_array[n]
+                            if node_rotation_flag_data[animID][n] == true then
+                            (
+                                if classOf node_array[n] == Biped_Object then
+                                (
+                                    rotateBipedCoordParent node_array[n] (quat 0.0 0.0 0.0 1.0)
+                                )
+                                else
+                                (
+                                    in coordsys parent node_array[n].rotation = (quat 0.0 0.0 0.0 1.0)
+                                )
+                            )
+                            else
+                            (
+                                rot = node_default_rotation[n]
+                                mod_rot = (quat -rot.x -rot.y -rot.z rot.w)
+                                if classOf node_array[n] == Biped_Object then
+                                (
+                                    rotateBipedCoordParent node_array[n] rot
+                                )
+                                else
+                                (
+                                    in coordsys parent node_array[n].rotation = mod_rot
+                                )
+                            )
+                            if node_trans_flag_data[animID][n] == true then
+                            (
+                                if classOf node_array[n] == Biped_Object then
+                                (
+                                    moveBipedCoordParent node_array[n] [0.0,0.0,0.0]
+                                )
+                                else
+                                (
+                                    in coordsys parent node_array[n].pos = [0.0,0.0,0.0]
+                                )
+                            )
+                            else
+                            (
+                                if classOf node_array[n] == Biped_Object then
+                                (
+                                    moveBipedCoordParent node_array[n] node_default_translation[n]
+                                )
+                                else
+                                (
+                                    in coordsys parent node_array[n].pos = node_default_translation[n]
+                                )
+                            )
+                            
+                            if node_scale_flag_data[animID][n] == true then
+                            (
+                                if classOf node_array[n] != Biped_Object then
+                                (
+                                    in coordsys parent node_array[n].scale = 1.0
+                                )
+                            )
+                            else
+                            (
+                                if classOf node_array[n] != Biped_Object then
+                                (
+                                    in coordsys parent node_array[n].scale = node_default_scale[n]
+                                )
+                            )
+                            clearSelection()
+                        )
+                    )
+                    sliderTime += 1
+                )
+                for f = 1 to frame_count do
+                (
+                    for n = 1 to node_count do
+                    (
+                        if findItem dontImportNode n == 0 then
+                        (
+                            select node_array[n]
                             if n == 1 and frame_info_type >= 2 then
                             (
                                 dyaw = 0
@@ -1435,31 +1582,26 @@ rollout animImporter "Animation Importer" width:230 height:485
                                 )
                                 rot = (angleaxis -dyaw [1,0,0]) as quat + frame_node_rotation[f][n]
                                 mod_rot = (quat -rot.x -rot.y -rot.z rot.w)
-                                if classOf anim_node_array[n] == Biped_Object then
+                                if classOf node_array[n] == Biped_Object then
                                 (
-                                    rotateBipedCoordParent anim_node_array[n] rot
+                                    rotateBipedCoordParent node_array[n] rot
                                 )
                                 else
                                 (
-                                    in coordsys parent anim_node_array[n].rotation = mod_rot
+                                    in coordsys parent node_array[n].rotation = mod_rot
                                 )
                             )
                             else
                             (
                                 rot = frame_node_rotation[f][n]
                                 mod_rot = (quat -rot.x -rot.y -rot.z rot.w)
-                                if classOf anim_node_array[n] == Biped_Object then
+                                if classOf node_array[n] == Biped_Object then
                                 (
-                                    rotateBipedCoordParent anim_node_array[n] rot
+                                    rotateBipedCoordParent node_array[n] rot
                                 )
                                 else
                                 (
-                                    if (animation_type[animID] == 1) and (node_rotation_flag_data[animID][n] == true) then (
-                                        in coordsys parent anim_node_array[n].rotation = defOverlayRot[n]
-                                        in coordsys local rotate anim_node_array[n] mod_rot
-                                    ) else (
-                                        in coordsys parent anim_node_array[n].rotation = mod_rot
-                                    )
+                                    in coordsys parent node_array[n].rotation = mod_rot
                                 )
                             )
                             
@@ -1488,40 +1630,30 @@ rollout animImporter "Animation Importer" width:230 height:485
                                 )
                                 otrans = frame_node_translation[f][n]
                                 trans = [otrans.x + dx, otrans.y + dy, otrans.z + dz]
-                                if classOf anim_node_array[n] == Biped_Object then
+                                if classOf node_array[n] == Biped_Object then
                                 (
-                                    moveBipedCoordParent anim_node_array[n] trans
+                                    moveBipedCoordParent node_array[n] trans
                                 )
                                 else
                                 (
-                                    in coordsys parent anim_node_array[n].pos = trans
+                                    in coordsys parent node_array[n].pos = trans
                                 )
                             )
                             else
                             (
-                                if classOf anim_node_array[n] == Biped_Object then
+                                if classOf node_array[n] == Biped_Object then
                                 (
-                                    moveBipedCoordParent anim_node_array[n] frame_node_translation[f][n]
+                                    moveBipedCoordParent node_array[n] frame_node_translation[f][n]
                                 )
                                 else
                                 (
-                                    if (animation_type[animID] == 1) and (node_trans_flag_data[animID][n] == true) then (
-                                        in coordsys parent anim_node_array[n].pos = defOverlayTrans[n]
-                                        in coordsys local move anim_node_array[n] frame_node_translation[f][n]
-                                    ) else (
-                                        in coordsys parent anim_node_array[n].pos = frame_node_translation[f][n]
-                                    )
+                                    in coordsys parent node_array[n].pos = frame_node_translation[f][n]
                                 )
                             )
                             
-                            if classOf anim_node_array[n] != Biped_Object then
+                            if classOf node_array[n] != Biped_Object then
                             (
-                                if (animation_type[animID] == 1) and (node_trans_flag_data[animID][n] == true) then (
-                                    in coordsys parent anim_node_array[n].scale = defOverlayScale[n]
-                                    in coordsys local move anim_node_array[n] frame_node_scale[f][n]
-                                ) else (
-                                    in coordsys parent anim_node_array[n].scale = frame_node_scale[f][n]
-                                )
+                                in coordsys parent node_array[n].scale = frame_node_scale[f][n]
                             )
                             
                             clearSelection()
@@ -1531,11 +1663,11 @@ rollout animImporter "Animation Importer" width:230 height:485
                 )
                 if (animation_type[animID] == 0 or animation_type[animID] == 2) and chk_fbase.checked == true then
                 (
-                    for n = 1 to anim_node_count do
+                    for n = 1 to node_count do
                     (
                         if findItem dontImportNode n == 0 then
                         (
-                            select anim_node_array[n]
+                            select node_array[n]
                             if n == 1 and frame_info_type >= 2 then
                             (
                                 dyaw = 0
@@ -1548,26 +1680,26 @@ rollout animImporter "Animation Importer" width:230 height:485
                                 )
                                 rot = (angleaxis -dyaw [1,0,0]) as quat + frame_node_rotation[1][n]
                                 mod_rot = (quat -rot.x -rot.y -rot.z rot.w)
-                                if classOf anim_node_array[n] == Biped_Object then
+                                if classOf node_array[n] == Biped_Object then
                                 (
-                                    rotateBipedCoordParent anim_node_array[n] rot
+                                    rotateBipedCoordParent node_array[n] rot
                                 )
                                 else
                                 (
-                                    in coordsys parent anim_node_array[n].rotation = mod_rot
+                                    in coordsys parent node_array[n].rotation = mod_rot
                                 )
                             )
                             else
                             (
                                 rot = frame_node_rotation[1][n]
                                 mod_rot = (quat -rot.x -rot.y -rot.z rot.w)
-                                if classOf anim_node_array[n] == Biped_Object then
+                                if classOf node_array[n] == Biped_Object then
                                 (
-                                    rotateBipedCoordParent anim_node_array[n] rot
+                                    rotateBipedCoordParent node_array[n] rot
                                 )
                                 else
                                 (
-                                    in coordsys parent anim_node_array[n].rotation = mod_rot
+                                    in coordsys parent node_array[n].rotation = mod_rot
                                 )
                             )
                             
@@ -1596,30 +1728,30 @@ rollout animImporter "Animation Importer" width:230 height:485
                                 )
                                 otrans = frame_node_translation[1][n]
                                 trans = [otrans.x + dx, otrans.y + dy, otrans.z + dz]
-                                if classOf anim_node_array[n] == Biped_Object then
+                                if classOf node_array[n] == Biped_Object then
                                 (
-                                    moveBipedCoordParent anim_node_array[n] trans
+                                    moveBipedCoordParent node_array[n] trans
                                 )
                                 else
                                 (
-                                    in coordsys parent anim_node_array[n].pos = trans
+                                    in coordsys parent node_array[n].pos = trans
                                 )
                             )
                             else
                             (
-                                if classOf anim_node_array[n] == Biped_Object then
+                                if classOf node_array[n] == Biped_Object then
                                 (
-                                    moveBipedCoordParent anim_node_array[n] frame_node_translation[1][n]
+                                    moveBipedCoordParent node_array[n] frame_node_translation[1][n]
                                 )
                                 else
                                 (
-                                    in coordsys parent anim_node_array[n].pos = frame_node_translation[1][n]
+                                    in coordsys parent node_array[n].pos = frame_node_translation[1][n]
                                 )
                             )
                             
-                            if classOf anim_node_array[n] != Biped_Object then
+                            if classOf node_array[n] != Biped_Object then
                             (
-                                in coordsys parent anim_node_array[n].scale = frame_node_scale[1][n]
+                                in coordsys parent node_array[n].scale = frame_node_scale[1][n]
                             )
                             
                             clearSelection()
@@ -1638,6 +1770,6 @@ rollout animImporter "Animation Importer" width:230 height:485
 )
 
 
-CreateDialog animImporter
+CreateDialog roll
 
 -- End of Script --
