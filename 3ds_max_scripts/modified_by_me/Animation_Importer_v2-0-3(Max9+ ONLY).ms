@@ -65,6 +65,8 @@ frame_data_offset = #()
 
 anim_node_count = 0
 node_list_checksum = 0
+is_stubbs = 0
+tag_ver = 0
 anim_tmp_buffer = undefined
 file_to_read_from = undefined
 anim_in_file = undefined
@@ -500,21 +502,23 @@ rollout animImporter "Animation Importer" width:230 height:485
 				node_list_checksum = 0
 				ClearListener()
 				
-				print ("Opened File: " + in_name)
+				print ("Opened File: " + in_name)	
+			
+				fseek anim_in_file 56 #seek_set
+				tag_ver = animReadShortB ()
+				if tag_ver == 5 then (
+					is_stubbs = 1
+				) else (
+					is_stubbs = 0
+				)
 				
 				fseek anim_in_file 36 #seek_set
 				tag_type = readLong anim_in_file
 				anim_tag_type = undefined
-				if tag_type == 1920233057 then
-				(
+				if tag_type == 1920233057 then (
 					anim_tag_type = "antr"
-				)
-				else
-				(
-					if tag_type == 2036818285 then
-					(
-						anim_tag_type = "magy"
-					)
+				) else if tag_type == 2036818285 then (
+					anim_tag_type = "magy"
 				)
 
 				print ("Tag type check: " + anim_tag_type as string)
@@ -578,9 +582,10 @@ rollout animImporter "Animation Importer" width:230 height:485
 					print ("Animation Blocks: " + animation_blocks as string)
 					
 					print ("-------------------------------------------------------")
-					if anim_tag_type == "magy" then
-					(
+					if anim_tag_type == "magy" then (
 						fseek anim_in_file 364 #seek_set
+					) else (
+					    fseek anim_in_file 192 #seek_set
 					)
 					
 					print ("Object block offset: " + (ftell anim_in_file) as string)
@@ -595,18 +600,24 @@ rollout animImporter "Animation Importer" width:230 height:485
 					unit_animations = #()
 					unit_ikpoints = #()
 					unit_weapons = #()
+					unit_unknowns = #()
 					
 					for i = 1 to unit_blocks do
 					(
-						fseek anim_in_file 72 #seek_cur
+						fseek anim_in_file 64 #seek_cur
 						unit_animations[i] = animReadLongB ()
 						fseek anim_in_file 8 #seek_cur
 						unit_ikpoints[i] = animReadLongB ()
 						fseek anim_in_file 8 #seek_cur
 						unit_weapons[i] = animReadLongB ()
+						fseek anim_in_file 8 #seek_cur
+						if is_stubbs == 1 then (
+						    unit_unknowns[i] = animReadLongB ()
+						    fseek anim_in_file 24 #seek_cur
+						) else (
+						    unit_unknowns[i] = 0
+						)
 					)
-					
-					fseek anim_in_file 8 #seek_cur
 					
 					for i = 1 to unit_blocks do
 					(
@@ -621,18 +632,49 @@ rollout animImporter "Animation Importer" width:230 height:485
 						(
 							fseek anim_in_file 152 #seek_cur
 							unit_weapon_animations[w] = animReadLongB ()
+							fseek anim_in_file 24 #seek_cur
 							fseek anim_in_file 8 #seek_cur
 							unit_weapon_ikpoints[w] = animReadLongB ()
 							fseek anim_in_file 8 #seek_cur
 							unit_weapon_weapontypes[w] = animReadLongB ()
 							fseek anim_in_file 8 #seek_cur
 						)
+
+						unit_unknown_labels = #()
+						unit_unknown_animations = #()
+						for u = 1 to unit_unknowns[i] do (
+							fseek anim_in_file 40 #seek_cur
+							unit_unknown_labels[u] = animReadLongB ()
+							fseek anim_in_file 8 #seek_cur
+							unit_unknown_animations[u] = animReadLongB ()
+							fseek anim_in_file 8 #seek_cur
+						)
+
+						for u = 1 to unit_unknowns[i] do (
+							fseek anim_in_file (unit_unknown_labels[u] * 32) #seek_cur
+							fseek anim_in_file (unit_unknown_animations[u] * 2) #seek_cur
+						)
 						
 						for w = 1 to unit_weapons[i] do
 						(
 							unit_weapon_weapontypes_animations = #()
+							unit_weapon_animations_extended = #()
+							if is_stubbs == 1 then (
+								for a = 1 to unit_weapon_animations[w] do
+								(
+									fseek anim_in_file 16 #seek_cur
+									unit_weapon_animations_extended[a] = animReadLongB ()
+									fseek anim_in_file 8 #seek_cur
+								)
+							) else (
+								fseek anim_in_file (unit_weapon_animations[w] * 2) #seek_cur
+							)
 							
-							fseek anim_in_file (unit_weapon_animations[w] * 2) #seek_cur
+							for a = 1 to unit_weapon_animations_extended[w] do
+							(
+								fseek anim_in_file (unit_weapon_weapontypes_animations[a] * 2) #seek_cur
+							)
+		
 							fseek anim_in_file (unit_weapon_ikpoints[w] * 64) #seek_cur
 							for t = 1 to unit_weapon_weapontypes[w] do
 							(
@@ -659,16 +701,34 @@ rollout animImporter "Animation Importer" width:230 height:485
 					)
 					
 					print ("Vehicle block offset: " + (ftell anim_in_file) as string)
-					
+
+					vehicle_seat_animations = #()
 					for v = 1 to vehicle_blocks do
 					(
-						fseek anim_in_file 92 #seek_cur
+						fseek anim_in_file 80 #seek_cur
+						if is_stubbs == 1 then (
+							vehicle_seats = animReadLongB ()
+							fseek anim_in_file 8 #seek_cur
+						) else (
+							vehicle_seats = 0
+							fseek anim_in_file 12 #seek_cur
+						)
 						vehicle_animations = animReadLongB ()
 						fseek anim_in_file 8 #seek_cur
 						vehicle_suspension_animations = animReadLongB ()
 						fseek anim_in_file 8 #seek_cur
+
+						for s = 1 to vehicle_seats do (
+							fseek anim_in_file 48 #seek_cur
+							vehicle_seat_animations[s] = animReadLongB ()
+							fseek anim_in_file 8 #seek_cur
+						)
 						fseek anim_in_file (vehicle_animations * 2) #seek_cur
 						fseek anim_in_file (vehicle_suspension_animations * 20) #seek_cur
+					)
+
+					for s = 1 to vehicle_seat_animations.count do (
+					    fseek anim_in_file (vehicle_seat_animations[s] * 2) #seek_cur
 					)
 					
 					print ("Device block offset: " + (ftell anim_in_file) as string)
@@ -705,6 +765,7 @@ rollout animImporter "Animation Importer" width:230 height:485
 					
 					loadGBXmodel = false
 					gbx_file = undefined
+					is_stubbs_model = 0
 					if node_blocks == 0 then
 					(
 						gbx_name = ceRoot + "tags\\" + tagLoc + tagName + ".gbxmodel"
@@ -738,6 +799,16 @@ rollout animImporter "Animation Importer" width:230 height:485
 						
 						if loadGBXmodel == true then
 						(
+							fseek gbx_file 56 #seek_set
+							file_to_read_from = gbx_file
+							tag_ver = animReadShortB ()
+							file_to_read_from = anim_in_file
+							if tag_ver == 6 then (
+								is_stubbs_model = 1
+							) else (
+								is_stubbs_model = 0
+							)
+
 							fseek gbx_file 36 #seek_set
 							tag_type = readLong gbx_file
 							print ("Model tag type check: " + tag_type as string)
@@ -772,12 +843,20 @@ rollout animImporter "Animation Importer" width:230 height:485
 						(
 							print ("Retrieving node data from model: " + gbx_name as string)
 							file_to_read_from = gbx_file
+							if is_stubbs_model == 1 then (
+								fseek gbx_file 224 #seek_set
+								gbx_stubbs_unknown_blocks = animReadLongB ()
+							) else (
+							    gbx_stubbs_unknown_blocks = 0
+							)
 							fseek gbx_file 236 #seek_set
 							gbx_marker_blocks = animReadLongB ()
 							fseek gbx_file 248 #seek_set
 							gbx_node_blocks = animReadLongB ()
 							fseek gbx_file 296 #seek_set
-							
+
+							fseek gbx_file (gbx_stubbs_unknown_blocks * 64) #seek_cur
+
 							gbx_marker_instance_blocks = 0
 							for m = 1 to gbx_marker_blocks do
 							(
@@ -787,7 +866,6 @@ rollout animImporter "Animation Importer" width:230 height:485
 							)
 							
 							fseek gbx_file (gbx_marker_instance_blocks * 32) #seek_cur
-							
 							for n = 1 to gbx_node_blocks do
 							(
 								offset = (ftell gbx_file)
@@ -823,6 +901,9 @@ rollout animImporter "Animation Importer" width:230 height:485
 							else
 							(
 								fseek anim_in_file 6 #seek_cur
+							)
+							if is_stubbs == 1 then (
+								fseek anim_in_file 8 #seek_cur
 							)
 							fseek anim_in_file 12 #seek_cur
 							flags = animReadUShortB ()
