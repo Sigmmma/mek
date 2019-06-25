@@ -638,40 +638,25 @@ rollout animImporter "Animation Importer" width:230 height:485
                             unit_weapon_weapontypes[w] = animReadLongB ()
                             fseek anim_in_file 8 #seek_cur
                         )
-
-                        unit_unknown_labels = #()
-                        unit_unknown_animations = #()
-                        for u = 1 to unit_unknowns[i] do (
-                            fseek anim_in_file 40 #seek_cur
-                            unit_unknown_labels[u] = animReadLongB ()
-                            fseek anim_in_file 8 #seek_cur
-                            unit_unknown_animations[u] = animReadLongB ()
-                            fseek anim_in_file 8 #seek_cur
-                        )
-
-                        for u = 1 to unit_unknowns[i] do (
-                            fseek anim_in_file (unit_unknown_labels[u] * 32) #seek_cur
-                            fseek anim_in_file (unit_unknown_animations[u] * 2) #seek_cur
-                        )
                         
                         for w = 1 to unit_weapons[i] do
                         (
                             unit_weapon_weapontypes_animations = #()
-                            unit_weapon_animations_extended = #()
                             if is_stubbs == 1 then (
+								unit_weapon_animations_extended = #()
                                 for a = 1 to unit_weapon_animations[w] do
                                 (
                                     fseek anim_in_file 16 #seek_cur
                                     unit_weapon_animations_extended[a] = animReadLongB ()
                                     fseek anim_in_file 8 #seek_cur
                                 )
+                            
+								for a = 1 to unit_weapon_animations[w] do
+								(
+									fseek anim_in_file (unit_weapon_animations_extended[a] * 2) #seek_cur
+								)
                             ) else (
                                 fseek anim_in_file (unit_weapon_animations[w] * 2) #seek_cur
-                            )
-                            
-                            for a = 1 to unit_weapon_animations_extended[w] do
-                            (
-                                fseek anim_in_file (unit_weapon_weapontypes_animations[a] * 2) #seek_cur
                             )
         
                             fseek anim_in_file (unit_weapon_ikpoints[w] * 64) #seek_cur
@@ -686,6 +671,21 @@ rollout animImporter "Animation Importer" width:230 height:485
                             (
                                 fseek anim_in_file (unit_weapon_weapontypes_animations[t] * 2) #seek_cur
                             )
+                        )
+
+                        unit_unknown_labels = #()
+                        unit_unknown_animations = #()
+                        for u = 1 to unit_unknowns[i] do (
+                            fseek anim_in_file 40 #seek_cur
+                            unit_unknown_labels[u] = animReadLongB ()
+                            fseek anim_in_file 8 #seek_cur
+                            unit_unknown_animations[u] = animReadLongB ()
+                            fseek anim_in_file 8 #seek_cur
+                        )
+
+                        for u = 1 to unit_unknowns[i] do (
+                            fseek anim_in_file (unit_unknown_labels[u] * 32) #seek_cur
+                            fseek anim_in_file (unit_unknown_animations[u] * 2) #seek_cur
                         )
                     )
                     
@@ -722,12 +722,12 @@ rollout animImporter "Animation Importer" width:230 height:485
                             vehicle_seat_animations[s] = animReadLongB ()
                             fseek anim_in_file 8 #seek_cur
                         )
+
+						for s = 1 to vehicle_seats do (
+							fseek anim_in_file (vehicle_seat_animations[s] * 2) #seek_cur
+						)
                         fseek anim_in_file (vehicle_animations * 2) #seek_cur
                         fseek anim_in_file (vehicle_suspension_animations * 20) #seek_cur
-                    )
-
-                    for s = 1 to vehicle_seat_animations.count do (
-                        fseek anim_in_file (vehicle_seat_animations[s] * 2) #seek_cur
                     )
                     
                     print ("Device block offset: " + (ftell anim_in_file) as string)
