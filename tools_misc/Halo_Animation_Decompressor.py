@@ -17,6 +17,7 @@ from supyr_struct.defs.constants import PATHDIV, MOST_SHOW
 from supyr_struct.defs.block_def import BlockDef
 from reclaimer.hek.defs.antr import antr_def
 from reclaimer.hek.defs.mod2 import mod2_def
+from reclaimer.models.jms import JmsNode
 
 PATHDIV = PATHDIV
 curr_dir = os.path.abspath(os.curdir) + PATHDIV
@@ -58,7 +59,17 @@ def decompress_animation_tag(filepath):
             title="Select a Gbxmodel tag")
         try:
             mod2_tag = mod2_def.build(filepath=mod2_path)
-            antr_tag.model_nodes = mod2_tag.data.tagdata.nodes.STEPTREE
+            antr_tag.jma_nodes = [
+                JmsNode(node.name, node.first_child_node,
+                        node.next_sibling_node, node.rotation.i,
+                        node.rotation.j, node.rotation.k,
+                        node.rotation.w, node.translation.x,
+                        node.translation.y, node.translation.z,
+                        node.parent_node,
+                        )
+                for node in mod2_tag.data.tagdata.nodes.STEPTREE
+                ]
+
         except Exception:
             print(format_exc())
 
