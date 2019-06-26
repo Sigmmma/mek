@@ -201,11 +201,15 @@ fn animReadFlagData =
 
 fn animReadQuat =
 (
-    q1 = (animReadShortB ()) as float / 32767.0
-    q2 = (animReadShortB ()) as float / 32767.0
-    q3 = (animReadShortB ()) as float / 32767.0
-    q4 = (animReadShortB ()) as float / 32767.0
-    normalize (quat q1 q2 q3 q4)
+    q1 = animReadUShortB ()
+    q2 = animReadUShortB ()
+    q3 = animReadUShortB ()
+    q4 = animReadUShortB ()
+	if q1 >= 32768 then ( q1 = q1 - 65535)
+	if q2 >= 32768 then ( q2 = q2 - 65535)
+	if q3 >= 32768 then ( q3 = q3 - 65535)
+	if q4 >= 32768 then ( q4 = q4 - 65535)
+    normalize (quat (q1 as float / 32767.0) (q2 as float / 32767.0) (q3 as float / 32767.0) (q4 as float / 32767.0))
 )
 
 fn animReadTrans =
