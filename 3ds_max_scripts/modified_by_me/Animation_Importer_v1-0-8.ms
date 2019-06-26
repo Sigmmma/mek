@@ -242,11 +242,15 @@ fn readFloatB =
 
 fn readQuat =
 (
-    q1 = (readShortB "#signed") as float / 32767.0
-    q2 = (readShortB "#signed") as float / 32767.0
-    q3 = (readShortB "#signed") as float / 32767.0
-    q4 = (readShortB "#signed") as float / 32767.0
-    normalize (quat q1 q2 q3 q4)
+    q1 = readShortB "#unsigned"
+    q2 = readShortB "#unsigned"
+    q3 = readShortB "#unsigned"
+    q4 = readShortB "#unsigned"
+	if q1 >= 32768 then ( q1 = q1 - 65535)
+	if q2 >= 32768 then ( q2 = q2 - 65535)
+	if q3 >= 32768 then ( q3 = q3 - 65535)
+	if q4 >= 32768 then ( q4 = q4 - 65535)
+    normalize (quat (q1 as float / 32767.0) (q2 as float / 32767.0) (q3 as float / 32767.0) (q4 as float / 32767.0))
 )
 
 fn readTrans =
