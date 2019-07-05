@@ -4,7 +4,6 @@ try: import mek_lib  # setup sys.path properly is portably installed
 except ImportError: pass
 
 import os
-import supyr_struct
 
 from time import time
 from tkinter import *

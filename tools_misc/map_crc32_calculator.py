@@ -1,7 +1,6 @@
 import gc
+import os
 
-from os import walk
-from os.path import splitext, dirname, join
 from traceback import format_exc
 from zlib import crc32
 
@@ -9,19 +8,19 @@ from zlib import crc32
 CE_INDEX_OFFSET = 0x40440000
 
 
-for root, directories, files in walk(dirname(__file__)):
+for root, directories, files in os.walk(os.path.dirname(__file__)):
     for file in files:
-        if splitext(file)[-1].lower() != ".map":
+        if os.path.splitext(file)[-1].lower() != ".map":
             continue
 
         try:
             crc = 0
-            with open(join(root, file), "rb") as f:
+            with open(os.path.join(root, file), "rb") as f:
                 if f.read(4) != b"daeh":
                     continue
 
                 f.seek(100)
-                print(join(root, file))
+                print(os.path.join(root, file))
                 print("%08x" % (int.from_bytes(f.read(4), 'little')) + " : In header")
 
                 f.seek(16)

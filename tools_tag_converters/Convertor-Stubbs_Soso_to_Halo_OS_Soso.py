@@ -11,7 +11,6 @@ from tkinter import *
 from tkinter.filedialog import askdirectory
 from traceback import format_exc
 
-from supyr_struct.defs.util import fcc, FieldParseError
 from supyr_struct.defs.constants import PATHDIV
 from supyr_struct.defs.block_def import BlockDef
 from reclaimer.os_v3_hek.defs.soso import soso_def
