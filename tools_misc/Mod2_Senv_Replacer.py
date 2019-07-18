@@ -4,7 +4,6 @@ try: import mek_lib  # setup sys.path properly is portably installed
 except ImportError: pass
 
 import os
-import supyr_struct
 
 from math import sqrt
 from struct import unpack, pack_into
@@ -13,7 +12,6 @@ from tkinter import *
 from tkinter.filedialog import askdirectory
 from traceback import format_exc
 
-from supyr_struct.defs.util import fcc
 from supyr_struct.defs.constants import PATHDIV
 from reclaimer.hek.defs.mod2 import fast_mod2_def as mod2_def
 from reclaimer.hek.defs.senv import senv_def
