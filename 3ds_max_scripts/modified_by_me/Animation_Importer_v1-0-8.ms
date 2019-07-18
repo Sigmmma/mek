@@ -246,10 +246,10 @@ fn readQuat =
     q2 = readShortB "#unsigned"
     q3 = readShortB "#unsigned"
     q4 = readShortB "#unsigned"
-	if q1 >= 32768 then ( q1 = q1 - 65535)
-	if q2 >= 32768 then ( q2 = q2 - 65535)
-	if q3 >= 32768 then ( q3 = q3 - 65535)
-	if q4 >= 32768 then ( q4 = q4 - 65535)
+    if q1 >= 32768 then ( q1 = q1 - 65535)
+    if q2 >= 32768 then ( q2 = q2 - 65535)
+    if q3 >= 32768 then ( q3 = q3 - 65535)
+    if q4 >= 32768 then ( q4 = q4 - 65535)
     normalize (quat (q1 as float / 32767.0) (q2 as float / 32767.0) (q3 as float / 32767.0) (q4 as float / 32767.0))
 )
 
@@ -692,7 +692,7 @@ rollout roll "Animation Importer" width:230 height:540
                         (
                             unit_weapon_weapontypes_animations = #()
                             if is_stubbs == 1 then (
-								unit_weapon_animations_extended = #()
+                                unit_weapon_animations_extended = #()
                                 for a = 1 to unit_weapon_animations[w] do
                                 (
                                     fseek anim_in_file 16 #seek_cur
@@ -700,10 +700,10 @@ rollout roll "Animation Importer" width:230 height:540
                                     fseek anim_in_file 8 #seek_cur
                                 )
                             
-								for a = 1 to unit_weapon_animations[w] do
-								(
-									fseek anim_in_file (unit_weapon_animations_extended[a] * 2) #seek_cur
-								)
+                                for a = 1 to unit_weapon_animations[w] do
+                                (
+                                    fseek anim_in_file (unit_weapon_animations_extended[a] * 2) #seek_cur
+                                )
                             ) else (
                                 fseek anim_in_file (unit_weapon_animations[w] * 2) #seek_cur
                             )
@@ -772,9 +772,9 @@ rollout roll "Animation Importer" width:230 height:540
                             fseek anim_in_file 8 #seek_cur
                         )
 
-						for s = 1 to vehicle_seats do (
-							fseek anim_in_file (vehicle_seat_animations[s] * 2) #seek_cur
-						)
+                        for s = 1 to vehicle_seats do (
+                            fseek anim_in_file (vehicle_seat_animations[s] * 2) #seek_cur
+                        )
                         fseek anim_in_file (vehicle_animations * 2) #seek_cur
                         fseek anim_in_file (vehicle_suspension_animations * 20) #seek_cur
                     )
