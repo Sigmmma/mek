@@ -1,6 +1,5 @@
-import os
 import gc
-from os.path import abspath, dirname, exists, isfile, join
+import os
 
 from reclaimer.meta.halo_map import get_map_header, get_index_magic
 from refinery import crc_functions
@@ -16,15 +15,15 @@ def do_checksum_spoof(in_filepath, out_filepath, crc_str):
     if not out_filepath:
         out_filepath = in_filepath
 
-    in_filepath = abspath(in_filepath)
-    out_filepath = abspath(out_filepath)
+    in_filepath = os.path.abspath(in_filepath)
+    out_filepath = os.path.abspath(out_filepath)
     crc = crc & 0xFFffFFff
-    if not isfile(in_filepath):
+    if not os.path.isfile(in_filepath):
         print("Specified input map does not exist.")
         return
 
     try:
-        os.makedirs(join(dirname(out_filepath), ""), True)
+        os.makedirs(os.path.join(os.path.dirname(out_filepath), ""), True)
     except FileExistsError:
         pass
 
@@ -35,7 +34,7 @@ def do_checksum_spoof(in_filepath, out_filepath, crc_str):
         in_file = out_file = open(in_filepath, 'r+b')
     else:
         in_file = open(in_filepath, 'rb')
-        if isfile(out_filepath):
+        if os.path.isfile(out_filepath):
             out_file = open(out_filepath, 'r+b')
             out_file.truncate(0)
         else:
