@@ -841,7 +841,7 @@ rollout gbxImporter "GBX/XBOX Model Importer v5.2 by TheGhost/Moses" width:448 h
             for i = 1 to scene_objects.count do (
                 for j = 1 to gbx_node_name.count do (
                     if (detected_nodes[j] == undefined) and scene_objects[i].ishidden == false and
-					    (stricmp scene_objects[i].name gbx_node_name[j] == 0) then (
+                        (stricmp scene_objects[i].name gbx_node_name[j] == 0) then (
                         detected_nodes[j] = scene_objects[i]
                         detected_count += 1
                     )
