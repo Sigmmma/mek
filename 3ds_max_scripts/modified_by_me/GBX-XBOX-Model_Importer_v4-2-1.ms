@@ -228,7 +228,7 @@ fn getFlagArray num =
     myBitArray
 )
 
-rollout gbxImporter "GBX/XBOX Model Importer v4.2 by TheGhost/Moses" width:448 height:482
+rollout gbxImporter "GBX/XBOX Model Importer v4.2.1 by TheGhost/Moses" width:448 height:482
 (
     GroupBox grp_load "Load File" pos:[8,8] width:432 height:77
     button load_button "Load GBX/XBOX Model" pos:[85,22] width:140 height:29
@@ -266,12 +266,12 @@ rollout gbxImporter "GBX/XBOX Model Importer v4.2 by TheGhost/Moses" width:448 h
     GroupBox grp_import "Import Button" pos:[8,422] width:432 height:54 enabled:false
     button import_button "Import GBX/XBOX Model" pos:[160,437] width:141 height:29 enabled:false
     label lbl_by "Script by TheGhost/Moses." pos:[16,457] width:130 height:15 enabled:false
-    label lbl_version "v4.2.0" pos:[400,457] width:37 height:15 enabled:false
+    label lbl_version "v4.2.1" pos:[400,457] width:37 height:15 enabled:false
     
     on gbxImporter open do
     (
         ClearListener()
-        format "-- Halo Model Importer v4.2 by TheGhost/Moses --\n"
+        format "-- Halo Model Importer v4.2.1 by TheGhost/Moses --\n"
         format "Using max version: %\n" (maxver[1] / 1000.0)
     )
     on gbxImporter close do
@@ -986,7 +986,7 @@ rollout gbxImporter "GBX/XBOX Model Importer v4.2 by TheGhost/Moses" width:448 h
                     (
                         if node_first_child_node_index[n] == -1 then
                         (
-                            myBone = BoneSys.createBone tmp_node_array[n].pos [tmp_node_array[n].pos.x + spn_node.value, node_array[n].pos.y, node_array[n].pos.z] [0,0,1]
+                            myBone = BoneSys.createBone tmp_node_array[n].pos [tmp_node_array[n].pos.x + spn_node.value, tmp_node_array[n].pos.y, tmp_node_array[n].pos.z] [0,0,1]
                             myBone.name = tmp_node_array[n].name
                             myBone.width = spn_node.value
                             myBone.height = spn_node.value
