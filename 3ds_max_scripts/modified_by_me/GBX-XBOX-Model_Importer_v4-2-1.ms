@@ -1051,6 +1051,8 @@ rollout gbxImporter "GBX/XBOX Model Importer v4.2.1 by TheGhost/Moses" width:448
                         rot = (quat -node_rotation[n].x -node_rotation[n].y -node_rotation[n].z node_rotation[n].w)
                         in coordsys parent myBone.rotation = rot
                         in coordsys parent myBone.pos = node_translation[n]
+                    ) else if gbx_node_parent_node_index[n] != -1 then (
+                        tmp_node_array[n].parent = tmp_node_array[gbx_node_parent_node_index[n] + 1]
                     )
                 )
             )
