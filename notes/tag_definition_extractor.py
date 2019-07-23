@@ -165,8 +165,12 @@ while not tag_defs:
     classes = input("Type in the four character codes of the tag classes to write.\n"
                     "Use commas to separate each one. Spaces are ignored.\n"
                     "Examples include jpt!, vehi, DeLa, snd!, and bitm.\n"
+                    "Type **** if you want to write every available tag class.\n"
                     ">>> ")
-    print()
+    if "****" in classes:
+        exec("from reclaimer.%s.defs import __all__ as all_classes" % engine)
+        classes = ",".join(all_classes)
+
     classes = classes.replace("!", "_").replace("#", "_").replace("+", "_").\
               replace(" ", '').split(",")
     fixed_classes = []
@@ -180,12 +184,12 @@ while not tag_defs:
             if "_meta" in cls:
                 def_name = cls.replace("_meta", "")
             exec("from reclaimer.%s.defs.%s import %s_def as tag_def" %
-                 (engine, def_name, cls.lower()))
+                 (engine, def_name, cls))
             tag_defs[cls] = tag_def
             classes.append(cls)
         except Exception:
             print("Could not load the %s definition" % cls)
-            #print(format_exc())
+            print(format_exc())
 
 for cls in classes:
     try:
