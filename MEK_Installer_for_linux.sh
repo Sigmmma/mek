@@ -3,17 +3,19 @@
 # MEK Linux installer script by Kavawuvi
 #
 # Copyright 2019 Kavawuvi
-# 
+#
+# Updated 2019-07-28 gbMichelle (c)
+#
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
 # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 # copies of the Software, and to permit persons to whom the Software is
 # furnished to do so, subject to the following conditions:
-# 
+#
 # The above copyright notice and this permission notice shall be included in
 # all copies or substantial portions of the Software.
-# 
+#
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -32,17 +34,22 @@ if [[ "$UID" = "0" ]]; then
     exit 1
 fi
 
+print_help() {
+    echo "Usage: $0 [options] [destination]" 1>&2
+    echo "Options:" 1>&2
+    echo "  -h  Show help" 1>&2
+    echo "  -r  Force reinstall when updating libraries" 1>&2
+    echo "  -q  Quiet" 1>&2
+}
+
+
 # Parse options
 reinstall="0"
 quiet="0"
 while getopts 'hrq' OPTION; do
     case "$OPTION" in
         h)
-            echo "Usage: $0 [options] [destination]" 1>&2
-            echo "Options:" 1>&2
-            echo "  -h  Show help" 1>&2
-            echo "  -r  Force reinstall when updating libraries" 1>&2
-            echo "  -q  Quiet" 1>&2
+            print_help
             exit 1
             ;;
         r)
@@ -54,10 +61,16 @@ while getopts 'hrq' OPTION; do
     esac
 done
 
+# Changed it so that it doesn't select an install path on its own
+# when there is none specified. Safety reasons -gbMichelle 2019-07-28
+
 # Set the destination folder
 destination="mek"
 if [[ "$#" = $(($OPTIND - 1)) ]]; then
-    destination="mek"
+    echo "No destination specified."
+    echo ""
+    print_help
+    exit 1
 elif [[ "$#" = "$OPTIND" ]]; then
     shift $(($OPTIND - 1))
     destination=$@
@@ -65,6 +78,31 @@ else
     echo "Error: Invalid usage. Use $0 -h for help." 1>&2
     exit 1
 fi
+
+# Edit: Check if apt exists, because that will mean that we're on
+# an Ubuntu based distro. This means that tkinter will need to be installed
+# differently, and it also means that we can install any missing dependencies.
+# -gbMichelle 2019-07-28
+
+apt_installed="1"
+if [[ $(command -v apt) = "" ]]; then
+    apt_installed="0"
+fi
+
+if [[ "$apt_installed" = "1" ]]; then
+    echo "We detected that you're on an ubuntu based distribution."
+    echo "We can install the following packages, but it would require sudo permissions."
+    echo "These packages would be installed if not already present:"
+    echo "    mercurial python3 python3-pip python3-tk"
+    read -p "Do you want to install these? (Yes will prompt for sudo) Y/n:" -n 1 -r
+    echo ""
+    if [[ $REPLY =~ ^[Yy]$ ]]
+    then
+        sudo apt-get install mercurial python3 python3-pip python3-tk -y
+    fi
+fi
+
+# End of edit
 
 # Check for required commands
 exit_missing_stuff="0"
