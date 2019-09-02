@@ -1,0 +1,10 @@
+**data/
+**tags/
+**maps/
+**.lnk
+**.log
+**__pycache__/
+**.dll
+**.cfg
+**.ini
+**.ico
