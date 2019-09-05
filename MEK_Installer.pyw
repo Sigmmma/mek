@@ -21,7 +21,7 @@ installer_updated = False
 
 mek_lib_dirname = "mek_lib"
 curr_dir = os.path.abspath(os.curdir)
-mek_download_url = "https://bitbucket.org/Moses_of_Egypt/mek/get/default.zip"
+mek_download_url = "https://github.com/MosesofEgypt/mek/archive/master.zip"
 
 # refinery requires mozzarilla(tag preview features and such), so we dont
 # need to specify it here as it will be installed anyway when refinery is.
@@ -248,13 +248,10 @@ def download_mek_to_folder(install_dir, src_url=None):
         print("    Could not download MEK zipfile.")
         return
 
-    if os.sep == "/":
-        find = "\\"
-    elif os.sep == "\\":
-        find = "/"
-
     setup_filepath = '' if "__file__" not in globals() else __file__
-    setup_filepath = setup_filepath.lower().replace(find, os.sep)
+    setup_filepath = setup_filepath.lower()
+    if os.sep == "\\":
+        setup_filepath = setup_filepath.replace("/", "\\")
     setup_filename = setup_filepath.split(os.sep)[-1]
 
     try:
@@ -267,17 +264,18 @@ def download_mek_to_folder(install_dir, src_url=None):
 
     with zipfile.ZipFile(mek_zipfile_path) as mek_zipfile:
         for zip_name in mek_zipfile.namelist():
+            # ignore the root directory of the zipfile
             filepath = zip_name.split("/", 1)[-1]
-            if filepath[:1] == '.':
+            if filepath[:1] == '.' or zip_name[-1:] == "/":
                 continue
 
             try:
-                filepath = os.path.join(install_dir, filepath).replace(find, os.sep)
-                filename = filepath.split(os.sep)[-1]
-                dirpath = os.path.dirname(filepath)
+                filepath = os.path.join(install_dir, filepath)
+                if os.sep == "\\":
+                    filepath = filepath.replace("/", "\\")
 
-                if not os.path.exists(dirpath):
-                    os.makedirs(dirpath)
+                filename = filepath.split(os.sep)[-1]
+                os.makedirs(os.path.dirname(filepath), exist_ok=True)
 
                 with mek_zipfile.open(zip_name) as zf, open(filepath, "wb+") as f:
                     filedata = zf.read()
@@ -369,7 +367,7 @@ class MekInstaller(tk.Tk):
 
     def __init__(self, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
-        self.title("MEK installer v2.1.7")
+        self.title("MEK installer v2.2.0")
         self.geometry("480x400+0+0")
         self.minsize(480, 300)
         

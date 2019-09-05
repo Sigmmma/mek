@@ -137,11 +137,12 @@ run_command() {
 }
 
 # Check to see if the directory exists. If so, pull it. Otherwise, clone it
-if [ -d "$destination/.hg" ]; then
+if [ -d "$destination/.git" ]; then
     cd "$destination"
-    run_command hg pull https://bitbucket.org/Moses_of_Egypt/mek
+    run_command git fetch
+    run_command git pull
 else
-    run_command hg clone https://bitbucket.org/Moses_of_Egypt/mek "$destination"
+    run_command git clone https://github.com/MosesofEgypt/mek.git "$destination"
 fi
 
 # If it failed to clone, exit.
