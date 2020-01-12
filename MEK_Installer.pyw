@@ -25,7 +25,7 @@ mek_download_url = "https://github.com/MosesofEgypt/mek/archive/master.zip"
 
 # refinery requires mozzarilla(tag preview features and such), so we dont
 # need to specify it here as it will be installed anyway when refinery is.
-mek_program_package_names = ("refinery", "hek_pool") # "mozzarilla")
+mek_program_package_names = ("refinery", "hek_pool", ) # "mozzarilla")
 mek_library_package_names = ("reclaimer", )
 program_package_names     = ("binilla", )
 library_package_names     = ("supyr_struct", "arbytmap", )
@@ -39,9 +39,9 @@ if "linux" in platform.lower():
     platform = "linux"
 
 if platform == "linux":
-    pip_exec_name = "pip3"
+    pip_exec_name = ["python3", "-m", "pip"]
 else:
-    pip_exec_name = "pip"
+    pip_exec_name = ["pip"]
 
 
 class IORedirecter(StringIO):
@@ -155,7 +155,7 @@ def uninstall(partial_uninstall=True, show_verbose=False, app=None):
             modules.extend(program_package_names + library_package_names)
 
         for mod_name in modules:
-            exec_strs = [pip_exec_name, "uninstall", mod_name, "-y"]
+            exec_strs = [*pip_exec_name, "uninstall", mod_name, "-y"]
             if show_verbose:
                 exec_strs += ['--verbose']
             result &= _do_subprocess(exec_strs, "Uninstall", app)
@@ -193,7 +193,7 @@ def install(install_path=None, force_reinstall=False,
 
         ensure_setuptools_installed(app)
         for mod in mek_program_package_names:
-            exec_strs = [pip_exec_name, "install", mod,
+            exec_strs = [*pip_exec_name, "install", mod,
                          "--upgrade", "--no-cache-dir"]
             if install_path is not None:
                 exec_strs += ['--target=%s' % install_path]
@@ -224,14 +224,16 @@ def install(install_path=None, force_reinstall=False,
 def ensure_setuptools_installed(app):
     print("Ensuring setuptools is installed")
     return _do_subprocess(
-        (pip_exec_name, "install", "setuptools", "--no-cache-dir"),
+        (*pip_exec_name, "install", "setuptools", "--no-cache-dir"),
         "Ensure setuptools", app)
 
 
 def is_pip_installed(app):
+    if platform == "linux":
+        return True
     print("Checking that Pip is installed")
     return not _do_subprocess(
-        (pip_exec_name, ),
+        (*pip_exec_name, ),
         "Pip check", app, printout=False)
 
 
@@ -370,7 +372,7 @@ class MekInstaller(tk.Tk):
         self.title("MEK installer v2.2.0")
         self.geometry("480x400+0+0")
         self.minsize(480, 300)
-        
+
         self.install_dir = tk.StringVar(self, curr_dir)
         self.force_reinstall   = tk.BooleanVar(self, 1)
         self.update_programs   = tk.BooleanVar(self, 1)
@@ -398,7 +400,7 @@ class MekInstaller(tk.Tk):
         self.install_dir_browse_btn = tk.Button(
             self.install_dir_frame, text="Browse",
             width=6, command=self.install_dir_browse)
-        
+
         self.install_btn = tk.Button(
             self.actions_frame, text="Install/Update",
             width=20, command=self.install)
