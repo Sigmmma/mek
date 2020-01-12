@@ -337,7 +337,7 @@ def install(install_path=None, force_reinstall=False,
                 "that utilizes them will be significantly slower. Some functionality "
                 "may also be missing without them, such as XBADPCM encoding.\n\n"
 
-                "Our Discord server can be joined with this link:\n\thttps://discord.gg/uusNQs8\n"
+                "Our Discord server can be joined with this link:\n\thttps://discord.gg/srA4RqP\n"
                 )
 
     return result
