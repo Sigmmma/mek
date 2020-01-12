@@ -6,8 +6,31 @@ import subprocess
 import sys
 import traceback
 import zipfile
-try:    import tkinter as tk
-except: import Tkinter as tk
+
+try:
+    import tkinter as tk
+except:
+    try:
+        import Tkinter as tk
+    except:
+        # Try as hard as inhumanly possible to tell the user that tkinter isn't on their system.
+        NO_TK_ERR = "You cannot run the installer without having tkinter installed system wide"
+        print(NO_TK_ERR)
+        res = subprocess.run(["kdialog", "--msgbox", NO_TK_ERR])
+        if res.returncode != 0:
+            res = subprocess.run(["msg", os.getlogin(), NO_TK_ERR])
+        if res.returncode != 0:
+            res = subprocess.run(["zenity", "--info", "--text="+NO_TK_ERR])
+        if res.returncode != 0:
+            res = subprocess.run(["toilet", "-F", "gay", NO_TK_ERR])
+        if res.returncode != 0:
+            res = subprocess.run(["whiptail", "--msgbox", NO_TK_ERR, 0, 0])
+        if res.returncode != 0:
+            res = subprocess.run(["dialog", "--msgbox", NO_TK_ERR, 0, 0])
+        if res.returncode != 0:
+            input()
+        SystemExit(-1)
+
 from threading import Thread
 from tkinter import messagebox
 from tkinter.filedialog import askdirectory
@@ -25,38 +48,173 @@ mek_download_url = "https://github.com/MosesofEgypt/mek/archive/master.zip"
 
 # refinery requires mozzarilla(tag preview features and such), so we dont
 # need to specify it here as it will be installed anyway when refinery is.
-mek_program_package_names = ("refinery", "hek_pool") # "mozzarilla")
+mek_program_package_names = ("refinery", "hek_pool", ) # "mozzarilla")
 mek_library_package_names = ("reclaimer", )
 program_package_names     = ("binilla", )
 library_package_names     = ("supyr_struct", "arbytmap", )
 
 required_module_extensions = {
-    "arbytmap.ext": ("arbytmap_ext",   "bitmap_io_ext",    "dds_defs_ext",
-                     "raw_packer_ext", "raw_unpacker_ext", "swizzler_ext")
+    "arbytmap.ext": (
+        "arbytmap_ext",   "bitmap_io_ext",    "dds_defs_ext",
+        "raw_packer_ext", "raw_unpacker_ext", "swizzler_ext"),
+    "reclaimer.sounds.ext": (
+        "adpcm_ext",
+        )
     }
 
 if "linux" in platform.lower():
     platform = "linux"
 
 if platform == "linux":
-    pip_exec_name = "pip3"
+    pip_exec_name = ["python3", "-m", "pip"]
 else:
-    pip_exec_name = "pip"
+    pip_exec_name = ["pip"]
 
 
-class IORedirecter(StringIO):
-    # Text widget to output text to
-    text_out = None
+#####################################################
+# Utility functions
+#####################################################
+def _do_subprocess(exec_strs, action="Action", app=None, printout=True):
+    exec_strs = tuple(exec_strs)
+    while True:
+        if app is not None and getattr(app, "_running_thread", 1) is None:
+            raise SystemExit(0)
 
-    def __init__(self, text_out, *args, **kwargs):
-        StringIO.__init__(self, *args, **kwargs)
-        self.text_out = text_out
+        result = 1
+        try:
+            if printout:
+                print("-"*80)
+                print("%s "*len(exec_strs) % exec_strs)
 
-    def write(self, string):
-        self.text_out.config(state=tk.NORMAL)
-        self.text_out.insert(tk.END, string)
-        self.text_out.see(tk.END)
-        self.text_out.config(state=tk.DISABLED)
+            result = None
+            if platform == "linux":
+                res = subprocess.run(exec_strs,
+                    capture_output=True, universal_newlines=True)
+                result = res.returncode
+                print(res.stdout)
+            else:
+                with subprocess.Popen(exec_strs, stdout=subprocess.PIPE,
+                                      stderr=subprocess.PIPE, shell=True) as p:
+                    if app is not None:
+                        try:
+                            for line in p.stdout:
+                                if printout:
+                                    print(line.decode("latin-1"), end='')
+                        except:
+                            p.kill()
+                            p.wait()
+                            raise
+                    else:
+                        while p.poll() is None:
+                            # wait until the process has finished
+                            pass
+
+                result = p.wait()
+        except Exception:
+            if printout:
+                print(traceback.format_exc())
+
+        if app is not None and getattr(app, "_running_thread", 1) is None:
+            raise SystemExit(0)
+
+        if result:
+            print("  Error code: %02x" % result)
+
+        if result and "python" not in exec_strs[0]:
+            print("  %s failed. Trying with different arguments." % action)
+            exec_strs = ("python", "-m") + exec_strs
+        else:
+            break
+
+    if result:
+        print("  %s failed.\n" % action)
+    else:
+        print("  %s succeeded.\n" % action)
+
+    return result
+
+
+def download_mek_to_folder(install_dir, src_url=None):
+    global installer_updated
+
+    if src_url is None:
+        src_url = mek_download_url
+    print('Downloading newest version of MEK from: "%s"' % src_url)
+
+    mek_zipfile_path, _ = request.urlretrieve(src_url)
+    if not mek_zipfile_path:
+        print("  Could not download.\n")
+        return
+    else:
+        print("  Finished.\n")
+
+    setup_filepath = '' if "__file__" not in globals() else __file__
+    setup_filepath = setup_filepath.lower()
+    if os.sep == "\\":
+        setup_filepath = setup_filepath.replace("/", "\\")
+    setup_filename = setup_filepath.split(os.sep)[-1]
+
+    try:
+        with open(__file__, 'rb') as f:
+            setup_file_data = f.read()
+    except Exception:
+        setup_file_data = None
+
+    new_installer_path = None
+
+    print('Unpacking MEK to "%s"' % install_dir)
+    with zipfile.ZipFile(mek_zipfile_path) as mek_zipfile:
+        for zip_name in mek_zipfile.namelist():
+            # ignore the root directory of the zipfile
+            filepath = zip_name.split("/", 1)[-1]
+            if filepath[:1] == '.' or zip_name[-1:] == "/":
+                continue
+
+            try:
+                filepath = os.path.join(install_dir, filepath)
+                if os.sep == "\\":
+                    filepath = filepath.replace("/", "\\")
+
+                filename = filepath.split(os.sep)[-1]
+                os.makedirs(os.path.dirname(filepath), exist_ok=True)
+
+                with mek_zipfile.open(zip_name) as zf, open(filepath, "wb+") as f:
+                    filedata = zf.read()
+                    if setup_filename == filename.lower() and filedata != setup_file_data:
+                        # NOTE: Comment out the next line if testing installer
+                        installer_updated = True
+                        new_installer_path = filepath
+                    f.write(filedata)
+            except Exception:
+                print(traceback.format_exc())
+
+    print("  Finished.\n")
+
+    try: os.remove(mek_zipfile_path)
+    except Exception: pass
+
+    if installer_updated:
+        messagebox.showinfo(
+        "MEK Installer was updated",
+        "The MEK installer that was downloaded differs from this one.\n"
+        "Please close this installer and run:\n    %s" % new_installer_path
+        )
+
+
+def ensure_setuptools_installed(app):
+    print("Ensuring setuptools is installed")
+    return _do_subprocess(
+        (*pip_exec_name, "install", "setuptools", "--no-cache-dir"),
+        "Ensure setuptools", app)
+
+
+def is_pip_installed(app):
+    if platform == "linux":
+        return True
+    print("Checking that Pip is installed")
+    return not _do_subprocess(
+        (*pip_exec_name, ),
+        "Pip check", app, printout=False)
 
 
 def is_module_fully_installed(mod_path, attrs):
@@ -88,58 +246,11 @@ def is_module_fully_installed(mod_path, attrs):
     return result
 
 
-def _do_subprocess(exec_strs, action="Action", app=None, printout=True):
-    exec_strs = tuple(exec_strs)
-    while True:
-        if app is not None and getattr(app, "_running_thread", 1) is None:
-            raise SystemExit(0)
-
-        result = 1
-        try:
-            if printout:
-                print("-"*80)
-                print("%s "*len(exec_strs) % exec_strs)
-
-            with subprocess.Popen(exec_strs, stdout=subprocess.PIPE,
-                                  stderr=subprocess.PIPE, shell=True) as p:
-                if app is not None:
-                    try:
-                        for line in p.stdout:
-                            if printout:
-                                print(line.decode("latin-1"), end='')
-                    except:
-                        p.kill()
-                        p.wait()
-                        raise
-                else:
-                    while p.poll() is None:
-                        # wait until the process has finished
-                        pass
-
-            result = p.wait()
-        except Exception:
-            if printout:
-                print(traceback.format_exc())
-
-        if app is not None and getattr(app, "_running_thread", 1) is None:
-            raise SystemExit(0)
-
-        if result:
-            print("  Error code: %02x" % result)
-
-        if result and exec_strs[0] != "python":
-            print("  %s failed. Trying with different arguments." % action)
-            exec_strs = ("python", "-m") + exec_strs
-        else:
-            break
-
-    if result:
-        print("  %s failed.\n" % action)
-    else:
-        print("  %s succeeded.\n" % action)
-    return result
-
-
+#####################################################
+# Main installer functions
+# NOTE: You should be able to call these functions
+#       directly just fine(MekInstaller isnt needed)
+#####################################################
 def uninstall(partial_uninstall=True, show_verbose=False, app=None):
     result = 1
     if not is_pip_installed(app):
@@ -155,7 +266,7 @@ def uninstall(partial_uninstall=True, show_verbose=False, app=None):
             modules.extend(program_package_names + library_package_names)
 
         for mod_name in modules:
-            exec_strs = [pip_exec_name, "uninstall", mod_name, "-y"]
+            exec_strs = [*pip_exec_name, "uninstall", mod_name, "-y"]
             if show_verbose:
                 exec_strs += ['--verbose']
             result &= _do_subprocess(exec_strs, "Uninstall", app)
@@ -193,7 +304,7 @@ def install(install_path=None, force_reinstall=False,
 
         ensure_setuptools_installed(app)
         for mod in mek_program_package_names:
-            exec_strs = [pip_exec_name, "install", mod,
+            exec_strs = [*pip_exec_name, "install", mod,
                          "--upgrade", "--no-cache-dir"]
             if install_path is not None:
                 exec_strs += ['--target=%s' % install_path]
@@ -201,6 +312,7 @@ def install(install_path=None, force_reinstall=False,
                 exec_strs += ['--verbose']
             if force_reinstall:
                 exec_strs += ['--force-reinstall']
+            print(" ".join(exec_strs))
             result |= _do_subprocess(exec_strs, "Install/Update", app)
 
     except Exception:
@@ -216,145 +328,37 @@ def install(install_path=None, force_reinstall=False,
                 print("%s did not fully compile its C extensions." % mod_path)
 
         if sum(successes) != len(successes):
-            warn_msvc_compile()
+            messagebox.showinfo(
+                "Accelerator modules were not compiled",
+                "The Visual Studio build tools are required for the "
+                "accelerator modules these programs utilize to be compiled.\n\n"
+                "These accelerators make certain things possible, like bitmap viewing. "
+                "Most of the MEK will still work fine without them, but anything "
+                "that utilizes them will be significantly slower. Some functionality "
+                "may also be missing without them, such as XBADPCM encoding.\n\n"
+
+                "Our Discord server can be joined with this link:\n\thttps://discord.gg/srA4RqP\n"
+                )
 
     return result
 
 
-def ensure_setuptools_installed(app):
-    print("Ensuring setuptools is installed")
-    return _do_subprocess(
-        (pip_exec_name, "install", "setuptools", "--no-cache-dir"),
-        "Ensure setuptools", app)
+#####################################################
+# Installer GUI classes
+#####################################################
+class IORedirecter(StringIO):
+    # Text widget to output text to
+    text_out = None
 
+    def __init__(self, text_out, *args, **kwargs):
+        StringIO.__init__(self, *args, **kwargs)
+        self.text_out = text_out
 
-def is_pip_installed(app):
-    print("Checking that Pip is installed")
-    return not _do_subprocess(
-        (pip_exec_name, ),
-        "Pip check", app, printout=False)
-
-
-def download_mek_to_folder(install_dir, src_url=None):
-    global installer_updated
-
-    if src_url is None:
-        src_url = mek_download_url
-    print("Downloading newest version of MEK from:\n    %s\n    to:\n    %s\n" %
-          (src_url, install_dir))
-
-    mek_zipfile_path, _ = request.urlretrieve(src_url)
-    if not mek_zipfile_path:
-        print("    Could not download MEK zipfile.")
-        return
-
-    setup_filepath = '' if "__file__" not in globals() else __file__
-    setup_filepath = setup_filepath.lower()
-    if os.sep == "\\":
-        setup_filepath = setup_filepath.replace("/", "\\")
-    setup_filename = setup_filepath.split(os.sep)[-1]
-
-    try:
-        with open(__file__, 'rb') as f:
-            setup_file_data = f.read()
-    except Exception:
-        setup_file_data = None
-
-    new_installer_path = None
-
-    with zipfile.ZipFile(mek_zipfile_path) as mek_zipfile:
-        for zip_name in mek_zipfile.namelist():
-            # ignore the root directory of the zipfile
-            filepath = zip_name.split("/", 1)[-1]
-            if filepath[:1] == '.' or zip_name[-1:] == "/":
-                continue
-
-            try:
-                filepath = os.path.join(install_dir, filepath)
-                if os.sep == "\\":
-                    filepath = filepath.replace("/", "\\")
-
-                filename = filepath.split(os.sep)[-1]
-                os.makedirs(os.path.dirname(filepath), exist_ok=True)
-
-                with mek_zipfile.open(zip_name) as zf, open(filepath, "wb+") as f:
-                    filedata = zf.read()
-                    if setup_filename == filename.lower() and filedata != setup_file_data:
-                        installer_updated = True
-                        new_installer_path = filepath
-                    f.write(filedata)
-            except Exception:
-                print(traceback.format_exc())
-
-    try: os.remove(mek_zipfile_path)
-    except Exception: pass
-
-    if installer_updated:
-        messagebox.showinfo(
-        "MEK Installer was updated",
-        "The MEK installer that was downloaded differs from this one.\n"
-        "Please close this installer and run:\n    %s" % new_installer_path
-        )
-
-
-def run():
-    try:
-        installer = MekInstaller()
-        installer.mainloop()
-    except Exception:
-        print(traceback.format_exc())
-        input()
-
-
-def warn_msvc_compile():
-    if sys.version_info[0] != 3 or sys.version_info[1] < 3:
-        pass
-    elif sys.version_info[1] in (3, 4):
-        messagebox.showinfo(
-            "Accelerator modules were not compiled",
-            "A properly set up environment is required for the accelerator "
-            "modules these programs utilize to be compiled.\n\n"
-            "These accelerators make certain things possible, like bitmap viewing.\n"
-            "The MEK will still work fine without them, but anything that relies "
-            "on their speedup will be significantly slower(sometimes by 100x).\n\n"
-
-            "If possible, the easiest way to fix this problem is to run this program's "
-            "uninstall command, uninstall your current version of python, download and "
-            "install python 3.5 or higher, download and install the 2015 build tools "
-            "from the link below(make sure to check Windows 8.1 SDK) and run the update "
-            "function of this installer with 'force reinstall' checked.\n\n"
-
-            "https://www.visualstudio.com/downloads/#build-tools-for-visual-studio-2017\n\n"
-
-            "If you cannot change your python version, follow the directions from the "
-            "link below to get your system configured to compile C extensions, then run "
-            "the update function of this installer with 'force reinstall' checked.\n\n"
-
-            "https://wiki.python.org/moin/WindowsCompilers#Compilers_Installation_and_configuration\n\n"
-
-            "If you have already done all of these things and you still receive this "
-            "message, please private message me on Discord so I can fix the problem. "
-            "Our Discord server can be joined with this link:\n\thttps://discord.gg/uusNQs8\n"
-            )
-    elif sys.version_info[1] > 4:
-        messagebox.showinfo(
-            "Accelerator modules were not compiled",
-            "The Visual Studio 2015 build tools are required for the "
-            "accelerator modules these programs utilize to be compiled.\n\n"
-            "These accelerators make certain things possible, like bitmap viewing.\n"
-            "The MEK will still work fine without them, but anything that relies "
-            "on their speedup will be significantly slower(sometimes by 100x).\n\n"
-
-            "To fix this, download and install the 2015 build tools from the link "
-            "below(make sure to check Windows 8.1 SDK) and run the update function "
-            "of this installer with 'force reinstall' checked.\n\n"
-
-            "https://www.visualstudio.com/downloads/#build-tools-for-visual-studio-2017\n\n"
-
-            "If you have already done all of these things and you still receive this "
-            "message, please private message me on Discord so I can fix the problem. "
-            "Our Discord server can be joined with this link:\n\thttps://discord.gg/uusNQs8\n"
-            )
+    def write(self, string):
+        self.text_out.config(state=tk.NORMAL)
+        self.text_out.insert(tk.END, string)
+        self.text_out.see(tk.END)
+        self.text_out.config(state=tk.DISABLED)
 
 
 class MekInstaller(tk.Tk):
@@ -367,10 +371,10 @@ class MekInstaller(tk.Tk):
 
     def __init__(self, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
-        self.title("MEK installer v2.2.0")
+        self.title("MEK installer v2.2.1")
         self.geometry("480x400+0+0")
         self.minsize(480, 300)
-        
+
         self.install_dir = tk.StringVar(self, curr_dir)
         self.force_reinstall   = tk.BooleanVar(self, 1)
         self.update_programs   = tk.BooleanVar(self, 1)
@@ -398,7 +402,7 @@ class MekInstaller(tk.Tk):
         self.install_dir_browse_btn = tk.Button(
             self.install_dir_frame, text="Browse",
             width=6, command=self.install_dir_browse)
-        
+
         self.install_btn = tk.Button(
             self.actions_frame, text="Install/Update",
             width=20, command=self.install)
@@ -516,6 +520,7 @@ class MekInstaller(tk.Tk):
         if dirpath:
             self.install_dir.set(path.normpath(dirpath))
             self.validate_mek_dir()
+            self.portable.set(1)
 
     def uninstall(self):
         if self._running_thread is not None:
@@ -551,6 +556,16 @@ class MekInstaller(tk.Tk):
                                  self.force_reinstall.get(),
                                  self.update_programs.get(),
                                  self.show_error_info.get())
+
+
+def run():
+    try:
+        installer = MekInstaller()
+        installer.mainloop()
+    except Exception:
+        print(traceback.format_exc())
+        input()
+
 
 if __name__ == "__main__":
     run()

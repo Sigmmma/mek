@@ -5,19 +5,8 @@ in whenever to see if something is new.
 
 Installation:
 
-1. Install Python 3.5 or higher. While installing, choose "Custom Installation",
-    and make sure these are checked:
-
-        Add Python3.X to PATH
-
-        Optional Features:
-            pip
-            tcl/tk and IDLE
-
-        Advanced Options:
-            Associate files with Python
-            Create shortcuts for installed applications
-            Add Python to environment variables
+1. Install Python 3.5 or higher. You can get it on Windows by opening
+    the "get_python_3.8" shortcut in the install folder.
 
 2. Run VC++14.0_BuildTools.exe
 
@@ -60,12 +49,5 @@ to edit tags in. It turns out that this is caused by certain versions of windows
 to some of their security measures, like UAC.
 
 * If you changed config settings and now a program wont load or the gui is too messed up
-up to easily use, delete the config file. If you installed the MEK portably, the config
-file will be here(MEK is the directory you installed the MEK to):
-    MEK\mek_lib\mozzarilla\mozzarilla.cfg
-
-Otherwise, you can find it here(PYTHON is the location of your python installation):
-    PYTHON\Lib\site-packages\mozzarilla\mozzarilla.cfg
-
-If you don't know where python is installed to, you can find it in your systems PATH
-variable. If not, then Google how to find it or start searching your HDD lol.
+up to easily use, delete the config file. Config files for Refinery, Mozzarilla, and Pool
+are located in:  .\mek_config
