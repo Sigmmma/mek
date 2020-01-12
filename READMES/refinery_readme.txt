@@ -22,7 +22,7 @@ Here's a list of what Refinery can currently do:
         obje tag classes)
     * Fix mangled class names(aka Zteam protection)
 
-    * Decompress and save Xbox Halo 1 maps
+    * Decompress and save Xbox maps
     * Save any loaded non-resource map(rearranges structures and renames protected
         tags so the map can be opened by other map tools)
 
@@ -34,6 +34,11 @@ Here's a list of what Refinery can currently do:
         will be in little-endian and other meta-specific details will not have been tweaked,
         so don't expect to be able to properly import ANY exported block into a tag.
     * Allows extraction by tag class as well as by folder or individual tags.
+
+
+Here are all the known bugs that I can think of right now(I plan to fix them):
+    * Tag explorers might not be sorted if you edit them(if you rename an entire folder
+        and it disappears from the tree, it will be added to the bottom instead of alphabetically)
 
 
 So now that you've read all that, here's a few tips on using Refinery:
