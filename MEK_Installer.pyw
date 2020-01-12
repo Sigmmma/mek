@@ -6,8 +6,31 @@ import subprocess
 import sys
 import traceback
 import zipfile
-try:    import tkinter as tk
-except: import Tkinter as tk
+
+try:
+    import tkinter as tk
+except:
+    try:
+        import Tkinter as tk
+    except:
+        # Try as hard as inhumanly possible to tell the user that tkinter isn't on their system.
+        NO_TK_ERR = "You cannot run the installer without having tkinter installed system wide"
+        print(NO_TK_ERR)
+        res = subprocess.run(["kdialog", "--msgbox", NO_TK_ERR])
+        if res.returncode != 0:
+            res = subprocess.run(["msg", os.getlogin(), NO_TK_ERR])
+        if res.returncode != 0:
+            res = subprocess.run(["zenity", "--info", "--text="+NO_TK_ERR])
+        if res.returncode != 0:
+            res = subprocess.run(["toilet", "-F", "gay", NO_TK_ERR])
+        if res.returncode != 0:
+            res = subprocess.run(["whiptail", "--msgbox", NO_TK_ERR, 0, 0])
+        if res.returncode != 0:
+            res = subprocess.run(["dialog", "--msgbox", NO_TK_ERR, 0, 0])
+        if res.returncode != 0:
+            input()
+        SystemExit(-1)
+
 from threading import Thread
 from tkinter import messagebox
 from tkinter.filedialog import askdirectory
@@ -100,23 +123,30 @@ def _do_subprocess(exec_strs, action="Action", app=None, printout=True):
                 print("-"*80)
                 print("%s "*len(exec_strs) % exec_strs)
 
-            with subprocess.Popen(exec_strs, stdout=subprocess.PIPE,
-                                  stderr=subprocess.PIPE, shell=True) as p:
-                if app is not None:
-                    try:
-                        for line in p.stdout:
-                            if printout:
-                                print(line.decode("latin-1"), end='')
-                    except:
-                        p.kill()
-                        p.wait()
-                        raise
-                else:
-                    while p.poll() is None:
-                        # wait until the process has finished
-                        pass
+            result = None
+            if platform == "linux":
+                res = subprocess.run(exec_strs,
+                    capture_output=True, universal_newlines=True)
+                result = res.returncode
+                print(res.stdout)
+            else:
+                with subprocess.Popen(exec_strs, stdout=subprocess.PIPE,
+                                      stderr=subprocess.PIPE, shell=True) as p:
+                    if app is not None:
+                        try:
+                            for line in p.stdout:
+                                if printout:
+                                    print(line.decode("latin-1"), end='')
+                        except:
+                            p.kill()
+                            p.wait()
+                            raise
+                    else:
+                        while p.poll() is None:
+                            # wait until the process has finished
+                            pass
 
-            result = p.wait()
+                result = p.wait()
         except Exception:
             if printout:
                 print(traceback.format_exc())
@@ -127,7 +157,7 @@ def _do_subprocess(exec_strs, action="Action", app=None, printout=True):
         if result:
             print("  Error code: %02x" % result)
 
-        if result and exec_strs[0] != "python":
+        if result and "python" not in exec_strs[0]:
             print("  %s failed. Trying with different arguments." % action)
             exec_strs = ("python", "-m") + exec_strs
         else:
@@ -137,6 +167,7 @@ def _do_subprocess(exec_strs, action="Action", app=None, printout=True):
         print("  %s failed.\n" % action)
     else:
         print("  %s succeeded.\n" % action)
+
     return result
 
 
@@ -201,6 +232,7 @@ def install(install_path=None, force_reinstall=False,
                 exec_strs += ['--verbose']
             if force_reinstall:
                 exec_strs += ['--force-reinstall']
+            print(" ".join(exec_strs))
             result |= _do_subprocess(exec_strs, "Install/Update", app)
 
     except Exception:
@@ -369,7 +401,7 @@ class MekInstaller(tk.Tk):
 
     def __init__(self, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
-        self.title("MEK installer v2.2.0")
+        self.title("MEK installer v2.2.1")
         self.geometry("480x400+0+0")
         self.minsize(480, 300)
 
@@ -518,6 +550,7 @@ class MekInstaller(tk.Tk):
         if dirpath:
             self.install_dir.set(path.normpath(dirpath))
             self.validate_mek_dir()
+            self.portable.set(1)
 
     def uninstall(self):
         if self._running_thread is not None:
