@@ -92,6 +92,7 @@ def _do_subprocess(exec_strs, action="Action", app=None, printout=True):
                     capture_output=True, universal_newlines=True)
                 result = res.returncode
                 print(res.stdout)
+                print(res.stderr)
             else:
                 with subprocess.Popen(exec_strs, stdout=subprocess.PIPE,
                                       stderr=subprocess.PIPE, shell=True) as p:
@@ -371,7 +372,7 @@ class MekInstaller(tk.Tk):
 
     def __init__(self, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
-        self.title("MEK installer v2.2.1")
+        self.title("MEK installer v2.2.2")
         self.geometry("480x400+0+0")
         self.minsize(480, 300)
 
@@ -456,9 +457,9 @@ class MekInstaller(tk.Tk):
         if sys.version_info[0] < 3 or sys.version_info[1] < 3:
             messagebox.showinfo(
                 "Incompatible python version",
-                ("The MEK requires python 3.3.0 or higher to be installed.\n"
+                ("The MEK requires python 3.5.0 or higher to be installed.\n"
                 "You are currently running version %s.%s.%s\n\n"
-                "If you know you have python 3.3.0 or higher installed, then\n"
+                "If you know you have python 3.5.0 or higher installed, then\n"
                 "the version your operating system is defaulting to when\n"
                 "running python files is %s.%s.%s\n\n") % tuple(sys.version_info[:3]) * 2
                 )
