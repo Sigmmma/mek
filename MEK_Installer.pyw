@@ -5,6 +5,7 @@ import os
 import subprocess
 import sys
 import traceback
+import shutil
 import zipfile
 
 try:
@@ -45,6 +46,7 @@ installer_updated = False
 mek_lib_dirname = "mek_lib"
 curr_dir = os.path.abspath(os.curdir)
 mek_download_url = "https://github.com/MosesofEgypt/mek/archive/master.zip"
+package_url_template = "https://github.com/MosesofEgypt/%s/archive/master.zip"
 
 # refinery requires mozzarilla(tag preview features and such), so we dont
 # need to specify it here as it will be installed anyway when refinery is.
@@ -134,6 +136,44 @@ def _do_subprocess(exec_strs, action="Action", app=None, printout=True):
 
     return result
 
+def install_package_from_github(install_path, mod_name, show_verbose=False, app=None):
+    src_url = package_url_template % (mod_name)
+    if src_url is None:
+        src_url = mek_download_url
+    print('Downloading newest version of %s from: "%s"' % (mod_name, src_url))
+
+    mek_zipfile_path, _ = request.urlretrieve(src_url)
+    if not mek_zipfile_path:
+        print("  Could not download.\n")
+        return
+    else:
+        print("  Finished.\n")
+
+    print("Extracting package")
+    with zipfile.ZipFile(mek_zipfile_path, 'r') as file:
+        file.extractall(mek_zipfile_path + "_extracted")
+
+    print('Installing %s' % (mod_name))
+
+    exec_strs = [*pip_exec_name, "install", mek_zipfile_path + "_extracted/%s-master" % mod_name,
+                 "--upgrade", "--no-cache-dir", "--no-dependencies"]
+    if install_path is not None:
+        exec_strs += ['--target=%s' % install_path]
+    if show_verbose:
+        exec_strs += ['--verbose']
+    # Always force reinstall when from github
+    exec_strs += ['--force-reinstall']
+    print(" ".join(exec_strs))
+    result = _do_subprocess(exec_strs, "Install/Update", app)
+
+    try:
+        print("Deleting temp files")
+        os.remove(mek_zipfile_path)
+        shutil.rmtree(mek_zipfile_path + "_extracted")
+    except Exception:
+        print("failed to delete %s" % mek_zipfile_path)
+
+    return result
 
 def download_mek_to_folder(install_dir, src_url=None):
     global installer_updated
@@ -193,6 +233,7 @@ def download_mek_to_folder(install_dir, src_url=None):
 
     try: os.remove(mek_zipfile_path)
     except Exception: pass
+    installer_updated=False
 
     if installer_updated:
         messagebox.showinfo(
@@ -279,7 +320,8 @@ def uninstall(partial_uninstall=True, show_verbose=False, app=None):
 
 
 def install(install_path=None, force_reinstall=False,
-            install_mek_programs=False, show_verbose=False, app=None):
+            install_mek_programs=False, show_verbose=False, app=None,
+            install_from_repos=False):
     global installer_updated
     if not is_pip_installed(app):
         print("Pip doesnt appear to be installed for your version of Python.\n"
@@ -315,6 +357,13 @@ def install(install_path=None, force_reinstall=False,
                 exec_strs += ['--force-reinstall']
             print(" ".join(exec_strs))
             result |= _do_subprocess(exec_strs, "Install/Update", app)
+
+        if install_from_repos:
+            print("*"*80)
+            print("Installing packages from repos now")
+            for name in ("supyr_struct", "arbytmap", "binilla", "hek_pool", "reclaimer", "mozzarilla", "refinery"):
+                result |= install_package_from_github(install_path, name, show_verbose=show_verbose, app=app)
+            # Do install from repos.
 
     except Exception:
         print(traceback.format_exc())
@@ -372,7 +421,7 @@ class MekInstaller(tk.Tk):
 
     def __init__(self, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
-        self.title("MEK installer v%s.%s.%s" % (2,2,3))
+        self.title("MEK installer v%s.%s.%s" % (2,3,0))
         # Default scale == 1.333
         self.tk.call("tk", "scaling", "1.666")
         #self.geometry("480x400+0+0")
@@ -384,6 +433,7 @@ class MekInstaller(tk.Tk):
         self.portable          = tk.BooleanVar(self)
         self.partial_uninstall = tk.BooleanVar(self)
         self.show_error_info   = tk.BooleanVar(self)
+        self.install_from_repos= tk.BooleanVar(self)
 
         # make the frames
         self.install_dir_frame = tk.LabelFrame(self, text="MEK directory")
@@ -395,6 +445,7 @@ class MekInstaller(tk.Tk):
         self.inner_settings2 = tk.Frame(self.settings_frame)
         self.inner_settings3 = tk.Frame(self.settings_frame)
         self.inner_settings4 = tk.Frame(self.settings_frame)
+        self.inner_settings5 = tk.Frame(self.settings_frame)
 
         # add the filepath box
         self.install_dir_entry = tk.Entry(
@@ -429,6 +480,9 @@ class MekInstaller(tk.Tk):
         self.show_error_info_checkbox = tk.Checkbutton(
             self.inner_settings4, variable=self.show_error_info,
             text="show detailed information")
+        self.install_from_repos_checkbox = tk.Checkbutton(
+            self.inner_settings5, variable=self.install_from_repos,
+            text="install directly from github repos (BETA BUILDS) ### Experimental Feature ####")
 
         self.make_io_text()
 
@@ -441,6 +495,7 @@ class MekInstaller(tk.Tk):
         self.portable_checkbox.pack(side='left', fill='both')
         self.partial_uninstall_checkbox.pack(side='left', fill='both')
         self.show_error_info_checkbox.pack(side='left', fill='both')
+        self.install_from_repos_checkbox.pack(side='left', fill='both')
 
         self.install_btn.pack(side='left', fill='x', padx=10)
         self.uninstall_btn.pack(side='right', fill='x', padx=10)
@@ -454,6 +509,7 @@ class MekInstaller(tk.Tk):
         self.inner_settings2.pack(fill='both')
         self.inner_settings3.pack(fill='both')
         self.inner_settings4.pack(fill='both')
+        self.inner_settings5.pack(fill='both')
 
         self.io_frame.pack(fill='both', expand=True)
         if sys.version_info[0] < 3 or sys.version_info[1] < 3:
@@ -558,7 +614,8 @@ class MekInstaller(tk.Tk):
         return self.start_thread(install, install_dir,
                                  self.force_reinstall.get(),
                                  self.update_programs.get(),
-                                 self.show_error_info.get())
+                                 self.show_error_info.get(),
+                                 install_from_repos=self.install_from_repos.get())
 
 
 def run():
