@@ -372,8 +372,10 @@ class MekInstaller(tk.Tk):
 
     def __init__(self, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
-        self.title("MEK installer v2.2.2")
-        self.geometry("480x400+0+0")
+        self.title("MEK installer v%s.%s.%s" % (2,2,3))
+        # Default scale == 1.333
+        self.tk.call("tk", "scaling", "1.666")
+        #self.geometry("480x400+0+0")
         self.minsize(480, 300)
 
         self.install_dir = tk.StringVar(self, curr_dir)
