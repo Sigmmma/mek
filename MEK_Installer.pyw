@@ -48,7 +48,7 @@ mek_download_url = "https://github.com/MosesofEgypt/mek/archive/master.zip"
 
 # refinery requires mozzarilla(tag preview features and such), so we dont
 # need to specify it here as it will be installed anyway when refinery is.
-mek_program_package_names = ("refinery", "hek_pool", ) # "mozzarilla")
+mek_program_package_names = ("refinery", "hek_pool", "mozzarilla")
 mek_library_package_names = ("reclaimer", )
 program_package_names     = ("binilla", )
 library_package_names     = ("supyr_struct", "arbytmap", )
