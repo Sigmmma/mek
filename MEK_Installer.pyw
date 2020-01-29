@@ -233,7 +233,6 @@ def download_mek_to_folder(install_dir, src_url=None):
 
     try: os.remove(mek_zipfile_path)
     except Exception: pass
-    installer_updated=False
 
     if installer_updated:
         messagebox.showinfo(
