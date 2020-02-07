@@ -53,15 +53,6 @@ mek_library_package_names = ("reclaimer", )
 program_package_names     = ("binilla", )
 library_package_names     = ("supyr_struct", "arbytmap", )
 
-required_module_extensions = {
-    "arbytmap.ext": (
-        "arbytmap_ext",   "bitmap_io_ext",    "dds_defs_ext",
-        "raw_packer_ext", "raw_unpacker_ext", "swizzler_ext"),
-    "reclaimer.sounds.ext": (
-        "adpcm_ext",
-        )
-    }
-
 if "linux" in platform.lower():
     platform = "linux"
 
@@ -320,27 +311,6 @@ def install(install_path=None, force_reinstall=False,
         print(traceback.format_exc())
 
     print("-"*10 + " Finished " + "-"*10 + "\n")
-    if platform != "linux":
-        successes = []
-
-        for mod_path, attrs in required_module_extensions.items():
-            successes.append(is_module_fully_installed(mod_path, attrs))
-            if not successes[-1]:
-                print("%s did not fully compile its C extensions." % mod_path)
-
-        if sum(successes) != len(successes):
-            messagebox.showinfo(
-                "Accelerator modules were not compiled",
-                "The Visual Studio build tools are required for the "
-                "accelerator modules these programs utilize to be compiled.\n\n"
-                "These accelerators make certain things possible, like bitmap viewing. "
-                "Most of the MEK will still work fine without them, but anything "
-                "that utilizes them will be significantly slower. Some functionality "
-                "may also be missing without them, such as XBADPCM encoding.\n\n"
-
-                "Our Discord server can be joined with this link:\n\thttps://discord.gg/srA4RqP\n"
-                )
-
     return result
 
 
@@ -372,7 +342,7 @@ class MekInstaller(tk.Tk):
 
     def __init__(self, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
-        self.title("MEK installer v2.2.2")
+        self.title("MEK installer v2.2.3")
         self.geometry("480x400+0+0")
         self.minsize(480, 300)
 
