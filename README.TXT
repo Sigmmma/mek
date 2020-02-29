@@ -47,5 +47,5 @@ Window's User Account Control is very picky and mean about how things get edited
 in protected folders.
 
 * If you changed config settings and now a program wont load or the gui is too messed up
-up to easily use, delete the config file. Config files for Refinery, Mozzarilla, and Pool
-are located in:  .\mek_config
+up to easily use, delete the config files. Config files for Refinery, Mozzarilla, and Pool
+are located in: mek_config
