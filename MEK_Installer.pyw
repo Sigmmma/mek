@@ -372,6 +372,7 @@ class MekInstaller(tk.Tk):
         self.title(title)
         # Default scale == 1.333
         self.tk.call("tk", "scaling", "1.666")
+        self.minsize(480, 300)
 
         self.install_dir = tk.StringVar(self, curr_dir)
         self.force_reinstall   = tk.BooleanVar(self, 1)
