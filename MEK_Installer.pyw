@@ -44,7 +44,7 @@ installer_updated = False
 
 mek_lib_dirname = "mek_lib"
 curr_dir = os.path.abspath(os.curdir)
-mek_download_url = "https://github.com/MosesofEgypt/mek/archive/master.zip"
+mek_download_url = "https://github.com/Sigmmma/mek/archive/master.zip"
 
 # refinery requires mozzarilla(tag preview features and such), so we dont
 # need to specify it here as it will be installed anyway when refinery is.
@@ -56,10 +56,8 @@ library_package_names     = ("supyr_struct", "arbytmap", )
 if "linux" in platform.lower():
     platform = "linux"
 
-if platform == "linux":
-    pip_exec_name = ["python3", "-m", "pip"]
-else:
-    pip_exec_name = ["pip"]
+# This makes sure we install the MEK with the same Python as the installer was run.
+pip_exec_name = [sys.executable, "-m", "pip"]
 
 
 #####################################################
@@ -111,12 +109,6 @@ def _do_subprocess(exec_strs, action="Action", app=None, printout=True):
 
         if result:
             print("  Error code: %02x" % result)
-
-        if result and "python" not in exec_strs[0]:
-            print("  %s failed. Trying with different arguments." % action)
-            exec_strs = ("python", "-m") + exec_strs
-        else:
-            break
 
     if result:
         print("  %s failed.\n" % action)
@@ -342,7 +334,7 @@ class MekInstaller(tk.Tk):
 
     def __init__(self, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
-        self.title("MEK installer v2.2.3")
+        self.title("MEK installer v2.3.0")
         self.geometry("480x400+0+0")
         self.minsize(480, 300)
 
