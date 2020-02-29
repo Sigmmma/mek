@@ -16,7 +16,8 @@ except ImportError: pass
 try:
     try:
         from refinery.__main__ import main
-        main()
+        if main():
+            input()
     except ImportError:
         input("Refinery is not (properly) installed. Install it with the MEK installer to fix this.")
 except SystemExit:
