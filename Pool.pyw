@@ -15,8 +15,9 @@ except ImportError: pass
 
 try:
     try:
-        from hek_pool.run import *
+        from hek_pool.__main__ import main
+        main()
     except ImportError:
-        input("Pool is not installed. Install it with the MEK installer to fix this.")
+        input("Pool is not (properly) installed. Install it with the MEK installer to fix this.")
 except SystemExit:
     pass
