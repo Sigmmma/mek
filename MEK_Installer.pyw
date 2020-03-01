@@ -5,13 +5,24 @@ import os
 import subprocess
 import sys
 import traceback
-import zipfile
+
+from argparse import ArgumentParser
+from io import StringIO
+from os import path
+from sys import platform
+from threading import Thread
+from urllib import request
+from zipfile import ZipFile
 
 try:
     import tkinter as tk
+    from tkinter import messagebox
+    from tkinter.filedialog import askdirectory
 except:
     try:
         import Tkinter as tk
+        from Tkinter import messagebox
+        from Tkinter.filedialog import askdirectory
     except:
         # Try as hard as inhumanly possible to tell the user that tkinter isn't on their system.
         NO_TK_ERR = "You cannot run the installer without having tkinter installed system wide"
@@ -31,20 +42,13 @@ except:
             input()
         SystemExit(-1)
 
-from threading import Thread
-from tkinter import messagebox
-from tkinter.filedialog import askdirectory
-from io import StringIO
-from os import path
-from sys import platform
-from urllib import request
+MEK_LIB_DIRNAME = "mek_lib"
+MEK_DOWNLOAD_URL = "https://github.com/Sigmmma/mek/archive/master.zip"
 
 global installer_updated
 installer_updated = False
 
-mek_lib_dirname = "mek_lib"
 curr_dir = os.path.abspath(os.curdir)
-mek_download_url = "https://github.com/Sigmmma/mek/archive/master.zip"
 
 # refinery requires mozzarilla(tag preview features and such), so we dont
 # need to specify it here as it will be installed anyway when refinery is.
@@ -153,7 +157,7 @@ def download_mek_to_folder(install_dir, src_url=None):
     global installer_updated
 
     if src_url is None:
-        src_url = mek_download_url
+        src_url = MEK_DOWNLOAD_URL
     print('Downloading newest version of MEK from: "%s"' % src_url)
 
     mek_zipfile_path, _ = request.urlretrieve(src_url)
@@ -178,7 +182,7 @@ def download_mek_to_folder(install_dir, src_url=None):
     new_installer_path = None
 
     print('Unpacking MEK to "%s"' % install_dir)
-    with zipfile.ZipFile(mek_zipfile_path) as mek_zipfile:
+    with ZipFile(mek_zipfile_path) as mek_zipfile:
         for zip_name in mek_zipfile.namelist():
             # ignore the root directory of the zipfile
             filepath = zip_name.split("/", 1)[-1]
@@ -315,7 +319,7 @@ def install(install_path=None, force_reinstall=False,
                 return
 
         if install_path is not None:
-            install_path = os.path.join(install_path, mek_lib_dirname)
+            install_path = os.path.join(install_path, MEK_LIB_DIRNAME)
 
         ensure_setuptools_installed(app)
         for mod in mek_program_package_names:
@@ -476,7 +480,7 @@ class MekInstaller(tk.Tk):
         is_empty_dir = True
         try:
             install_dir = self.install_dir.get() if self.portable.get() else curr_dir
-            if os.path.isdir(os.path.join(install_dir, mek_lib_dirname)):
+            if os.path.isdir(os.path.join(install_dir, MEK_LIB_DIRNAME)):
                 is_empty_dir = False
         except Exception:
             pass
