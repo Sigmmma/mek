@@ -100,11 +100,13 @@ def _do_subprocess(exec_strs, action="Action", app=None, printout=True):
             print("-"*80)
             print("%s "*len(exec_strs) % exec_strs)
 
-        p = subprocess.Popen(exec_strs, stdout=subprocess.PIPE, universal_newlines=True)
+        p = subprocess.Popen(exec_strs, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
         if printout:
             for stdout_line in iter(p.stdout.readline, ""):
                 print(stdout_line)
-        popen.stdout.close()
+            for stdout_line in iter(p.stderr.readline, ""):
+                print(stdout_line)
+        p.stdout.close()
         result = p.wait()
 
     except Exception:
