@@ -44,11 +44,11 @@ except:
 
 MEK_LIB_DIRNAME = "mek_lib"
 MEK_DOWNLOAD_URL = "https://github.com/Sigmmma/mek/archive/master.zip"
+VERSION = (2,3,0)
+VERSION_STR = "v%s.%s.%s" % VERSION
 
 global installer_updated
 installer_updated = False
-
-curr_dir = os.path.abspath(os.curdir)
 
 # refinery requires mozzarilla(tag preview features and such), so we dont
 # need to specify it here as it will be installed anyway when refinery is.
@@ -67,33 +67,24 @@ pip_exec_name = [sys.executable, "-m", "pip"]
 # Embedded installer initialization
 #####################################################
 
+parser = ArgumentParser(description='The installer/updater for the MEK. Version %s' % VERSION_STR)
+parser.add_argument('--version', action='version', version=VERSION_STR)
+parser.add_argument('--install-dir', help='Enforce what directory we download the MEK to.')
+parser.add_argument('--disable-uninstall-btn', action='store_true', help='Disable the uninstall button.')
+parser.add_argument('--essentials-version', help='The version of the MEK Essentials that launched the installer.')
+cmd_args = parser.parse_args()
+
+INSTALL_DIR          = path.abspath(cmd_args.install_dir or os.curdir)
+CAN_PICK_INSTALL_DIR = not bool(cmd_args.install_dir)
+HIDE_UNINSTALL_BTN   = cmd_args.disable_uninstall_btn
+ESSENTIALS_VERSION   = cmd_args.essentials_version or None
+
 # This is for the embedded updater. We disable certain features if we detect
 # that we are embedded.
-essentials = False
+IS_ESSENTIALS = ESSENTIALS_VERSION is not None
 # The version string is currently unused. But it might become useful in the
 # future to signal that the whole essentials install needs to be removed
 # and updated.
-essentials_version = ""
-
-ESSENTIALS_PREFIX = "--essentials"
-essentials_args = tuple(map(lambda e: e[len(ESSENTIALS_PREFIX): ], filter(lambda e: e.startswith(ESSENTIALS_PREFIX), sys.argv)))
-if essentials_args:
-    essentials = True
-
-    essentials_install_dir = tuple(filter(lambda e: e.startswith("-dir="), essentials_args))
-    if essentials_install_dir:
-        curr_dir = essentials_install_dir[0][len("-dir="): ]
-    else:
-        print("Incorrectly invoked essentials version of updater.")
-        sys.exit(-1)
-
-    essentials_version = tuple(filter(lambda e: e.startswith("-version="), essentials_args))
-    if essentials_version:
-        essentials_version = essentials_version[0][len("-version="): ]
-    else:
-        print("Incorrectly invoked essentials version of updater.")
-        sys.exit(-1)
-
 
 #####################################################
 # Utility functions
@@ -190,12 +181,12 @@ def download_mek_to_folder(install_dir, src_url=None):
                 continue
 
             try:
-                filepath = os.path.join(install_dir, filepath)
+                filepath = path.join(install_dir, filepath)
                 if os.sep == "\\":
                     filepath = filepath.replace("/", "\\")
 
                 filename = filepath.split(os.sep)[-1]
-                os.makedirs(os.path.dirname(filepath), exist_ok=True)
+                os.makedirs(path.dirname(filepath), exist_ok=True)
 
                 with mek_zipfile.open(zip_name) as zf, open(filepath, "wb+") as f:
                     filedata = zf.read()
@@ -309,7 +300,7 @@ def install(install_path=None, force_reinstall=False,
     result = 0
     try:
         if install_mek_programs:
-            install_dir = install_path if install_path else curr_dir
+            install_dir = install_path if install_path else INSTALL_DIR
             try:
                 download_mek_to_folder(install_dir)
             except Exception:
@@ -319,7 +310,7 @@ def install(install_path=None, force_reinstall=False,
                 return
 
         if install_path is not None:
-            install_path = os.path.join(install_path, MEK_LIB_DIRNAME)
+            install_path = path.join(install_path, MEK_LIB_DIRNAME)
 
         ensure_setuptools_installed(app)
         for mod in mek_program_package_names:
@@ -369,16 +360,15 @@ class MekInstaller(tk.Tk):
 
     def __init__(self, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
-        version = "v2.3.0"
-        title = "MEK installer "+version
-        if essentials:
-            title = "MEK Essentials Updater "+version+" - Essentials Version "+essentials_version
+        title = "MEK installer "+VERSION_STR
+        if ESSENTIALS_VERSION:
+            title = "MEK Essentials Updater %s - Essentials %s" % (VERSION_STR, ESSENTIALS_VERSION)
         self.title(title)
         # Default scale == 1.333
         self.tk.call("tk", "scaling", "1.666")
         self.minsize(480, 300)
 
-        self.install_dir = tk.StringVar(self, curr_dir)
+        self.install_dir = tk.StringVar(self, INSTALL_DIR)
         self.force_reinstall   = tk.BooleanVar(self, 1)
         self.update_programs   = tk.BooleanVar(self, 1)
         self.portable          = tk.BooleanVar(self)
@@ -396,21 +386,22 @@ class MekInstaller(tk.Tk):
         self.inner_settings3 = tk.Frame(self.settings_frame)
         self.inner_settings4 = tk.Frame(self.settings_frame)
 
-        if not essentials:
-            # add the filepath box
-            self.install_dir_entry = tk.Entry(
-                self.install_dir_frame, textvariable=self.install_dir)
-            self.install_dir_entry.config(width=55, state='disabled')
+        # add the filepath box
+        self.install_dir_entry = tk.Entry(
+            self.install_dir_frame, textvariable=self.install_dir)
+        self.install_dir_entry.config(width=55, state='disabled')
 
-            # add the buttons
+        # add the buttons
+        if CAN_PICK_INSTALL_DIR:
             self.install_dir_browse_btn = tk.Button(
                 self.install_dir_frame, text="Browse",
                 width=6, command=self.install_dir_browse)
 
         self.install_btn = tk.Button(
-            self.actions_frame, text="Install/Update" if not essentials else "Update/Repair",
+            self.actions_frame, text=(
+            "Install/Update" if not IS_ESSENTIALS else "Update/Repair"),
             width=20, command=self.install)
-        if not essentials:
+        if not HIDE_UNINSTALL_BTN:
             self.uninstall_btn = tk.Button(
                 self.actions_frame, text="Uninstall",
                 width=20, command=self.uninstall)
@@ -419,12 +410,13 @@ class MekInstaller(tk.Tk):
         self.force_reinstall_checkbox = tk.Checkbutton(
             self.inner_settings0, variable=self.force_reinstall,
             text="force reinstall when updating libraries")
-        self.update_programs_checkbox = tk.Checkbutton(
-            self.inner_settings1, variable=self.update_programs, command=self.validate_mek_dir,
-            text="install up-to-date MEK")
-        if not essentials:
+        if not IS_ESSENTIALS:
+            self.update_programs_checkbox = tk.Checkbutton(
+                self.inner_settings1, variable=self.update_programs,
+                command=self.validate_mek_dir, text="install up-to-date MEK")
             self.portable_checkbox = tk.Checkbutton(
-                self.inner_settings2, variable=self.portable, command=self.validate_mek_dir,
+                self.inner_settings2, variable=self.portable,
+                command=self.validate_mek_dir,
                 text="portable install (installs to/updates the 'MEK directory' above)")
             self.partial_uninstall_checkbox = tk.Checkbutton(
                 self.inner_settings3, variable=self.partial_uninstall,
@@ -436,23 +428,24 @@ class MekInstaller(tk.Tk):
         self.make_io_text()
 
         # pack everything
-        if not essentials:
-            self.install_dir_entry.pack(side='left', fill='x', expand=True)
+
+        self.install_dir_entry.pack(side='left', fill='x', expand=True)
+        if CAN_PICK_INSTALL_DIR:
             self.install_dir_browse_btn.pack(side='left', fill='both')
 
         self.force_reinstall_checkbox.pack(side='left', fill='both')
-        self.update_programs_checkbox.pack(side='left', fill='both')
-        if not essentials:
+        if not IS_ESSENTIALS:
+            self.update_programs_checkbox.pack(side='left', fill='both')
             self.portable_checkbox.pack(side='left', fill='both')
+        if not HIDE_UNINSTALL_BTN:
             self.partial_uninstall_checkbox.pack(side='left', fill='both')
         self.show_error_info_checkbox.pack(side='left', fill='both')
 
         self.install_btn.pack(side='left', fill='x', padx=10)
-        if not essentials:
+        if not HIDE_UNINSTALL_BTN:
             self.uninstall_btn.pack(side='right', fill='x', padx=10)
 
-        if not essentials:
-            self.install_dir_frame.pack(fill='x')
+        self.install_dir_frame.pack(fill='x')
         self.settings_frame.pack(fill='both')
         self.actions_frame.pack(fill='both')
 
@@ -479,8 +472,8 @@ class MekInstaller(tk.Tk):
     def validate_mek_dir(self, e=None):
         is_empty_dir = True
         try:
-            install_dir = self.install_dir.get() if self.portable.get() else curr_dir
-            if os.path.isdir(os.path.join(install_dir, MEK_LIB_DIRNAME)):
+            install_dir = self.install_dir.get() if self.portable.get() else INSTALL_DIR
+            if path.isdir(path.join(install_dir, MEK_LIB_DIRNAME)):
                 is_empty_dir = False
         except Exception:
             pass
