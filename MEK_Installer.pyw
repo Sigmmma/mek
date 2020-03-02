@@ -182,10 +182,8 @@ def download_mek_to_folder(install_dir, src_url=None):
 
             try:
                 filepath = path.join(install_dir, filepath)
-                if os.sep == "\\":
-                    filepath = filepath.replace("/", "\\")
 
-                filename = filepath.split(os.sep)[-1]
+                filename = filepath.split("/")[-1]
                 os.makedirs(path.dirname(filepath), exist_ok=True)
 
                 with mek_zipfile.open(zip_name) as zf, open(filepath, "wb+") as f:
