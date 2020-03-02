@@ -220,7 +220,7 @@ def is_pip_installed(app):
     if platform == "linux":
         return True
     print("Checking that Pip is installed")
-    return not ("No module named" in subprocess.run(pip_exec_name, capture_output=True).stdout)
+    return not bool(subprocess.run(pip_exec_name).returncode)
 
 
 def is_module_fully_installed(mod_path, attrs):
