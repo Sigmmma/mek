@@ -165,12 +165,11 @@ def download_mek_to_folder(install_dir, src_url=None):
             try:
                 filepath = path.join(install_dir, filepath)
 
-                filename = filepath.split("/")[-1]
                 os.makedirs(path.dirname(filepath), exist_ok=True)
 
                 with mek_zipfile.open(zip_name) as zf, open(filepath, "wb+") as f:
                     filedata = zf.read()
-                    if setup_filename == filename.lower() and filedata != setup_file_data:
+                    if filepath.lower().endswith(setup_filename) and filedata != setup_file_data:
                         # NOTE: Comment out the next line if testing installer
                         installer_updated = True
                         new_installer_path = filepath
