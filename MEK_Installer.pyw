@@ -90,6 +90,9 @@ IS_ESSENTIALS = ESSENTIALS_VERSION is not None
 # Utility functions
 #####################################################
 def _do_subprocess(exec_strs, action="Action", app=None, printout=True):
+    '''
+    Run a subprocess and print the output.
+    '''
     exec_strs = tuple(exec_strs)
     if app is not None and getattr(app, "_running_thread", 1) is None:
         raise SystemExit(0)
@@ -127,6 +130,10 @@ def _do_subprocess(exec_strs, action="Action", app=None, printout=True):
 
 
 def download_mek_to_folder(install_dir, src_url=None):
+    '''
+    Downloads the mek scripts from the mek repo master and extracts them into
+    install_dir.
+    '''
     global installer_updated
 
     if src_url is None:
@@ -142,8 +149,6 @@ def download_mek_to_folder(install_dir, src_url=None):
 
     setup_filepath = '' if "__file__" not in globals() else __file__
     setup_filepath = setup_filepath.lower()
-    if os.sep == "\\":
-        setup_filepath = setup_filepath.replace("/", "\\")
     setup_filename = setup_filepath.split(os.sep)[-1]
 
     try:
@@ -191,6 +196,9 @@ def download_mek_to_folder(install_dir, src_url=None):
 
 
 def ensure_setuptools_installed(app):
+    '''
+    Ensure that setuptools is installed by simply installing it.
+    '''
     print("Ensuring setuptools is installed")
     return _do_subprocess(
         (*pip_exec_name, "install", "setuptools"),
@@ -198,6 +206,9 @@ def ensure_setuptools_installed(app):
 
 
 def is_pip_installed(app):
+    '''
+    Check if pip is installed by seeing the return code from trying to execute it.
+    '''
     if platform == "linux":
         return True
     print("Checking that Pip is installed")
@@ -246,7 +257,7 @@ def uninstall(partial_uninstall=True, show_verbose=False, app=None):
         return
 
     try:
-        # by default we wont uninstall supyr_struct, arbtmap, or
+        # by default we wont uninstall supyr_struct, arbytmap, or
         # binilla since they may be needed by other applications
         modules = list(mek_program_package_names + mek_library_package_names)
         if not partial_uninstall:
@@ -330,7 +341,7 @@ class IORedirecter(StringIO):
 
 class MekInstaller(tk.Tk):
     '''
-    This class provides an interface for installing, uninstalling,
+    This class provides a graphical interface for installing, uninstalling,
     and updating the libraries and programs that the MEK relies on.
     '''
     _running_thread = None
