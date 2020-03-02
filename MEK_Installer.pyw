@@ -91,53 +91,32 @@ IS_ESSENTIALS = ESSENTIALS_VERSION is not None
 #####################################################
 def _do_subprocess(exec_strs, action="Action", app=None, printout=True):
     exec_strs = tuple(exec_strs)
-    while True:
-        if app is not None and getattr(app, "_running_thread", 1) is None:
-            raise SystemExit(0)
+    if app is not None and getattr(app, "_running_thread", 1) is None:
+        raise SystemExit(0)
 
-        result = 1
-        try:
-            if printout:
-                print("-"*80)
-                print("%s "*len(exec_strs) % exec_strs)
+    result = 1
+    try:
+        if printout:
+            print("-"*80)
+            print("%s "*len(exec_strs) % exec_strs)
 
-            result = None
-            if platform == "linux":
-                res = subprocess.run(exec_strs,
-                    capture_output=True, universal_newlines=True)
-                result = res.returncode
-                print(res.stdout)
-                print(res.stderr)
-            else:
-                with subprocess.Popen(exec_strs, stdout=subprocess.PIPE,
-                                      stderr=subprocess.PIPE, shell=True) as p:
-                    if app is not None:
-                        try:
-                            for line in p.stdout:
-                                if printout:
-                                    print(line.decode("latin-1"), end='')
-                        except:
-                            p.kill()
-                            p.wait()
-                            raise
-                    else:
-                        while p.poll() is None:
-                            # wait until the process has finished
-                            pass
+        p = subprocess.Popen(cmd, stdout=subprocess.PIPE, universal_newlines=True)
+        if printout:
+            for stdout_line in iter(p.stdout.readline, ""):
+                print(stdout_line)
+        popen.stdout.close()
+        result = p.wait()
 
-                result = p.wait()
-        except Exception:
-            if printout:
-                print(traceback.format_exc())
+    except Exception:
+        if printout:
+            print(traceback.format_exc())
 
-        if app is not None and getattr(app, "_running_thread", 1) is None:
-            raise SystemExit(0)
-
-        if result:
-            print("  Error code: %02x" % result)
+    if app is not None and getattr(app, "_running_thread", 1) is None:
+        raise SystemExit(0)
 
     if result:
         print("  %s failed.\n" % action)
+        print("  Error code: %02x" % result)
     else:
         print("  %s succeeded.\n" % action)
 
@@ -212,7 +191,7 @@ def download_mek_to_folder(install_dir, src_url=None):
 def ensure_setuptools_installed(app):
     print("Ensuring setuptools is installed")
     return _do_subprocess(
-        (*pip_exec_name, "install", "setuptools", "--no-cache-dir"),
+        (*pip_exec_name, "install", "setuptools"),
         "Ensure setuptools", app)
 
 
@@ -288,8 +267,9 @@ def install(install_path=None, force_reinstall=False,
     global installer_updated
     if not is_pip_installed(app):
         print("Pip doesnt appear to be installed for your version of Python.\n"
-              "Run your Python installer again, make sure 'Install Pip' is "
-              "checked, and complete the installation.\n"
+              "You can install it using get_pip.py in the MEK directory.\n\n"
+              "You can also run your Python installer again, and make sure "
+              "'Install Pip' is checked, and complete the installation.\n"
               "If this doesnt help, consult the Google senpai.")
         return
 
