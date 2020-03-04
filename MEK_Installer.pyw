@@ -73,7 +73,7 @@ basename = path.basename(PY_EXE)
 if basename.lower() == "pythonw.exe":
     basename = "python.exe"
     new_path = path.join(parent_dir, basename)
-    path.exists(new_path)
+    print(new_path)
     if path.exists(new_path):
         PY_EXE = path.join(parent_dir, basename)
     else:
