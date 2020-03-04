@@ -226,6 +226,7 @@ def is_pip_installed(app):
     Check if pip is installed by seeing the return code from trying to execute it.
     '''
     global pip_exec_name
+    global IS_ESSENTIALS
 
     if platform == "linux":
         return True
@@ -238,17 +239,22 @@ def is_pip_installed(app):
 
     # Because life isn't fair.
 
-    pip_patterns = (
-        pip_exec_name,
-        [PY_EXE, "-m", "pip"],
-        [PY_EXE, f],
-        ["python3", "-m", "pip"],
-        ["python3", f],
-        ["pip3"],
-        ["python", "-m", "pip"],
-        ["python", f],
-        ["pip"],
-    )
+    if not IS_ESSENTIALS:
+        pip_patterns = (
+            pip_exec_name,
+            [PY_EXE, "-m", "pip"],
+            [PY_EXE, f],
+            ["python3", "-m", "pip"],
+            ["python3", f],
+            ["pip3"],
+            ["python", "-m", "pip"],
+            ["python", f],
+            ["pip"],
+        )
+    else:
+        # MEK Essentials comes with its own python install which should work
+        # properly.
+        pip_patterns = (pip_exec_name,)
 
     for pattern in pip_patterns:
         print("Trying:", pattern, "...", end="")
