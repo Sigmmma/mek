@@ -242,8 +242,10 @@ def is_pip_installed(app):
         [PY_EXE, f],
         ["python3", "-m", "pip"],
         ["python3", f],
+        ["pip3"],
         ["python", "-m", "pip"],
         ["python", f],
+        ["pip"],
     )
 
     for pattern in pip_patterns:
