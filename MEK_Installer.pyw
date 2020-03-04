@@ -235,6 +235,7 @@ def is_pip_installed(app):
 
     try:
         from pip import __file__ as f
+        f = path.join(path.dirname(f), "__main__.py")
     except Exception:
         f = "NOT FOUND"
 
