@@ -88,6 +88,7 @@ parser.add_argument('--version', action='version', version=VERSION_STR)
 parser.add_argument('--install-dir', help='Enforce what directory we download the MEK to.')
 parser.add_argument('--disable-uninstall-btn', action='store_true', help='Disable the uninstall button.')
 parser.add_argument('--essentials-version', help='The version of the MEK Essentials that launched the installer.')
+parser.add_argument('--meke-dir', help='The directory where the MEKe files are located.') # For the future.
 cmd_args = parser.parse_args()
 
 INSTALL_DIR          = path.abspath(cmd_args.install_dir or os.curdir)
