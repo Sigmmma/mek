@@ -60,8 +60,31 @@ library_package_names     = ("supyr_struct", "arbytmap", )
 if "linux" in platform.lower():
     platform = "linux"
 
+PY_EXE = sys.executable
+
+#####################################################
+# Windows hack
+# You can't run pip from pythonw, only from python.
+#####################################################
+
+parent_dir = path.dirname(PY_EXE)
+basename = path.basename(PY_EXE)
+
+if basename.lower() == "pythonw.exe":
+    basename = "python.exe"
+    new_path = path.join(parent_dir, basename)
+    path.exists(new_path)
+    if path.exists(new_path):
+        PY_EXE = path.join(parent_dir, basename)
+    else:
+        PY_EXE = "python"
+    del new_path
+
+del parent_dir, basename
+
+
 # This makes sure we install the MEK with the same Python as the installer was run.
-pip_exec_name = [sys.executable, "-m", "pip"]
+pip_exec_name = [PY_EXE, "-m", "pip"]
 
 #####################################################
 # Embedded installer initialization
@@ -242,6 +265,31 @@ def is_module_fully_installed(mod_path, attrs):
     for attr in attrs:
         result &= hasattr(mod, attr)
     return result
+
+def print_diagnostics():
+    not_found = "NOT FOUND"
+    error = "ERROR"
+    print("----- Diagnostic Info -----")
+    print("Python:", sys.version_info)
+    print("64-bit:", sys.maxsize > 2**32)
+    print("Python executable:", sys.executable)
+    print("Chosen executable:", PY_EXE)
+    print("Mek Installer version:", VERSION_STR)
+    try:
+        from pip import __version__ as v
+    except ImportError:
+        v = not_found
+    except Exception:
+        v = error
+    print("pip:", v)
+    try:
+        from setuptools import __version__ as v
+    except ImportError:
+        v = not_found
+    except Exception:
+        v = error
+    print("setuptools:", v)
+    print("--------------------------")
 
 
 #####################################################
@@ -455,6 +503,7 @@ class MekInstaller(tk.Tk):
                 "running python files is %s.%s.%s\n\n") % tuple(sys.version_info[:3]) * 2
                 )
             self.destroy()
+        print_diagnostics()
         self.alive = True
         self.validate_mek_dir()
 
