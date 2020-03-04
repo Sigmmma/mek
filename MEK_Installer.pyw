@@ -71,14 +71,7 @@ parent_dir = path.dirname(PY_EXE)
 basename = path.basename(PY_EXE)
 
 if basename.lower() == "pythonw.exe":
-    basename = "python.exe"
-    new_path = path.join(parent_dir, basename)
-    print(new_path)
-    if path.exists(new_path):
-        PY_EXE = path.join(parent_dir, basename)
-    else:
-        PY_EXE = "python"
-    del new_path
+    PY_EXE = path.join(parent_dir, "python.exe")
 
 del parent_dir, basename
 
