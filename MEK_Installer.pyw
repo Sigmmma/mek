@@ -225,6 +225,8 @@ def is_pip_installed(app):
     '''
     Check if pip is installed by seeing the return code from trying to execute it.
     '''
+    global pip_exec_name
+
     if platform == "linux":
         return True
     print("Picking a pip executable")
