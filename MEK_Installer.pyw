@@ -227,8 +227,35 @@ def is_pip_installed(app):
     '''
     if platform == "linux":
         return True
-    print("Checking that Pip is installed")
-    return not bool(subprocess.run(pip_exec_name).returncode)
+    print("Picking a pip executable")
+
+    try:
+        from pip import __file__ as f
+    except Exception:
+        f = "NOT FOUND"
+
+    # Because life isn't fair.
+
+    pip_patterns = (
+        pip_exec_name,
+        [PY_EXE, "-m", "pip"],
+        [PY_EXE, f],
+        ["python3", "-m", "pip"],
+        ["python3", f],
+        ["python", "-m", "pip"],
+        ["python", f],
+    )
+
+    for pattern in pip_patterns:
+        print("Trying:", pattern, "...", end="")
+        if not bool(subprocess.run(pattern).returncode):
+            print("success!")
+            pip_exec_name = pattern
+            return True
+        else:
+            print("fail.")
+
+    return False
 
 
 def is_module_fully_installed(mod_path, attrs):
