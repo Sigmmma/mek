@@ -51,7 +51,7 @@ mek_download_url = "https://github.com/MosesofEgypt/mek/archive/master.zip"
 mek_program_package_names = ("refinery", "hek_pool", ) # "mozzarilla")
 mek_library_package_names = ("reclaimer", )
 program_package_names     = ("binilla", )
-library_package_names     = ("supyr_struct", "arbytmap", )
+library_package_names     = ("supyr_struct", "arbytmap", "tatsu", )
 
 if "linux" in platform.lower():
     platform = "linux"
