@@ -91,13 +91,17 @@ WRL_PARSER = tatsu.compile("""
     float = /-?\\d+\\.\\d+/ ;
 """)
 
-# Given a string of the WRL content, returns its abstract syntax tree.
 def parse_wrl_to_ast(wrl_content):
+    '''
+    Given a string of the WRL content, returns its abstract syntax tree.
+    '''
     return WRL_PARSER.parse(wrl_content)
 
-# Translates the WRL input stream to an OBJ output stream.
-# The caller is responsible for closing streams.
 def convert_wrl_to_obj(input_stream, output_stream):
+    '''
+    Translates the WRL input stream to an OBJ output stream.
+    The caller is responsible for closing streams.
+    '''
     def output(line):
         print(line, file=output_stream)
 
