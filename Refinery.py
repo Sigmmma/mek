@@ -4,9 +4,9 @@ import sys
 
 info = sys.version_info
 
-if info[0] < 3:
+if info[0] < 3 or (info[0] == 3 and info[1] < 5):
     input(
-        "You must have python 3.5 or higher installed to run Mozzarilla.\n"
+        "You must have python 3.5 or higher installed to run Refinery.\n"
         "You currently have %s.%s.%s installed instead." % info[:3])
     raise SystemExit(0)
 
@@ -15,8 +15,10 @@ except ImportError: pass
 
 try:
     try:
-        from refinery.run import *
+        from refinery.__main__ import main
+        if main():
+            input()
     except ImportError:
-        input("Refinery is not installed. Install it with the MEK installer to fix this.")
+        input("Refinery is not (properly) installed. Install it with the MEK installer to fix this.")
 except SystemExit:
     pass

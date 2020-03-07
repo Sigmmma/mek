@@ -9,3 +9,8 @@
 **.ini
 **.ico
 mek_config/
+
+# Include the init file in lib but exclude the lib folder.
+!mek_lib/
+mek_lib/*
+!mek_lib/__init__.py
