@@ -44,7 +44,7 @@ except:
 
 MEK_LIB_DIRNAME = "mek_lib"
 MEK_DOWNLOAD_URL = "https://github.com/Sigmmma/mek/archive/master.zip"
-VERSION = (2,3,0)
+VERSION = (2,3,1)
 VERSION_STR = "v%s.%s.%s" % VERSION
 
 global installer_updated
@@ -386,7 +386,7 @@ def install(install_path=None, force_reinstall=False,
             exec_strs = [*pip_exec_name, "install", mod,
                          "--upgrade", "--no-cache-dir"]
             if install_path is not None:
-                exec_strs += ['--target=%r' % install_path]
+                exec_strs += ['--target=%s' % install_path]
             if show_verbose:
                 exec_strs += ['--verbose']
             if force_reinstall:
