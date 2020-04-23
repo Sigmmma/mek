@@ -14,6 +14,9 @@ from threading import Thread
 from urllib import request
 from zipfile import ZipFile
 
+PYTHON_MIN_MAJOR_VER = 3
+PYTHON_MIN_MINOR_VER = 6
+
 try:
     import tkinter as tk
     from tkinter import messagebox
@@ -44,7 +47,7 @@ except:
 
 MEK_LIB_DIRNAME = "mek_lib"
 MEK_DOWNLOAD_URL = "https://github.com/Sigmmma/mek/archive/master.zip"
-VERSION = (2,3,1)
+VERSION = (2,3,2)
 VERSION_STR = "v%s.%s.%s" % VERSION
 
 global installer_updated
@@ -437,6 +440,18 @@ class MekInstaller(tk.Tk):
         self.tk.call("tk", "scaling", "1.666")
         self.minsize(480, 300)
 
+        if ((sys.version_info[0] == PYTHON_MIN_MAJOR_VER and sys.version_info[1] < PYTHON_MIN_MINOR_VER) or
+            sys.version_info[0] < PYTHON_MIN_MAJOR_VER):
+            messagebox.showinfo(
+            "Your version of Python is too old",
+            "The minimum required version of Python for the MEK is %d.%d.\n"
+            "You have version %d.%d, which is behind that by %d major versions and %d minor versions.\n\n"
+            "Get a newer version at www.python.org if you're on Windows, or your package manager if you are on Linux.\n\n"
+            "If you believe you have a new enough version then make sure that you're running the right Python on your system."
+            % (PYTHON_MIN_MAJOR_VER, PYTHON_MIN_MINOR_VER, sys.version_info[0], sys.version_info[1], PYTHON_MIN_MAJOR_VER - sys.version_info[0], PYTHON_MIN_MINOR_VER - sys.version_info[1])
+            )
+            sys.exit(1)
+
         self.install_dir = tk.StringVar(self, INSTALL_DIR)
         self.force_reinstall   = tk.BooleanVar(self, 1)
         self.update_programs   = tk.BooleanVar(self, 1)
@@ -525,16 +540,6 @@ class MekInstaller(tk.Tk):
         self.inner_settings4.pack(fill='both')
 
         self.io_frame.pack(fill='both', expand=True)
-        if sys.version_info[0] < 3 or sys.version_info[1] < 3:
-            messagebox.showinfo(
-                "Incompatible python version",
-                ("The MEK requires python 3.5.0 or higher to be installed.\n"
-                "You are currently running version %s.%s.%s\n\n"
-                "If you know you have python 3.5.0 or higher installed, then\n"
-                "the version your operating system is defaulting to when\n"
-                "running python files is %s.%s.%s\n\n") % tuple(sys.version_info[:3]) * 2
-                )
-            self.destroy()
         print_diagnostics()
         self.alive = True
         self.validate_mek_dir()
