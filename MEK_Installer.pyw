@@ -443,12 +443,12 @@ class MekInstaller(tk.Tk):
         if ((sys.version_info[0] == PYTHON_MIN_MAJOR_VER and sys.version_info[1] < PYTHON_MIN_MINOR_VER) or
             sys.version_info[0] < PYTHON_MIN_MAJOR_VER):
             messagebox.showinfo(
-            "Your version of Python is too old",
-            "The minimum required version of Python for the MEK is %d.%d.\n"
-            "You have version %d.%d, which is behind that by %d major versions and %d minor versions.\n\n"
-            "Get a newer version at www.python.org if you're on Windows, or your package manager if you are on Linux.\n\n"
-            "If you believe you have a new enough version then make sure that you're running the right Python on your system."
-            % (PYTHON_MIN_MAJOR_VER, PYTHON_MIN_MINOR_VER, sys.version_info[0], sys.version_info[1], PYTHON_MIN_MAJOR_VER - sys.version_info[0], PYTHON_MIN_MINOR_VER - sys.version_info[1])
+            "Python upgrade required",
+            "MEK requires a minimum Python version of %d.%d.\n"
+            "Your system has Python version %d.%d.\n\n"
+            "To upgrade, please visit www.python.org/downloads/. Linux users may also use their package manager.\n\n"
+            "If you believe you have a new enough version then make sure you're running the MEK through the right Python install."
+            % (PYTHON_MIN_MAJOR_VER, PYTHON_MIN_MINOR_VER, sys.version_info[0], sys.version_info[1])
             )
             sys.exit(1)
 
