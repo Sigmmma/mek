@@ -193,7 +193,7 @@ def download_mek_to_folder(install_dir, src_url=None):
                 try:
                     os.makedirs(path.dirname(filepath), exist_ok=True)
                 except FileExistsError:
-                    # Deal wtih Windows bug where exist_ok can just be ignored sometimes.
+                    # Deal with Windows bug where exist_ok can just be ignored sometimes.
                     pass
                     
 
