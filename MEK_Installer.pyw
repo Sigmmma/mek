@@ -47,7 +47,7 @@ except:
 
 MEK_LIB_DIRNAME = "mek_lib"
 MEK_DOWNLOAD_URL = "https://github.com/Sigmmma/mek/archive/master.zip"
-VERSION = (2,3,2)
+VERSION = (2,3,3)
 VERSION_STR = "v%s.%s.%s" % VERSION
 
 global installer_updated
@@ -190,7 +190,12 @@ def download_mek_to_folder(install_dir, src_url=None):
             try:
                 filepath = path.join(install_dir, filepath)
 
-                os.makedirs(path.dirname(filepath), exist_ok=True)
+                try:
+                    os.makedirs(path.dirname(filepath), exist_ok=True)
+                except FileExistsError:
+                    # Deal wtih Windows bug where exist_ok can just be ignored sometimes.
+                    pass
+                    
 
                 with mek_zipfile.open(zip_name) as zf, open(filepath, "wb+") as f:
                     filedata = zf.read()
