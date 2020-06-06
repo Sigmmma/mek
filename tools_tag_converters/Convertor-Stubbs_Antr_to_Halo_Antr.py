@@ -11,7 +11,6 @@ from tkinter import *
 from tkinter.filedialog import askdirectory
 from traceback import format_exc
 
-from supyr_struct.defs.constants import PATHDIV
 from supyr_struct.defs.block_def import BlockDef
 from reclaimer.hek.defs.antr    import antr_def
 from reclaimer.stubbs.defs.antr import antr_def as stubbs_antr_def
@@ -20,8 +19,7 @@ from reclaimer.common_descs import tag_header_os
 
 tag_header_def = BlockDef(tag_header_os)
 
-PATHDIV = PATHDIV
-curr_dir = os.path.abspath(os.curdir) + PATHDIV
+curr_dir = os.path.abspath(os.curdir) + "/"
 
 
 def convert_antr_tag(antr_path):
@@ -103,7 +101,7 @@ class StubbsAntrConverter(Tk):
         self.resizable(0, 0)
 
         self.tags_dir = StringVar(self)
-        self.tags_dir.set(curr_dir + 'tags' + PATHDIV)
+        self.tags_dir.set(curr_dir + 'tags/')
 
         # make the frames
         self.tags_dir_frame = LabelFrame(
@@ -146,15 +144,9 @@ class StubbsAntrConverter(Tk):
         start = time()
         tags_dir = self.tags_dir.get()
 
-        if not tags_dir.endswith(PATHDIV):
-            tags_dir += PATHDIV
-
         for root, dirs, files in os.walk(tags_dir):
-            if not root.endswith(PATHDIV):
-                root += PATHDIV
-
             for filename in files:
-                filepath = root + filename
+                filepath = os.path.join(root, filename)
                 if not os.path.splitext(filename)[-1].lower() == '.model_animations':
                     continue
 
