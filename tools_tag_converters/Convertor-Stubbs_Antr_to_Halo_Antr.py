@@ -129,6 +129,7 @@ def convert_antr_tag(antr_path):
         stubbs_anim = stubbs_animations[i]
 
         anim.name = stubbs_anim.name
+        anim.type = stubbs_anim.type
         anim.frame_count = stubbs_anim.frame_count
         anim.frame_size = stubbs_anim.frame_size
         anim.frame_info_type = stubbs_anim.frame_info_type
@@ -147,6 +148,7 @@ def convert_antr_tag(antr_path):
         anim.sound_frame_index = stubbs_anim.sound_frame_index
         anim.left_foot_frame_index = stubbs_anim.left_foot_frame_index
         anim.right_foot_frame_index = stubbs_anim.right_foot_frame_index
+        anim.first_permutation_index = stubbs_anim.first_permutation_index
 
         anim.chance_to_play = stubbs_anim.chance_to_play
 
