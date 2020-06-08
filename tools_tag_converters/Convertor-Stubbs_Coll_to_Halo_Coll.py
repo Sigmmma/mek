@@ -69,17 +69,14 @@ def convert_coll_tag(coll_path):
     stubbs_tagdata  = stubbs_coll_tag.data.tagdata
 
     # move blocks from stubbs tag into the halo one
-    for attr_name in (
-            "flags",
-            "indirect_damage_material",
-            "body",
-            "shield",
-            "modifiers",
-            "pathfinding_box",
-            "pathfinding_spheres",
-            "nodes",
-            ):
-        tagdata[attr_name] = stubbs_tagdata[attr_name]
+    tagdata.flags = stubbs_tagdata.flags
+    tagdata.indirect_damage_material = stubbs_tagdata.indirect_damage_material
+    tagdata.body = stubbs_tagdata.body
+    tagdata.shield = stubbs_tagdata.shield
+    tagdata.modifiers = stubbs_tagdata.modifiers
+    tagdata.pathfinding_box = stubbs_tagdata.pathfinding_box
+    tagdata.pathfinding_spheres = stubbs_tagdata.pathfinding_spheres
+    tagdata.nodes = stubbs_tagdata.nodes
 
     # make materials to replace the stubbs ones
     materials = tagdata.materials.STEPTREE
