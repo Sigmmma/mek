@@ -19,7 +19,7 @@ from reclaimer.common_descs import tag_header_os
 
 tag_header_def = BlockDef(tag_header_os)
 
-curr_dir = os.path.abspath(os.curdir) + '/'
+curr_dir = os.path.abspath(os.curdir)
 
 # maps stubbs material numbers 0-34 to halo names to change them to
 material_map = (
@@ -127,7 +127,7 @@ class StubbsCollConverter(Tk):
         self.resizable(0, 0)
 
         self.tags_dir = StringVar(self)
-        self.tags_dir.set(curr_dir + 'tags/')
+        self.tags_dir.set(os.path.join(curr_dir, 'tags'))
 
         # make the frames
         self.tags_dir_frame = LabelFrame(
