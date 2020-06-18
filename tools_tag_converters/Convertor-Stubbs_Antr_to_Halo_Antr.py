@@ -17,6 +17,9 @@ from reclaimer.stubbs.defs.antr import antr_def as stubbs_antr_def
 from reclaimer.common_descs import tag_header_os
 
 
+__version__ = (1, 1, 0)
+
+
 tag_header_def = BlockDef(tag_header_os)
 
 curr_dir = os.path.abspath(os.curdir)
@@ -173,7 +176,7 @@ class StubbsAntrConverter(Tk):
     def __init__(self, *args, **kwargs):
         Tk.__init__(self, *args, **kwargs)
 
-        self.title("Stubbs antr tag converter v1.0")
+        self.title("Stubbs antr tag converter v%s.%s.%s" % __version__)
         self.resizable(0, 0)
 
         self.tags_dir = StringVar(self)

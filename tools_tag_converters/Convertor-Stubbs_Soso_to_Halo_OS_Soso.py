@@ -17,6 +17,9 @@ from reclaimer.stubbs.defs.soso    import soso_def as stubbs_soso_def
 from reclaimer.common_descs import tag_header_os
 
 
+__version__ = (1, 1, 0)
+
+
 tag_header_def = BlockDef(tag_header_os)
 
 curr_dir = os.path.abspath(os.curdir)
@@ -56,7 +59,7 @@ class StubbsSosoConverter(Tk):
     def __init__(self, *args, **kwargs):
         Tk.__init__(self, *args, **kwargs)
 
-        self.title("Stubbs soso tag converter v1.0")
+        self.title("Stubbs soso tag converter v%s.%s.%s" % __version__)
         self.resizable(0, 0)
 
         self.tags_dir = StringVar(self)
