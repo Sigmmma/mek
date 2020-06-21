@@ -11,17 +11,18 @@ from tkinter import *
 from tkinter.filedialog import askdirectory
 from traceback import format_exc
 
-from supyr_struct.defs.constants import PATHDIV
 from supyr_struct.defs.block_def import BlockDef
 from reclaimer.os_v3_hek.defs.coll import fast_coll_def as coll_def
 from reclaimer.stubbs.defs.coll    import fast_coll_def as stubbs_coll_def
 from reclaimer.common_descs import tag_header_os
 
 
+__version__ = (1, 1, 0)
+
+
 tag_header_def = BlockDef(tag_header_os)
 
-PATHDIV = PATHDIV
-curr_dir = os.path.abspath(os.curdir) + PATHDIV
+curr_dir = os.path.abspath(os.curdir)
 
 # maps stubbs material numbers 0-34 to halo names to change them to
 material_map = (
@@ -71,8 +72,14 @@ def convert_coll_tag(coll_path):
     stubbs_tagdata  = stubbs_coll_tag.data.tagdata
 
     # move blocks from stubbs tag into the halo one
-    for i in (0, 1, 2, 3, 6, 7, 8):
-        tagdata[i] = stubbs_tagdata[i]
+    tagdata.flags = stubbs_tagdata.flags
+    tagdata.indirect_damage_material = stubbs_tagdata.indirect_damage_material
+    tagdata.body = stubbs_tagdata.body
+    tagdata.shield = stubbs_tagdata.shield
+    tagdata.modifiers = stubbs_tagdata.modifiers
+    tagdata.pathfinding_box = stubbs_tagdata.pathfinding_box
+    tagdata.pathfinding_spheres = stubbs_tagdata.pathfinding_spheres
+    tagdata.nodes = stubbs_tagdata.nodes
 
     # make materials to replace the stubbs ones
     materials = tagdata.materials.STEPTREE
@@ -119,11 +126,11 @@ class StubbsCollConverter(Tk):
     def __init__(self, *args, **kwargs):
         Tk.__init__(self, *args, **kwargs)
 
-        self.title("Stubbs coll tag converter v1.0")
+        self.title("Stubbs coll tag converter v%s.%s.%s" % __version__)
         self.resizable(0, 0)
 
         self.tags_dir = StringVar(self)
-        self.tags_dir.set(curr_dir + 'tags' + PATHDIV)
+        self.tags_dir.set(os.path.join(curr_dir, 'tags'))
 
         # make the frames
         self.tags_dir_frame = LabelFrame(
@@ -166,15 +173,9 @@ class StubbsCollConverter(Tk):
         start = time()
         tags_dir = self.tags_dir.get()
 
-        if not tags_dir.endswith(PATHDIV):
-            tags_dir += PATHDIV
-
         for root, dirs, files in os.walk(tags_dir):
-            if not root.endswith(PATHDIV):
-                root += PATHDIV
-
             for filename in files:
-                filepath = root + filename
+                filepath = os.path.join(root, filename)
                 if not os.path.splitext(filename)[-1].lower() == '.model_collision_geometry':
                     continue
 

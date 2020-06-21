@@ -11,17 +11,18 @@ from tkinter import *
 from tkinter.filedialog import askdirectory
 from traceback import format_exc
 
-from supyr_struct.defs.constants import PATHDIV
 from supyr_struct.defs.block_def import BlockDef
 from reclaimer.os_v3_hek.defs.soso import soso_def
 from reclaimer.stubbs.defs.soso    import soso_def as stubbs_soso_def
 from reclaimer.common_descs import tag_header_os
 
 
+__version__ = (1, 1, 0)
+
+
 tag_header_def = BlockDef(tag_header_os)
 
-PATHDIV = PATHDIV
-curr_dir = os.path.abspath(os.curdir) + PATHDIV
+curr_dir = os.path.abspath(os.curdir)
 
 
 def convert_soso_tag(soso_path):
@@ -58,11 +59,11 @@ class StubbsSosoConverter(Tk):
     def __init__(self, *args, **kwargs):
         Tk.__init__(self, *args, **kwargs)
 
-        self.title("Stubbs soso tag converter v1.0")
+        self.title("Stubbs soso tag converter v%s.%s.%s" % __version__)
         self.resizable(0, 0)
 
         self.tags_dir = StringVar(self)
-        self.tags_dir.set(curr_dir + 'tags' + PATHDIV)
+        self.tags_dir.set(os.path.join(curr_dir, 'tags'))
 
         # make the frames
         self.tags_dir_frame = LabelFrame(
@@ -105,15 +106,9 @@ class StubbsSosoConverter(Tk):
         start = time()
         tags_dir = self.tags_dir.get()
 
-        if not tags_dir.endswith(PATHDIV):
-            tags_dir += PATHDIV
-
         for root, dirs, files in os.walk(tags_dir):
-            if not root.endswith(PATHDIV):
-                root += PATHDIV
-
             for filename in files:
-                filepath = root + filename
+                filepath = os.path.join(root, filename)
                 if not os.path.splitext(filename)[-1].lower() == '.shader_model':
                     continue
 
