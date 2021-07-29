@@ -34,6 +34,11 @@ Troubleshooting:
 "show detailed information" box and run it again. Send me a message with the output
 and your system's information so I can fix it.
 
+    * If the error is “ERROR: Can not combine '--user' and '--target'”, you might be
+      using the Microsoft Store version of Python, which is incompatible with the MEK
+      installer (check for “AppData\Local\Microsoft\WindowsApps” in your output). Try
+      uninstalling that Python and installing one from <https://www.python.org>.
+
 * If programs wont run at all, Python might not have been added to your system's PATH
 environment variable. Google how to fix this, or run the python installer again to
 uninstall it and re-install it with at least the options specified above ticked.
