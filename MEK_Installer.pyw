@@ -47,7 +47,7 @@ except:
 
 MEK_LIB_DIRNAME = "mek_lib"
 MEK_DOWNLOAD_URL = "https://github.com/Sigmmma/mek/archive/master.zip"
-VERSION = (2,3,3)
+VERSION = (2,3,4)
 VERSION_STR = "v%s.%s.%s" % VERSION
 
 global installer_updated
@@ -55,10 +55,33 @@ installer_updated = False
 
 # refinery requires mozzarilla(tag preview features and such), so we dont
 # need to specify it here as it will be installed anyway when refinery is.
-mek_program_package_names = ("refinery", "hek_pool", ) # "mozzarilla")
-mek_library_package_names = ("reclaimer", )
-program_package_names     = ("binilla", )
-library_package_names     = ("supyr_struct", "arbytmap", "tatsu", )
+mek_program_packages = dict(
+    hek_pool    = "git+https://github.com/sigmmma/hek_pool.git",
+    refinery    = "git+https://github.com/sigmmma/refinery.git",
+    mozzarilla  = "git+https://github.com/sigmmma/mozzarilla.git",
+    )
+mek_library_packages = dict(
+    reclaimer   = "git+https://github.com/sigmmma/reclaimer.git",
+    )
+program_packages     = dict(
+    binilla     = "git+https://github.com/sigmmma/binilla.git",
+    )
+library_packages     = dict(
+    supyr_struct        = "git+https://github.com/sigmmma/supyr_struct.git",
+    arbytmap            = "git+https://github.com/sigmmma/arbytmap.git",
+    threadsafe_tkinter  = "git+https://github.com/sigmmma/threadsafe_tkinter.git",
+    tatsu               = "", # we don't need to test pulling this from a repo
+    )
+all_packages = dict(**mek_program_packages, **program_packages, 
+                    **mek_library_packages, **library_packages)
+# NOTE: this is ordered so the packages depending on others will be
+#       installed first, allowing those others to be overwritten
+#       with the version we may have specified on the command line.
+install_order = (
+    "refinery", "hek_pool", "mozzarilla", "reclaimer",
+    "binilla", "arbytmap", "supyr_struct",
+    "threadsafe_tkinter", "tatsu",
+    )
 
 if "linux" in platform.lower():
     platform = "linux"
@@ -87,17 +110,57 @@ pip_exec_name = [PY_EXE, "-m", "pip"]
 #####################################################
 
 parser = ArgumentParser(description='The installer/updater for the MEK. Version %s' % VERSION_STR)
-parser.add_argument('--version', action='version', version=VERSION_STR)
-parser.add_argument('--install-dir', help='Enforce what directory we download the MEK to.')
-parser.add_argument('--disable-uninstall-btn', action='store_true', help='Disable the uninstall button.')
-parser.add_argument('--essentials-version', help='The version of the MEK Essentials that launched the installer.')
-parser.add_argument('--meke-dir', help='The directory where the MEKe files are located.') # For the future.
+parser.add_argument(
+    '--version', action='version', version=VERSION_STR
+    )
+parser.add_argument(
+    '--install-dir',
+    help='Enforce what directory we download the MEK to.'
+    )
+parser.add_argument(
+    '--use-source-urls', action='store_true',
+    help=('Download packages from the source urls instead of PyPI. '
+          'To ensure dependencies are pulled from source urls, '
+          "they'll be installed a second time('force reinstall' required)")
+    )
+parser.add_argument(
+    '--disable-uninstall-btn', action='store_true',
+    help='Disable the uninstall button.'
+    )
+parser.add_argument(
+    '--disable-installer-update', action='store_true',
+    help='Continue installing, even if the downloaded installer differs.'
+    )
+parser.add_argument(
+    '--essentials-version',
+    help='The version of the MEK Essentials that launched the installer.'
+    )
+parser.add_argument( # For the future.
+    '--meke-dir',
+    help='The directory where the MEKe files are located.'
+    )
+
+# add branch overrides for each module we can install from source repos
+for name in sorted(all_packages):
+    all_packages[name] and parser.add_argument(
+        '--%s-branch' % name.replace("_", "-"), default="",
+        help='The branch to pull the %s module from.' % name
+        )
+
 cmd_args = parser.parse_args()
 
+
 INSTALL_DIR          = path.abspath(cmd_args.install_dir or os.curdir)
+INSTALL_FROM_GITHUB  = cmd_args.use_source_urls
 CAN_PICK_INSTALL_DIR = not bool(cmd_args.install_dir)
 HIDE_UNINSTALL_BTN   = cmd_args.disable_uninstall_btn
+CHECK_INSTALLER_DIFF = not cmd_args.disable_installer_update
 ESSENTIALS_VERSION   = cmd_args.essentials_version or None
+
+package_branch_names = {
+    name: getattr(cmd_args, "%s_branch" % name, "") for name in all_packages
+    }
+
 
 # This is for the embedded updater. We disable certain features if we detect
 # that we are embedded.
@@ -199,8 +262,8 @@ def download_mek_to_folder(install_dir, src_url=None):
 
                 with mek_zipfile.open(zip_name) as zf, open(filepath, "wb+") as f:
                     filedata = zf.read()
-                    if filepath.lower().endswith(setup_filename) and filedata != setup_file_data:
-                        # NOTE: Comment out the next line if testing installer
+                    if CHECK_INSTALLER_DIFF and (filepath.lower().endswith(setup_filename) and
+                                                 filedata != setup_file_data):
                         installer_updated = True
                         new_installer_path = filepath
                     f.write(filedata)
@@ -268,7 +331,7 @@ def is_pip_installed(app):
 
     for pattern in pip_patterns:
         print("Trying:", pattern, "...", end="")
-        if not bool(subprocess.run(pattern).returncode):
+        if not bool(subprocess.run([*pattern, "--version"]).returncode):
             print("success!")
             pip_exec_name = pattern
             return True
@@ -347,11 +410,11 @@ def uninstall(partial_uninstall=True, show_verbose=False, app=None):
     try:
         # by default we wont uninstall supyr_struct, arbytmap, or
         # binilla since they may be needed by other applications
-        modules = list(mek_program_package_names + mek_library_package_names)
+        to_uninstall = set((*mek_program_packages, *mek_library_packages))
         if not partial_uninstall:
-            modules.extend(program_package_names + library_package_names)
+            to_uninstall.update(*program_packages, *library_packages)
 
-        for mod_name in modules:
+        for mod_name in (name for name in install_order if name in to_uninstall):
             exec_strs = [*pip_exec_name, "uninstall", mod_name, "-y"]
             if show_verbose:
                 exec_strs += ['--verbose']
@@ -390,8 +453,18 @@ def install(install_path=None, force_reinstall=False,
             install_path = path.join(install_path, MEK_LIB_DIRNAME)
 
         ensure_setuptools_installed(app)
-        for mod in mek_program_package_names:
-            exec_strs = [*pip_exec_name, "install", mod,
+
+        to_install = set(
+            all_packages if INSTALL_FROM_GITHUB else
+            mek_program_packages
+            )
+
+        for mod_name in (name for name in install_order if name in to_install):
+            branch = package_branch_names.get(mod_name)
+            mod = all_packages[mod_name] + ("" if not branch else "@" + branch)
+
+            src = (mod if INSTALL_FROM_GITHUB else mod_name) or mod_name
+            exec_strs = [*pip_exec_name, "install", src,
                          "--upgrade", "--no-cache-dir"]
             if install_path is not None:
                 exec_strs += ['--target=%s' % install_path]
@@ -611,8 +684,7 @@ class MekInstaller(tk.Tk):
         if self.portable.get():
             names_str = ""
             package_ct = 0
-            for name in (mek_program_package_names + program_package_names +
-                         mek_library_package_names + library_package_names):
+            for name in all_package_names:
                 names_str = "%s%s\n" % (names_str, name)
                 package_ct += 1
 
