@@ -70,7 +70,7 @@ library_packages     = dict(
     supyr_struct        = "git+https://github.com/sigmmma/supyr_struct.git",
     arbytmap            = "git+https://github.com/sigmmma/arbytmap.git",
     threadsafe_tkinter  = "git+https://github.com/sigmmma/threadsafe_tkinter.git",
-    tatsu               = "",
+    tatsu               = "", # we don't need to test pulling this from a repo
     )
 all_packages = dict(**mek_program_packages, **program_packages, 
                     **mek_library_packages, **library_packages)
@@ -140,6 +140,7 @@ parser.add_argument( # For the future.
     help='The directory where the MEKe files are located.'
     )
 
+# add branch overrides for each module we can install from source repos
 for name in sorted(all_packages):
     all_packages[name] and parser.add_argument(
         '--%s-branch' % name.replace("_", "-"), default="",
